@@ -214,6 +214,7 @@
   position: relative;
   height: 45px;
   margin: 7px 20px 20px 20px;
+  zoom: 0.9;
 }
 
 .tabsContainer {
