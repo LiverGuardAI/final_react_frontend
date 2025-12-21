@@ -175,12 +175,12 @@
 }
 
 .actionButton.start {
-  background: #6B58B1;
+  background: #52759C;
   color: #FFFFFF;
 }
 
 .actionButton.start:hover {
-  background: #5a4a9a;
+  background: #52759C;
 }
 
 .actionButton.inProgress {
@@ -350,6 +350,72 @@
   flex: 1;
   padding: 0;
   overflow: hidden;
+}
+
+/* 홈 화면 공통 스타일 */
+.homeContainer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto 1fr;
+  gap: 20px;
+  padding: 20px;
+  height: 100%;
+  box-sizing: border-box;
+  zoom: 0.7;
+}
+
+.sectionTitle {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+  flex-shrink: 0;
+}
+
+.sectionCard {
+  background: #FFF;
+  border-radius: 15px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+}
+
+.arrowIcon {
+  font-size: 28px;
+  cursor: pointer;
+  font-weight: 300;
+  line-height: 1;
+}
+
+/* 최근 환자 내역 */
+.patientDetailItem {
+  font-size: 15px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.patientDetailItem:last-child {
+  margin-bottom: 18px;
+}
+
+.viewRecordBtn {
+  width: 100%;
+  background: #D7E8FB;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #52759C;
+  cursor: pointer;
 }
 
 /* 진료 현황 대시보드 */

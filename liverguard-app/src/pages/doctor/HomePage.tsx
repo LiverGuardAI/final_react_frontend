@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import styles from './DoctorHome.module.css';
+import TreatmentPage from './TreatmentPage';
 
 interface Patient {
   id: number;
@@ -20,7 +21,7 @@ export default function DoctorHomePage() {
   // 샘플 환자 데이터
   const [waitingPatients] = useState<Patient[]>([
     { id: 1, name: '장보윤', birthDate: '2000.05.21', age: 26, gender: '여' },
-    { id: 2, name: '송영은', birthDate: '2000.05.21', age: 26, gender: '남' },
+    { id: 2, name: '송영운', birthDate: '2000.05.21', age: 26, gender: '남' },
     { id: 3, name: '정예진', birthDate: '2000.05.21', age: 26, gender: '여' },
   ]);
 
@@ -242,7 +243,7 @@ export default function DoctorHomePage() {
       case 'schedule':
         return <div style={{ padding: '20px' }}>일정 관리 화면</div>;
       case 'treatment':
-        return <div style={{ padding: '20px' }}>환자 진료 화면</div>;
+        return <TreatmentPage />;
       case 'patientManagement':
         return <div style={{ padding: '20px' }}>환자 관리 화면</div>;
       case 'examination':
