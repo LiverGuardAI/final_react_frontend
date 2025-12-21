@@ -23,12 +23,17 @@ const router = createBrowserRouter(
       <Route path="/doctor/login" element={<DoctorLoginPage />} />
       <Route
         path="/doctor/home"
+        element={<DoctorHomePage />}
+      />
+      {/* 테스트용 - 나중에 ProtectedRoute 복원 필요 */}
+      {/* <Route
+        path="/doctor/home"
         element={
           <ProtectedRoute requiredRole="doctor">
             <DoctorHomePage />
           </ProtectedRoute>
         }
-      />
+      /> */}
 
       {/* administration */}
       <Route path="/administration/login" element={<AdministrationLoginPage />} />
