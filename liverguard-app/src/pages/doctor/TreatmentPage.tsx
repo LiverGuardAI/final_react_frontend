@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import DoctorLayout from '../../layouts/DoctorLayout';
 import styles from './TreatmentPage.module.css';
 
 export default function TreatmentPage() {
@@ -25,9 +26,10 @@ export default function TreatmentPage() {
                          diagnosisName.toLowerCase().includes('hepatocellular');
 
   return (
-    <div className={styles.container}>
-      {/* 환자 정보 헤더 */}
-      <div className={styles.patientHeader}>
+    <DoctorLayout activeTab="treatment">
+      <div className={styles.treatmentContainer}>
+        {/* 환자 정보 헤더 */}
+        <div className={styles.patientHeader}>
         <div className={styles.patientInfo}>
           <div className={styles.patientName}>
             <h1>정예진</h1>
@@ -330,6 +332,7 @@ export default function TreatmentPage() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </DoctorLayout>
   );
 }

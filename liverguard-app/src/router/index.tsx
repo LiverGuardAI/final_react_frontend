@@ -8,6 +8,8 @@ import {
 import HomePage from "../pages/home/HomePage";
 import DoctorLoginPage from "../pages/doctor/LoginPage";
 import DoctorHomePage from "../pages/doctor/HomePage";
+import SchedulePage from "../pages/doctor/SchedulePage";
+import TreatmentPage from "../pages/doctor/TreatmentPage";
 import AdministrationLoginPage from "../pages/administration/LoginPage";
 import AdministrationHomePage from "../pages/administration/HomePage";
 import RadiologyLoginPage from "../pages/radiology/LoginPage";
@@ -21,10 +23,9 @@ const router = createBrowserRouter(
 
       {/* doctor */}
       <Route path="/doctor/login" element={<DoctorLoginPage />} />
-      <Route
-        path="/doctor/home"
-        element={<DoctorHomePage />}
-      />
+      <Route path="/doctor/home" element={<DoctorHomePage />} />
+      <Route path="/doctor/schedule" element={<SchedulePage />} />
+      <Route path="/doctor/treatment" element={<TreatmentPage />} />
       {/* 테스트용 - 나중에 ProtectedRoute 복원 필요 */}
       {/* <Route
         path="/doctor/home"

@@ -1,6 +1,6 @@
 /* TreatmentPage 전용 스타일 */
 
-.container {
+.treatmentContainer {
   padding: 20px;
   height: 100%;
   box-sizing: border-box;
@@ -14,7 +14,7 @@
 .patientHeader {
   background: #FFF;
   border-radius: 15px;
-  padding: 20px 30px;
+  padding: 30px 40px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
 }
@@ -22,42 +22,43 @@
 .patientInfo {
   display: flex;
   align-items: center;
-  gap: 30px;
+  gap: 40px;
   flex-wrap: wrap;
 }
 
 .patientName {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 15px;
 }
 
 .patientName h1 {
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 700;
   margin: 0;
 }
 
 .patientName span {
-  font-size: 16px;
+  font-size: 18px;
   color: #666;
 }
 
 .patientInfoItem {
-  font-size: 15px;
+  font-size: 16px;
   color: #000;
+  font-weight: 500;
 }
 
 .testBadges {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   margin-left: auto;
 }
 
 .testBadge {
-  padding: 4px 12px;
+  padding: 8px 16px;
   border-radius: 12px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -99,7 +100,7 @@
 }
 
 .recordCard h3 {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   margin-bottom: 15px;
   display: flex;
@@ -122,13 +123,13 @@
 }
 
 .recordDate {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   margin-bottom: 6px;
 }
 
 .recordDetail {
-  font-size: 13px;
+  font-size: 15px;
   color: #666;
   margin-bottom: 4px;
 }
@@ -139,18 +140,18 @@
 
 .detailButton {
   margin-top: 8px;
-  padding: 6px 12px;
+  padding: 8px 14px;
   background: #52759C;
   color: #FFF;
   border: none;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 14px;
   cursor: pointer;
 }
 
 /* 검사 결과 */
 .testResultTitle {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   margin-bottom: 10px;
 }
@@ -159,16 +160,16 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  font-size: 13px;
+  font-size: 15px;
   margin-bottom: 15px;
 }
 
 .viewButton {
-  padding: 6px 12px;
+  padding: 8px 14px;
   color: #FFF;
   border: none;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 14px;
   cursor: pointer;
 }
 
@@ -279,12 +280,12 @@
 }
 
 .aiButton {
-  padding: 6px 12px;
+  padding: 8px 14px;
   background: #52759C;
   color: #FFF;
   border: none;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
 }
 
@@ -311,7 +312,7 @@
 }
 
 .checkboxLabel span {
-  font-size: 15px;
+  font-size: 16px;
 }
 
 /* 처방 약물 */
@@ -360,23 +361,23 @@
 }
 
 .prescriptionInfo div:first-child {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   margin-bottom: 4px;
 }
 
 .prescriptionInfo div:last-child {
-  font-size: 13px;
+  font-size: 15px;
   color: #666;
 }
 
 .editButton {
-  padding: 8px 12px;
+  padding: 8px 14px;
   background: #FFF;
   border: 1px solid #DDD;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .addButton {
@@ -401,7 +402,7 @@
 }
 
 .sectionSubtitle {
-  font-size: 17px;
+  font-size: 20px;
   font-weight: 700;
   margin: 0 0 20px 0;
   color: #388E3C;

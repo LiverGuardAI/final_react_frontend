@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './DoctorHome.module.css';
-import TreatmentPage from './TreatmentPage';
 
 interface Patient {
   id: number;
@@ -14,6 +14,8 @@ interface Patient {
 type TabType = 'home' | 'schedule' | 'treatment' | 'patientManagement' | 'examination' | 'testForm' | 'medication';
 
 export default function DoctorHomePage() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [sidebarTab, setSidebarTab] = useState<'waiting' | 'completed'>('waiting');
@@ -241,9 +243,11 @@ export default function DoctorHomePage() {
           </div>
         );
       case 'schedule':
-        return <div style={{ padding: '20px' }}>일정 관리 화면</div>;
+        navigate('/doctor/schedule');
+        return null;
       case 'treatment':
-        return <TreatmentPage />;
+        navigate('/doctor/treatment');
+        return null;
       case 'patientManagement':
         return <div style={{ padding: '20px' }}>환자 관리 화면</div>;
       case 'examination':
