@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import styles from './DoctorHome.module.css';
 
 interface Patient {
@@ -16,9 +17,31 @@ type TabType = 'home' | 'schedule' | 'treatment' | 'patientManagement' | 'examin
 export default function DoctorHomePage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout } = useAuth();
+  const [doctorName, setDoctorName] = useState<string>('의사');
+  const [departmentName, setDepartmentName] = useState<string>('부서');
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [sidebarTab, setSidebarTab] = useState<'waiting' | 'completed'>('waiting');
+
+  useEffect(() => {
+    const storedDoctor = localStorage.getItem('doctor');
+    if (!storedDoctor) {
+      return;
+    }
+
+    try {
+      const doctor = JSON.parse(storedDoctor) as { name?: string; department?: string };
+      if (doctor.name) {
+        setDoctorName(doctor.name);
+      }
+      if (doctor.department) {
+        setDepartmentName(doctor.department);
+      }
+    } catch (error) {
+      console.error('Failed to parse doctor info from storage', error);
+    }
+  }, []);
 
   // 샘플 환자 데이터
   const [waitingPatients] = useState<Patient[]>([
@@ -47,6 +70,20 @@ export default function DoctorHomePage() {
     console.log(`Dropdown item clicked: ${item}`);
     setOpenDropdown(null);
     // 드롭다운 아이템 클릭 로직
+  };
+
+  const handleLogout = () => {
+    // 로컬 스토리지에서 토큰 및 사용자 정보 제거
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('doctor');
+
+    // AuthContext 로그아웃
+    logout();
+
+    // 홈 페이지로 이동
+    navigate('/');
   };
 
   const renderTabContent = () => {
@@ -270,8 +307,8 @@ export default function DoctorHomePage() {
           <div className={styles.profileSection}>
             <div className={styles.profileImage}></div>
             <div className={styles.profileInfo}>
-              <div className={styles.profileName}>정예진</div>
-              <div className={styles.departmentTag}>소화기내과</div>
+              <div className={styles.profileName}>{doctorName}</div>
+              <div className={styles.departmentTag}>{departmentName}</div>
               <div className={styles.statusInfo}>
                 상태: <span className={styles.statusBadge}>근무중</span>
               </div>
@@ -460,7 +497,7 @@ export default function DoctorHomePage() {
             </button>
             <button
               className={styles.iconButton}
-              onClick={() => console.log('Logout clicked')}
+              onClick={handleLogout}
               title="로그아웃"
             >
               <svg className={styles.logoutIcon} width="24" height="24" viewBox="0 0 24 24" fill="none">

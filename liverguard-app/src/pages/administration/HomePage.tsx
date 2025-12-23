@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from "../../context/AuthContext";
 import styles from './HomePage.module.css';
 import SchedulePage from './SchedulePage';
 import AppointmentManagementPage from './AppointmentManagementPage';
@@ -44,6 +45,9 @@ type ContentTabType = 'search' | 'newPatient';
 
 export default function AdministrationHomePage() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
+  const [staffName, setStaffName] = useState<string>('원무과');
+  const [departmentName, setDepartmentName] = useState<string>('부서');
   const [activeTab, setActiveTab] = useState<TabType>('questionnaire');
   const [contentTab, setContentTab] = useState<ContentTabType>('search');
   const [searchQuery, setSearchQuery] = useState('');
@@ -151,6 +155,35 @@ export default function AdministrationHomePage() {
     // }
   };
 
+  useEffect(() => {
+    const storedAdmin = localStorage.getItem('administration');
+    if (!storedAdmin) {
+      return;
+    }
+
+    try {
+      const adminStaff = JSON.parse(storedAdmin) as { name?: string; department?: string };
+      if (adminStaff.name) {
+        setStaffName(adminStaff.name);
+      }
+      if (adminStaff.department) {
+        setDepartmentName(adminStaff.department);
+      }
+    } catch (error) {
+      console.error('Failed to parse administration info from storage', error);
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('administration');
+
+    logout();
+    navigate('/');
+  };
+
   return (
     <div className={styles.container}>
       {/* 왼쪽 사이드바 */}
@@ -160,8 +193,8 @@ export default function AdministrationHomePage() {
           <div className={styles.profileSection}>
             <div className={styles.profileImage}></div>
             <div className={styles.profileInfo}>
-              <div className={styles.profileName}>김민지</div>
-              <div className={styles.departmentTag}>원무과</div>
+              <div className={styles.profileName}>{staffName}</div>
+              <div className={styles.departmentTag}>{departmentName}</div>
               <div className={styles.statusInfo}>
                 상태: <span className={styles.statusBadge}>근무중</span>
               </div>
@@ -265,7 +298,7 @@ export default function AdministrationHomePage() {
             </button>
             <button
               className={styles.iconButton}
-              onClick={() => console.log('Logout clicked')}
+              onClick={handleLogout}
               title="로그아웃"
             >
               <svg className={styles.logoutIcon} width="24" height="24" viewBox="0 0 24 24" fill="none">

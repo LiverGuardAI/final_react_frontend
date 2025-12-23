@@ -10,21 +10,21 @@ export default function HomePage() {
 
       <div style={{ display: "flex", gap: "20px", justifyContent: "center", marginTop: "30px" }}>
         <button
-          onClick={() => navigate("/doctor/home")}
+          onClick={() => navigate("/doctor/login")}
           style={{ padding: "20px 40px", fontSize: "18px", cursor: "pointer" }}
         >
           의사
         </button>
 
         <button
-          onClick={() => navigate("/administration/home")}
+          onClick={() => navigate("/administration/login")}
           style={{ padding: "20px 40px", fontSize: "18px", cursor: "pointer" }}
         >
           원무과
         </button>
 
         <button
-          onClick={() => navigate("/radiology/home")}
+          onClick={() => navigate("/radiology/login")}
           style={{ padding: "20px 40px", fontSize: "18px", cursor: "pointer" }}
         >
           영상의학과

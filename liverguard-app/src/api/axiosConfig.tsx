@@ -15,8 +15,21 @@ const apiClient = axios.create({
 // 🔹 Request Interceptor
 apiClient.interceptors.request.use(
   (config) => {
+    const url = config.url || "";
+    const isAuthRequest =
+      url.includes("auth/login/") ||
+      url.includes("auth/refresh/") ||
+      url.includes("auth/doctor/login/") ||
+      url.includes("auth/radiology/login/") ||
+      url.includes("auth/administration/login/");
+
+    if (isAuthRequest) {
+      return config;
+    }
+
     const token = localStorage.getItem("access_token");
     if (token) {
+      config.headers = config.headers ?? {};
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -28,7 +41,13 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error(error.response?.data || error);
+    const data = error.response?.data;
+    const isTokenInvalid = data?.code === "token_not_valid";
+    if (isTokenInvalid) {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+    }
+    console.error(data || error);
     return Promise.reject(error);
   }
 );
