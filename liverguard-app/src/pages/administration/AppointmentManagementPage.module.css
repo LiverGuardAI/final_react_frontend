@@ -1,0 +1,527 @@
+/* AppointmentManagementPage.module.css */
+
+.container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: #F5F7FA;
+  padding: 20px;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #000000;
+  margin: 0;
+}
+
+.stats {
+  display: flex;
+  gap: 15px;
+}
+
+.statBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #FFFFFF;
+  border-radius: 10px;
+  padding: 10px 20px;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.statLabel {
+  font-size: 12px;
+  color: #666666;
+  font-weight: 500;
+}
+
+.statValue {
+  font-size: 22px;
+  font-weight: 700;
+  color: #52759C;
+  margin-top: 5px;
+}
+
+.tableContainer {
+  flex: 1;
+  overflow: auto;
+  background: #FFFFFF;
+  border-radius: 12px;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+  padding: 15px;
+}
+
+.requestTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: #FFFFFF;
+}
+
+.requestTable thead {
+  background: #F8F9FA;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.requestTable th {
+  padding: 12px 10px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 700;
+  color: #333333;
+  border-bottom: 2px solid #E0E0E0;
+  white-space: nowrap;
+}
+
+.requestTable td {
+  padding: 12px 10px;
+  font-size: 13px;
+  color: #666666;
+  border-bottom: 1px solid #F0F0F0;
+  vertical-align: middle;
+}
+
+.requestTable tbody tr:hover {
+  background: #F8F9FA;
+}
+
+.patientName {
+  font-weight: 700;
+  color: #000000 !important;
+}
+
+.timeText {
+  font-size: 11px;
+  color: #999999;
+}
+
+.symptomsButton {
+  background: #E8EFF7;
+  color: #52759C;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.symptomsButton:hover {
+  background: #D7E8FB;
+  color: #405F7F;
+}
+
+.statusBadge {
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.statusBadge.요청중 {
+  background: #FFB800;
+  color: #FFFFFF;
+}
+
+.statusBadge.승인됨 {
+  background: #8BC34A;
+  color: #FFFFFF;
+}
+
+.statusBadge.거절됨 {
+  background: #FF5252;
+  color: #FFFFFF;
+}
+
+.actionButtons {
+  display: flex;
+  gap: 6px;
+}
+
+.approveBtn,
+.rejectBtn,
+.assignBtn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.approveBtn {
+  background: #8BC34A;
+  color: #FFFFFF;
+}
+
+.approveBtn:hover {
+  background: #7CB342;
+}
+
+.rejectBtn {
+  background: #FF5252;
+  color: #FFFFFF;
+}
+
+.rejectBtn:hover {
+  background: #E64545;
+}
+
+.assignBtn {
+  background: #52759C;
+  color: #FFFFFF;
+}
+
+.assignBtn:hover {
+  background: #405F7F;
+}
+
+.rejectedText {
+  color: #CCCCCC;
+  font-size: 12px;
+}
+
+.assignedText {
+  color: #8BC34A;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* 모달 */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background: #FFFFFF;
+  border-radius: 15px;
+  box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.3);
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 25px;
+  border-bottom: 2px solid #E0E0E0;
+}
+
+.modalHeader h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #000000;
+  margin: 0;
+}
+
+.closeButton {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  color: #999999;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.closeButton:hover {
+  color: #333333;
+}
+
+.modalBody {
+  flex: 1;
+  padding: 25px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.modalRow {
+  display: flex;
+  gap: 10px;
+}
+
+.modalLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333333;
+  min-width: 120px;
+}
+
+.modalValue {
+  font-size: 14px;
+  color: #666666;
+}
+
+.symptomSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #F8F9FA;
+  padding: 15px;
+  border-radius: 10px;
+}
+
+.symptomText {
+  font-size: 14px;
+  color: #666666;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.modalFooter {
+  padding: 15px 25px;
+  border-top: 1px solid #E0E0E0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.modalCloseBtn {
+  padding: 10px 25px;
+  background: #52759C;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modalCloseBtn:hover {
+  background: #405F7F;
+}
+
+/* 의사 배정 모달 */
+.assignModalContent {
+  background: #FFFFFF;
+  border-radius: 15px;
+  box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.3);
+  width: 90%;
+  max-width: 900px;
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.assignModalBody {
+  flex: 1;
+  padding: 25px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.patientSummary {
+  background: #F8F9FA;
+  border-radius: 10px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.summaryRow {
+  display: flex;
+  gap: 10px;
+}
+
+.summaryLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333333;
+  min-width: 100px;
+}
+
+.summaryValue {
+  font-size: 14px;
+  color: #666666;
+}
+
+.dateSelector {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.dateLabel {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333333;
+}
+
+.dateInput {
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid #DDD;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.dateInput:focus {
+  outline: none;
+  border-color: #52759C;
+  box-shadow: 0 0 0 3px rgba(82, 117, 156, 0.1);
+}
+
+.scheduleList {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.scheduleTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #000000;
+  margin: 0;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #E0E0E0;
+}
+
+.scheduleCards {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.scheduleCard {
+  background: #FFFFFF;
+  border: 2px solid #E0E0E0;
+  border-radius: 12px;
+  padding: 15px;
+  transition: all 0.2s;
+}
+
+.scheduleCard:hover {
+  border-color: #52759C;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.scheduleCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #F0F0F0;
+}
+
+.doctorNameLarge {
+  font-size: 16px;
+  font-weight: 700;
+  color: #000000;
+  margin: 0 0 5px 0;
+}
+
+.doctorInfo {
+  font-size: 13px;
+  color: #666666;
+  margin: 0;
+}
+
+.scheduleStatus {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.availableSlots {
+  background: #8BC34A;
+  color: #FFFFFF;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.scheduleTime {
+  font-size: 13px;
+  color: #666666;
+  font-weight: 500;
+}
+
+.timeSlotsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.timeSlotsLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333333;
+  margin: 0;
+}
+
+.timeSlots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+  gap: 8px;
+}
+
+.timeSlotBtn {
+  padding: 8px 12px;
+  background: #E8EFF7;
+  color: #52759C;
+  border: 1px solid #D7E8FB;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.timeSlotBtn:hover {
+  background: #52759C;
+  color: #FFFFFF;
+  border-color: #52759C;
+}
+
+.noSchedules {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999999;
+  font-size: 14px;
+  background: #F8F9FA;
+  border-radius: 10px;
+}

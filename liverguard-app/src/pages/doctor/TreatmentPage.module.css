@@ -1,0 +1,452 @@
+/* TreatmentPage 전용 스타일 */
+
+.treatmentContainer {
+  padding: 20px;
+  height: 100%;
+  box-sizing: border-box;
+  zoom: 0.7;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 환자 정보 헤더 */
+.patientHeader {
+  background: #FFF;
+  border-radius: 15px;
+  padding: 30px 40px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.patientInfo {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  flex-wrap: wrap;
+}
+
+.patientName {
+  display: flex;
+  align-items: baseline;
+  gap: 15px;
+}
+
+.patientName h1 {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.patientName span {
+  font-size: 18px;
+  color: #666;
+}
+
+.patientInfoItem {
+  font-size: 16px;
+  color: #000;
+  font-weight: 500;
+}
+
+.testBadges {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.testBadge {
+  padding: 8px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.testBadge.completed {
+  background: #E8F5E9;
+  color: #388E3C;
+}
+
+.testBadge.ct {
+  background: #F3E5F5;
+  color: #7B1FA2;
+}
+
+/* 메인 레이아웃 */
+.mainLayout {
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: 20px;
+  flex: 1;
+  min-height: 0;
+}
+
+/* 왼쪽 섹션 */
+.leftSection {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+}
+
+.recordCard {
+  background: #FFF;
+  border-radius: 15px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.recordCard h3 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.recordList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.recordItem {
+  padding: 12px;
+  background: #F5F7FA;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.recordDate {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.recordDetail {
+  font-size: 15px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.recordDetail:last-of-type {
+  margin-bottom: 0;
+}
+
+.detailButton {
+  margin-top: 8px;
+  padding: 8px 14px;
+  background: #52759C;
+  color: #FFF;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* 검사 결과 */
+.testResultTitle {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.testResultGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-size: 15px;
+  margin-bottom: 15px;
+}
+
+.viewButton {
+  padding: 8px 14px;
+  color: #FFF;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.viewButton.lab {
+  background: #388E3C;
+}
+
+.viewButton.ct {
+  background: #7B1FA2;
+}
+
+/* 오른쪽 작성 영역 */
+.rightSection {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.writeCard {
+  background: #FFF;
+  border-radius: 15px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* 탭 */
+.tabHeader {
+  border-bottom: 1px solid #E0E0E0;
+  padding: 0 20px;
+}
+
+.tabButtons {
+  display: flex;
+  gap: 0;
+}
+
+.tabButton {
+  flex: 1;
+  background: #FFF;
+  border: none;
+  padding: 18px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  border-bottom: none;
+  transition: all 0.2s;
+}
+
+.tabButton.active {
+  background: #D7E8FB;
+  color: #000;
+  border-bottom: none;
+}
+
+/* 탭 컨텐츠 */
+.tabContent {
+  padding: 30px;
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+}
+
+.formSection {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.formLabel {
+  font-size: 16px;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.formLabelRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.formInput {
+  width: 100%;
+  padding: 12px;
+  font-size: 15px;
+  border: 1px solid #DDD;
+  border-radius: 8px;
+}
+
+.formTextarea {
+  width: 100%;
+  min-height: 150px;
+  padding: 12px;
+  font-size: 15px;
+  border: 1px solid #DDD;
+  border-radius: 8px;
+  resize: vertical;
+}
+
+.aiButton {
+  padding: 8px 14px;
+  background: #52759C;
+  color: #FFF;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* 검사 오더 */
+.orderCheckboxes {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 10px 15px;
+  background: #F5F7FA;
+  border-radius: 8px;
+}
+
+.checkboxLabel input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+
+.checkboxLabel span {
+  font-size: 16px;
+}
+
+/* 처방 약물 */
+.prescriptionRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.prescriptionRow input {
+  padding: 12px;
+  font-size: 15px;
+  border: 1px solid #DDD;
+  border-radius: 8px;
+}
+
+.prescriptionRow input[type="text"]:first-child {
+  flex: 2;
+}
+
+.prescriptionRow input[type="text"]:nth-child(2),
+.prescriptionRow input[type="text"]:nth-child(3) {
+  flex: 1;
+}
+
+.prescriptionRow input[type="number"] {
+  width: 80px;
+}
+
+.deleteButton {
+  padding: 12px;
+  background: #FF5252;
+  color: #FFF;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.prescriptionItem {
+  padding: 12px;
+  background: #E8F5E9;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.prescriptionInfo div:first-child {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.prescriptionInfo div:last-child {
+  font-size: 15px;
+  color: #666;
+}
+
+.editButton {
+  padding: 8px 14px;
+  background: #FFF;
+  border: 1px solid #DDD;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.addButton {
+  margin-top: 12px;
+  padding: 10px 16px;
+  background: #52759C;
+  color: #FFF;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  width: auto;
+  align-self: flex-start;
+}
+
+/* HCC 진단 상세 정보 */
+.hccDetailsSection {
+  padding: 20px;
+  background: #F8F9FA;
+  border-radius: 12px;
+  border-left: 4px solid #388E3C;
+}
+
+.sectionSubtitle {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 20px 0;
+  color: #388E3C;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.formRow:last-child {
+  margin-bottom: 0;
+}
+
+/* 버튼 그룹 */
+.buttonGroup {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #E0E0E0;
+}
+
+.tempSaveButton {
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #666;
+  background: #F5F7FA;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.submitButton {
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #FFF;
+  background: #52759C;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}

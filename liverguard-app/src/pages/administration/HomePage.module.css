@@ -1,0 +1,924 @@
+/* Administration Home Page Styles */
+
+.container {
+  display: flex;
+  min-height: 100vh;
+  background: #FFFFFF;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* 사이드바 */
+.sidebar {
+  width: 240px;
+  min-width: 240px;
+  background: #D7E8FB;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebarContent {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 프로필 */
+.profileSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  gap: 10px;
+  background: #D7E8FB;
+}
+
+.profileImage {
+  width: 80px;
+  height: 80px;
+  background: #E8EFF7;
+  border-radius: 50%;
+  border: 3px solid #FFFFFF;
+  flex-shrink: 0;
+}
+
+.profileInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.profileName {
+  font-weight: 600;
+  font-size: 16px;
+  color: #000000;
+  text-align: center;
+}
+
+.departmentTag {
+  background: #FFFFFF;
+  border-radius: 12px;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #52759C;
+}
+
+.statusInfo {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: #000000;
+}
+
+.statusBadge {
+  background: #8BC34A;
+  color: #FFFFFF;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* 사이드바 대기 현황 섹션 */
+.waitingSection {
+  flex: 1;
+  padding: 15px;
+  background: #D7E8FB;
+  overflow-y: auto;
+}
+
+.waitingSectionTitle {
+  font-weight: 700;
+  font-size: 15px;
+  color: #000000;
+  margin-bottom: 12px;
+}
+
+.waitingList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.waitingClinicCard {
+  background: #FFFFFF;
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.clinicHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.clinicName {
+  font-weight: 700;
+  font-size: 13px;
+  color: #000000;
+}
+
+.clinicDetailButton {
+  background: #52759C;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clinicDetailButton:hover {
+  background: #405F7F;
+}
+
+.clinicPatients {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.clinicPatientItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px;
+  background: #F8F9FA;
+  border-radius: 6px;
+}
+
+.patientInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.patientNameSmall {
+  font-size: 12px;
+  font-weight: 600;
+  color: #000000;
+}
+
+.patientPhone {
+  font-size: 10px;
+  color: #666666;
+}
+
+.statusTag {
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.statusTag.진료중 {
+  background: #00A3FF;
+  color: #FFFFFF;
+}
+
+.statusTag.대기중 {
+  background: #FFB800;
+  color: #FFFFFF;
+}
+
+.statusTag.접수완료 {
+  background: #8BC34A;
+  color: #FFFFFF;
+}
+
+.emptyClinic {
+  text-align: center;
+  padding: 10px;
+  color: #999999;
+  font-size: 11px;
+}
+
+/* 메인 영역 */
+.mainArea {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #F5F7FA;
+}
+
+/* 상단바 */
+.topBar {
+  background: #D7E8FB;
+  box-shadow: 0px 4px 4px rgba(0, 52, 222, 0.15);
+  border-radius: 15px;
+  padding: 0;
+  display: flex;
+  align-items: stretch;
+  position: relative;
+  height: 45px;
+  margin: 7px 20px 20px 20px;
+  zoom: 0.9;
+}
+
+.tabsContainer {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  justify-content: space-evenly;
+}
+
+.tabButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+  border-radius: 15px 15px 0 0;
+  flex: 1;
+  max-width: 150px;
+}
+
+.tabButton:hover {
+  background: rgba(107, 88, 177, 0.08);
+}
+
+.tabButton.active {
+  background: transparent;
+  border-bottom: 3px solid #6B58B1;
+}
+
+.tabButton.active span {
+  color: #6B58B1;
+  font-weight: 700;
+}
+
+.tabButton span {
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 22px;
+  color: #52759C;
+  white-space: nowrap;
+}
+
+/* 우측 아이콘 영역 */
+.topBarIcons {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-right: 20px;
+}
+
+.iconButton {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+}
+
+.iconButton:hover {
+  transform: scale(1.1);
+}
+
+.messageIcon,
+.bellIcon,
+.logoutIcon {
+  color: #52759C;
+  transition: color 0.2s;
+}
+
+.iconButton:hover .messageIcon,
+.iconButton:hover .bellIcon,
+.iconButton:hover .logoutIcon {
+  color: #6B58B1;
+}
+
+/* 메인 컨텐츠 영역 */
+.mainContent {
+  flex: 1;
+  padding: 0 20px 20px 20px;
+  overflow: hidden;
+}
+
+.mainLayout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr auto auto;
+  gap: 20px;
+  height: 100%;
+}
+
+/* 왼쪽 섹션 */
+.leftSection {
+  grid-column: 1 / 2;
+  grid-row: 1 / 2;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.contentContainer {
+  background: #FFFFFF;
+  border-radius: 15px;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 컨텐츠 탭 */
+.contentTabs {
+  display: flex;
+  border-bottom: 2px solid #E0E0E0;
+  background: #FFFFFF;
+  border-radius: 15px 15px 0 0;
+}
+
+.contentTab {
+  padding: 15px 30px;
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  color: #666666;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+}
+
+.contentTab:hover {
+  background: rgba(107, 88, 177, 0.05);
+}
+
+.contentTab.active {
+  color: #6B58B1;
+  border-bottom: 3px solid #6B58B1;
+}
+
+/* 컨텐츠 바디 */
+.contentBody {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+/* 검색 섹션 */
+.searchSection {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.searchBar {
+  display: flex;
+  gap: 10px;
+}
+
+.searchInput {
+  flex: 1;
+  padding: 10px 14px;
+  font-size: 14px;
+  border: 1px solid #DDD;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: #52759C;
+  box-shadow: 0 0 0 3px rgba(82, 117, 156, 0.1);
+}
+
+.searchButton {
+  padding: 10px 20px;
+  background: #52759C;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.searchButton:hover {
+  background: #405F7F;
+}
+
+/* 테이블 */
+.tableContainer {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid #E0E0E0;
+}
+
+.patientTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: #FFFFFF;
+}
+
+.patientTable thead {
+  background: #F8F9FA;
+}
+
+.patientTable th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 700;
+  color: #333333;
+  border-bottom: 2px solid #E0E0E0;
+}
+
+.patientTable td {
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #666666;
+  border-bottom: 1px solid #F0F0F0;
+}
+
+.patientTable tbody tr:hover {
+  background: #F8F9FA;
+}
+
+.patientName {
+  font-weight: 700;
+  color: #000000 !important;
+}
+
+.assignSelect {
+  padding: 6px 10px;
+  border: 1px solid #DDD;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  background: #FFFFFF;
+}
+
+/* 작업 버튼 */
+.actionButtons {
+  display: flex;
+  gap: 6px;
+}
+
+.appointmentBtn,
+.checkinBtn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.appointmentBtn {
+  background: #52759C;
+  color: #FFFFFF;
+}
+
+.appointmentBtn:hover {
+  background: #405F7F;
+}
+
+.checkinBtn {
+  background: #8BC34A;
+  color: #FFFFFF;
+}
+
+.checkinBtn:hover {
+  background: #7CB342;
+}
+
+/* 신규 환자 등록 폼 */
+.registrationForm {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.formSection {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.formSectionTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #000000;
+  margin: 0;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #E0E0E0;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.formLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333333;
+}
+
+.required {
+  color: #FF5252;
+  margin-left: 2px;
+}
+
+.formInput,
+.formTextarea {
+  padding: 8px 10px;
+  font-size: 14px;
+  border: 1px solid #DDD;
+  border-radius: 8px;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.formInput:focus,
+.formTextarea:focus {
+  outline: none;
+  border-color: #52759C;
+  box-shadow: 0 0 0 3px rgba(82, 117, 156, 0.1);
+}
+
+.formTextarea {
+  resize: vertical;
+}
+
+.formActions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 10px;
+}
+
+.cancelButton,
+.submitButton {
+  padding: 10px 28px;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancelButton {
+  background: #F5F7FA;
+  color: #666666;
+}
+
+.cancelButton:hover {
+  background: #E0E5EB;
+}
+
+.submitButton {
+  background: #52759C;
+  color: #FFFFFF;
+}
+
+.submitButton:hover {
+  background: #405F7F;
+}
+
+/* 오른쪽 섹션 */
+.rightSection {
+  grid-column: 2 / 3;
+  grid-row: 1 / 2;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+}
+
+/* 금일 예약 */
+.appointmentContainer {
+  background: #FFFFFF;
+  border-radius: 15px;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  height: 100%;
+  min-height: 0;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #000000;
+  margin: 0;
+}
+
+.currentTime {
+  font-size: 14px;
+  font-weight: 600;
+  color: #52759C;
+}
+
+.appointmentTable {
+  flex: 1;
+  overflow: auto;
+  border-radius: 8px;
+  border: 1px solid #E0E0E0;
+  min-height: 0;
+}
+
+.scheduleTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: #FFFFFF;
+}
+
+.scheduleTable thead {
+  background: #F8F9FA;
+}
+
+.scheduleTable th {
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 700;
+  color: #333333;
+  border-bottom: 2px solid #E0E0E0;
+  white-space: nowrap;
+}
+
+.scheduleTable td {
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #666666;
+  border-bottom: 1px solid #F0F0F0;
+}
+
+.scheduleTable tbody tr:hover {
+  background: #F8F9FA;
+}
+
+.appointmentStatus {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.appointmentStatus.예약완료 {
+  background: #8BC34A;
+  color: #FFFFFF;
+}
+
+.appointmentStatus.접수완료 {
+  background: #00A3FF;
+  color: #FFFFFF;
+}
+
+.appointmentStatus.진료중 {
+  background: #FFB800;
+  color: #FFFFFF;
+}
+
+/* 예약 테이블 작업 버튼 */
+.approveBtn,
+.assignBtn,
+.rejectBtn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.approveBtn {
+  background: #8BC34A;
+  color: #FFFFFF;
+}
+
+.approveBtn:hover {
+  background: #7CB342;
+}
+
+.assignBtn {
+  background: #52759C;
+  color: #FFFFFF;
+}
+
+.assignBtn:hover {
+  background: #405F7F;
+}
+
+.rejectBtn {
+  background: #FF5252;
+  color: #FFFFFF;
+}
+
+.rejectBtn:hover {
+  background: #E64545;
+}
+
+.inProgressText {
+  font-size: 12px;
+  color: #999999;
+  font-weight: 500;
+}
+
+/* 예약 관리 섹션 (2행) */
+.appointmentManagementContainer {
+  grid-column: 1 / 3;
+  grid-row: 2 / 3;
+  background: #FFFFFF;
+  border-radius: 15px;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+/* 진료실별 대기 현황 (3행) */
+.detailedWaitingContainer {
+  grid-column: 1 / 3;
+  grid-row: 3 / 4;
+  background: #FFFFFF;
+  border-radius: 15px;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.waitingDetailCards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+
+.waitingDetailCard {
+  border: 1px solid #E0E0E0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.cardHeader {
+  background: #F8F9FA;
+  padding: 12px 15px;
+  border-bottom: 1px solid #E0E0E0;
+}
+
+.cardTitleSection {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cardTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: #000000;
+}
+
+.cardButton {
+  background: #52759C;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cardButton:hover {
+  background: #405F7F;
+}
+
+.cardBody {
+  padding: 12px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.waitingPatientRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background: #F8F9FA;
+  border-radius: 8px;
+}
+
+.patientDetail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.patientNameLarge {
+  font-size: 14px;
+  font-weight: 700;
+  color: #000000;
+}
+
+.patientPhoneLarge {
+  font-size: 12px;
+  color: #666666;
+}
+
+.statusBadgeLarge {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.statusBadgeLarge.진료중 {
+  background: #00A3FF;
+  color: #FFFFFF;
+}
+
+.statusBadgeLarge.대기중 {
+  background: #FFB800;
+  color: #FFFFFF;
+}
+
+.statusBadgeLarge.접수완료 {
+  background: #8BC34A;
+  color: #FFFFFF;
+}
+
+.emptyWaiting {
+  text-align: center;
+  padding: 20px;
+  color: #999999;
+  font-size: 13px;
+}
+
+/* 반응형 */
+@media (max-width: 1400px) {
+  .mainLayout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+  }
+
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 200px;
+    min-width: 200px;
+  }
+
+  .tabButton span {
+    font-size: 14px;
+  }
+
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './DoctorHome.module.css';
 
 interface Patient {
@@ -13,6 +14,8 @@ interface Patient {
 type TabType = 'home' | 'schedule' | 'treatment' | 'patientManagement' | 'examination' | 'testForm' | 'medication';
 
 export default function DoctorHomePage() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [sidebarTab, setSidebarTab] = useState<'waiting' | 'completed'>('waiting');
@@ -20,7 +23,7 @@ export default function DoctorHomePage() {
   // 샘플 환자 데이터
   const [waitingPatients] = useState<Patient[]>([
     { id: 1, name: '장보윤', birthDate: '2000.05.21', age: 26, gender: '여' },
-    { id: 2, name: '송영은', birthDate: '2000.05.21', age: 26, gender: '남' },
+    { id: 2, name: '송영운', birthDate: '2000.05.21', age: 26, gender: '남' },
     { id: 3, name: '정예진', birthDate: '2000.05.21', age: 26, gender: '여' },
   ]);
 
@@ -240,9 +243,11 @@ export default function DoctorHomePage() {
           </div>
         );
       case 'schedule':
-        return <div style={{ padding: '20px' }}>일정 관리 화면</div>;
+        navigate('/doctor/schedule');
+        return null;
       case 'treatment':
-        return <div style={{ padding: '20px' }}>환자 진료 화면</div>;
+        navigate('/doctor/treatment');
+        return null;
       case 'patientManagement':
         return <div style={{ padding: '20px' }}>환자 관리 화면</div>;
       case 'examination':
