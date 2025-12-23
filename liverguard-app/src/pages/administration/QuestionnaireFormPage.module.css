@@ -1,0 +1,571 @@
+/* QuestionnaireFormPage.module.css */
+
+.container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #F5F7FA;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+/* Patient Selection Stage */
+.patientSelectionSection {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+}
+
+.patientListContainer {
+  flex: 1;
+  overflow-y: auto;
+  background: #FFFFFF;
+  border-radius: 12px;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+}
+
+.patientList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 15px;
+}
+
+.patientCard {
+  background: #FFFFFF;
+  border: 2px solid #E0E0E0;
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.patientCard:hover {
+  border-color: #52759C;
+  box-shadow: 0px 4px 12px rgba(82, 117, 156, 0.2);
+  transform: translateY(-2px);
+}
+
+.patientCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #E0E0E0;
+}
+
+.patientCardName {
+  font-size: 18px;
+  font-weight: 700;
+  color: #000000;
+}
+
+.patientCardId {
+  font-size: 13px;
+  font-weight: 600;
+  color: #52759C;
+  background: #E8EFF7;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.patientCardInfo {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #666666;
+}
+
+.patientCardBirth {
+  font-size: 13px;
+  color: #999999;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 60px 20px;
+  color: #999999;
+}
+
+.emptyState p {
+  font-size: 16px;
+  margin: 0;
+}
+
+/* Selected Patient Info */
+.selectedPatientInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #F8F9FA;
+  padding: 20px;
+  border-radius: 10px;
+  position: relative;
+}
+
+.selectedPatientInfo .infoRow {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.selectedPatientInfo .infoLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333333;
+  min-width: 100px;
+}
+
+.selectedPatientInfo .infoValue {
+  font-size: 14px;
+  color: #666666;
+}
+
+.changePatientBtn {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  padding: 8px 16px;
+  background: #FFFFFF;
+  color: #52759C;
+  border: 2px solid #52759C;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.changePatientBtn:hover {
+  background: #52759C;
+  color: #FFFFFF;
+}
+
+/* Questionnaire List Section */
+.questionnaireListSection {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+}
+
+.patientInfoSummary {
+  background: #FFFFFF;
+  border-radius: 12px;
+  box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.08);
+  padding: 20px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  align-items: center;
+}
+
+.patientInfoSummary .infoRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.patientInfoSummary .infoLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: #666666;
+  min-width: 80px;
+}
+
+.patientInfoSummary .infoValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: #000000;
+}
+
+.actionButtonsTop {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  grid-column: 1 / -1;
+}
+
+.backBtn {
+  padding: 8px 16px;
+  background: #FFFFFF;
+  color: #666666;
+  border: 2px solid #DDD;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.backBtn:hover {
+  background: #F8F9FA;
+  border-color: #999999;
+  color: #333333;
+}
+
+.newQuestionnaireBtn {
+  padding: 8px 20px;
+  background: #52759C;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.newQuestionnaireBtn:hover {
+  background: #405F7F;
+  transform: translateY(-1px);
+  box-shadow: 0px 4px 8px rgba(82, 117, 156, 0.3);
+}
+
+.questionnaireListContainer {
+  flex: 1;
+  overflow-y: auto;
+  background: #FFFFFF;
+  border-radius: 12px;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+}
+
+.questionnaireCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 15px;
+}
+
+.questionnaireCard {
+  background: #FFFFFF;
+  border: 2px solid #E0E0E0;
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.questionnaireCard:hover {
+  border-color: #52759C;
+  box-shadow: 0px 4px 12px rgba(82, 117, 156, 0.2);
+  transform: translateY(-2px);
+}
+
+.questionnaireCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #E0E0E0;
+}
+
+.questionnaireDate {
+  font-size: 15px;
+  font-weight: 700;
+  color: #000000;
+}
+
+.questionnaireStatus {
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.questionnaireStatus.완료 {
+  background: #8BC34A;
+  color: #FFFFFF;
+}
+
+.questionnaireStatus.작성중 {
+  background: #FFB800;
+  color: #FFFFFF;
+}
+
+.questionnaireCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.questionnaireCardLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: #999999;
+}
+
+.questionnaireCardValue {
+  font-size: 14px;
+  color: #333333;
+  line-height: 1.5;
+}
+
+.questionnaireCardFooter {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 10px;
+  border-top: 1px solid #F0F0F0;
+}
+
+.viewBtn {
+  padding: 6px 16px;
+  background: #E8EFF7;
+  color: #52759C;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.viewBtn:hover {
+  background: #52759C;
+  color: #FFFFFF;
+}
+
+.header {
+  margin-bottom: 25px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #000000;
+  margin: 0 0 8px 0;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #666666;
+  font-weight: 500;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.section {
+  background: #FFFFFF;
+  border-radius: 12px;
+  box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.sectionHeader {
+  background: #52759C;
+  padding: 15px 20px;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin: 0;
+}
+
+.sectionContent {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333333;
+}
+
+.input {
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid #DDD;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #52759C;
+  box-shadow: 0 0 0 3px rgba(82, 117, 156, 0.1);
+}
+
+.textarea {
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid #DDD;
+  border-radius: 8px;
+  resize: vertical;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: #52759C;
+  box-shadow: 0 0 0 3px rgba(82, 117, 156, 0.1);
+}
+
+.select {
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid #DDD;
+  border-radius: 8px;
+  background: #FFFFFF;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.select:focus {
+  outline: none;
+  border-color: #52759C;
+  box-shadow: 0 0 0 3px rgba(82, 117, 156, 0.1);
+}
+
+.painLevelContainer {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.painSlider {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, #8BC34A, #FFB800, #FF5252);
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.painSlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  border: 3px solid #52759C;
+  cursor: pointer;
+}
+
+.painSlider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  border: 3px solid #52759C;
+  cursor: pointer;
+}
+
+.painValue {
+  font-size: 18px;
+  font-weight: 700;
+  color: #52759C;
+  min-width: 40px;
+  text-align: center;
+}
+
+.checkboxGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #F8F9FA;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 2px solid transparent;
+}
+
+.checkboxLabel:hover {
+  background: #E8EFF7;
+}
+
+.checkboxLabel input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #52759C;
+}
+
+.checkboxLabel input[type="checkbox"]:checked + span {
+  font-weight: 600;
+  color: #000000;
+}
+
+.checkboxLabel span {
+  font-size: 14px;
+  color: #666666;
+  user-select: none;
+}
+
+.submitSection {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  padding: 20px 0;
+}
+
+.cancelBtn {
+  padding: 12px 30px;
+  background: #FFFFFF;
+  color: #666666;
+  border: 2px solid #DDD;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancelBtn:hover {
+  background: #F8F9FA;
+  border-color: #999999;
+  color: #333333;
+}
+
+.submitBtn {
+  padding: 12px 30px;
+  background: #52759C;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.submitBtn:hover {
+  background: #405F7F;
+  transform: translateY(-1px);
+  box-shadow: 0px 4px 8px rgba(82, 117, 156, 0.3);
+}
