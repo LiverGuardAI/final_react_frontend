@@ -12,6 +12,8 @@ import SchedulePage from "../pages/doctor/SchedulePage";
 import TreatmentPage from "../pages/doctor/TreatmentPage";
 import AdministrationLoginPage from "../pages/administration/LoginPage";
 import AdministrationHomePage from "../pages/administration/HomePage";
+import AppointmentManagementPage from "../pages/administration/AppointmentManagementPage";
+import PatientManagementPage from "../pages/administration/PatientManagementPage";
 import RadiologyLoginPage from "../pages/radiology/LoginPage";
 import RadiologyHomePage from "../pages/radiology/HomePage";
 import ProtectedRoute from "../components/auth/ProtectedRoute";
@@ -38,14 +40,18 @@ const router = createBrowserRouter(
 
       {/* administration */}
       <Route path="/administration/login" element={<AdministrationLoginPage />} />
-      <Route
+      <Route path="/administration/home" element={<AdministrationHomePage />} />
+      <Route path="/administration/appointments" element={<AppointmentManagementPage />} />
+      <Route path="/administration/patients" element={<PatientManagementPage />} />
+      {/* 테스트용 - 나중에 ProtectedRoute 복원 필요 */}
+      {/* <Route
         path="/administration/home"
         element={
           <ProtectedRoute requiredRole="administration">
             <AdministrationHomePage />
           </ProtectedRoute>
         }
-      />
+      /> */}
 
       {/* radiology */}
       <Route path="/radiology/login" element={<RadiologyLoginPage />} />

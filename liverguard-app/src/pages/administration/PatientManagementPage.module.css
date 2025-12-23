@@ -1,0 +1,652 @@
+/* PatientManagementPage.module.css */
+
+.container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: #F5F7FA;
+  padding: 20px;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #000000;
+  margin: 0;
+}
+
+.stats {
+  display: flex;
+  gap: 15px;
+}
+
+.statBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #FFFFFF;
+  border-radius: 10px;
+  padding: 10px 20px;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.statLabel {
+  font-size: 12px;
+  color: #666666;
+  font-weight: 500;
+}
+
+.statValue {
+  font-size: 22px;
+  font-weight: 700;
+  color: #52759C;
+  margin-top: 5px;
+}
+
+.controls {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.searchBox {
+  flex: 1;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 10px 15px;
+  font-size: 14px;
+  border: 1px solid #DDD;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: #52759C;
+  box-shadow: 0 0 0 3px rgba(82, 117, 156, 0.1);
+}
+
+.filterBox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #FFFFFF;
+  padding: 8px 15px;
+  border-radius: 8px;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.filterLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333333;
+  white-space: nowrap;
+}
+
+.filterSelect {
+  padding: 6px 10px;
+  font-size: 14px;
+  border: 1px solid #DDD;
+  border-radius: 6px;
+  background: #FFFFFF;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filterSelect:focus {
+  outline: none;
+  border-color: #52759C;
+}
+
+.tableContainer {
+  flex: 1;
+  overflow: auto;
+  background: #FFFFFF;
+  border-radius: 12px;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+  padding: 15px;
+}
+
+.patientTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: #FFFFFF;
+}
+
+.patientTable thead {
+  background: #F8F9FA;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.patientTable th {
+  padding: 12px 10px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 700;
+  color: #333333;
+  border-bottom: 2px solid #E0E0E0;
+  white-space: nowrap;
+}
+
+.patientTable td {
+  padding: 12px 10px;
+  font-size: 13px;
+  color: #666666;
+  border-bottom: 1px solid #F0F0F0;
+  vertical-align: middle;
+}
+
+.patientTable tbody tr:hover {
+  background: #F8F9FA;
+}
+
+.patientName {
+  font-weight: 700;
+  color: #000000 !important;
+}
+
+.statusBadge {
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.statusBadge.활성 {
+  background: #8BC34A;
+  color: #FFFFFF;
+}
+
+.statusBadge.휴면 {
+  background: #FFB800;
+  color: #FFFFFF;
+}
+
+.statusBadge.탈퇴 {
+  background: #999999;
+  color: #FFFFFF;
+}
+
+.detailBtn {
+  padding: 6px 12px;
+  background: #52759C;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.detailBtn:hover {
+  background: #405F7F;
+}
+
+/* 모달 */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background: #FFFFFF;
+  border-radius: 15px;
+  box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.3);
+  width: 90%;
+  max-width: 900px;
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 25px;
+  border-bottom: 2px solid #E0E0E0;
+}
+
+.modalHeader h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #000000;
+  margin: 0;
+}
+
+.closeButton {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  color: #999999;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.closeButton:hover {
+  color: #333333;
+}
+
+.tabContainer {
+  display: flex;
+  border-bottom: 2px solid #E0E0E0;
+  background: #F8F9FA;
+}
+
+.tabButton {
+  flex: 1;
+  padding: 15px 20px;
+  background: transparent;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666666;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.tabButton:hover {
+  color: #52759C;
+  background: rgba(82, 117, 156, 0.05);
+}
+
+.tabButton.active {
+  color: #52759C;
+  background: #FFFFFF;
+}
+
+.tabButton.active::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #52759C;
+}
+
+.modalBody {
+  flex: 1;
+  padding: 25px;
+  overflow-y: auto;
+}
+
+/* 기본 정보 탭 */
+.infoSection {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.infoRow {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  background: #F8F9FA;
+  border-radius: 8px;
+}
+
+.infoLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333333;
+  min-width: 120px;
+}
+
+.infoValue {
+  font-size: 14px;
+  color: #666666;
+  flex: 1;
+}
+
+/* 진료 기록 탭 */
+.historySection {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.historyCard {
+  background: #F8F9FA;
+  border-radius: 10px;
+  padding: 15px;
+  border-left: 4px solid #52759C;
+}
+
+.historyHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #E0E0E0;
+}
+
+.historyDate {
+  font-size: 15px;
+  font-weight: 700;
+  color: #000000;
+}
+
+.historyDoctor {
+  font-size: 13px;
+  color: #52759C;
+  font-weight: 600;
+}
+
+.historyBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.historyRow {
+  display: flex;
+  gap: 10px;
+}
+
+.historyLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333333;
+  min-width: 60px;
+}
+
+.historyValue {
+  font-size: 13px;
+  color: #666666;
+  flex: 1;
+}
+
+/* 예약 내역 탭 */
+.appointmentSection {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.appointmentCard {
+  background: #F8F9FA;
+  border-radius: 10px;
+  padding: 15px;
+  border-left: 4px solid #8BC34A;
+}
+
+.appointmentHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.appointmentDateTime {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.appointmentDate {
+  font-size: 15px;
+  font-weight: 700;
+  color: #000000;
+}
+
+.appointmentTime {
+  font-size: 13px;
+  color: #666666;
+}
+
+.appointmentStatus {
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.appointmentStatus.예정 {
+  background: #52759C;
+  color: #FFFFFF;
+}
+
+.appointmentStatus.완료 {
+  background: #8BC34A;
+  color: #FFFFFF;
+}
+
+.appointmentStatus.취소 {
+  background: #FF5252;
+  color: #FFFFFF;
+}
+
+.appointmentBody {
+  margin-top: 10px;
+}
+
+.appointmentDoctor {
+  font-size: 13px;
+  color: #52759C;
+  font-weight: 600;
+}
+
+.modalFooter {
+  padding: 15px 25px;
+  border-top: 1px solid #E0E0E0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.modalCloseBtn {
+  padding: 10px 25px;
+  background: #52759C;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modalCloseBtn:hover {
+  background: #405F7F;
+}
+
+/* 문진표 탭 */
+.questionnaireSection {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.questionnaireHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #E0E0E0;
+}
+
+.questionnaireTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #000000;
+  margin: 0;
+}
+
+.questionnaireDate {
+  font-size: 13px;
+  color: #666666;
+  font-weight: 500;
+}
+
+.questionSection {
+  background: #FFFFFF;
+  border: 1px solid #E0E0E0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.sectionTitle {
+  background: #52759C;
+  color: #FFFFFF;
+  padding: 12px 15px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.questionContent {
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.questionText {
+  font-size: 14px;
+  color: #333333;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.painLevelBar {
+  position: relative;
+  width: 100%;
+  max-width: 300px;
+  height: 30px;
+  background: #F0F0F0;
+  border-radius: 15px;
+  overflow: hidden;
+}
+
+.painLevelFill {
+  height: 100%;
+  background: linear-gradient(to right, #8BC34A, #FFB800, #FF5252);
+  transition: width 0.3s;
+}
+
+.painLevelText {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 13px;
+  font-weight: 700;
+  color: #000000;
+}
+
+.symptomGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.symptomItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #F8F9FA;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #666666;
+  transition: all 0.2s;
+}
+
+.symptomItem.checked {
+  background: #E8F5E9;
+  color: #2E7D32;
+  font-weight: 600;
+}
+
+.checkbox {
+  font-size: 16px;
+  color: #999999;
+}
+
+.symptomItem.checked .checkbox {
+  color: #2E7D32;
+}
+
+.otherSymptom {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  background: #FFF9E6;
+  border-left: 3px solid #FFB800;
+  border-radius: 6px;
+  margin-top: 10px;
+}
+
+.lifestyleBadge {
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.lifestyleBadge.none {
+  background: #E8F5E9;
+  color: #2E7D32;
+}
+
+.lifestyleBadge.past {
+  background: #FFF9E6;
+  color: #F57C00;
+}
+
+.lifestyleBadge.current,
+.lifestyleBadge.heavy {
+  background: #FFEBEE;
+  color: #C62828;
+}
+
+.lifestyleBadge.occasional {
+  background: #E8F5E9;
+  color: #2E7D32;
+}
+
+.lifestyleBadge.regular {
+  background: #FFF9E6;
+  color: #F57C00;
+}
