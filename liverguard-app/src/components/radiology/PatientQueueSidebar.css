@@ -1,0 +1,113 @@
+/* src/components/radiology/PatientQueueSidebar.css */
+.patient-queue-sidebar {
+  width: 200px;
+  background-color: #0f1419;
+  border-right: 1px solid #2d3748;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid #2d3748;
+}
+
+.sidebar-header h2 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin: 0;
+}
+
+.patient-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.patient-card {
+  background-color: #1a2332;
+  border: 1px solid #2d3748;
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.patient-card:hover {
+  background-color: #243447;
+  border-color: #3b4a5f;
+}
+
+.patient-card.selected {
+  background-color: #2d4a6f;
+  border-color: #4a90e2;
+}
+
+.patient-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.patient-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.status-badge {
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.status-badge.active {
+  background-color: #22c55e;
+  color: #0f1419;
+}
+
+.status-badge.waiting {
+  background-color: #64748b;
+  color: #f1f5f9;
+}
+
+.patient-card-body {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.patient-episode {
+  line-height: 1.4;
+}
+
+.sidebar-footer {
+  padding: 16px;
+  border-top: 1px solid #2d3748;
+  min-height: 200px;
+}
+
+.sidebar-footer h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin: 0;
+}
+
+.empty-state {
+  padding: 20px;
+  text-align: center;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.error-state {
+  padding: 20px;
+  text-align: center;
+  color: #ef4444;
+  font-size: 13px;
+}

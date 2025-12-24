@@ -1,0 +1,197 @@
+/* src/pages/radiology/PostProcessingPage.css */
+.post-processing-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #0f1419;
+}
+
+.post-processing-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  gap: 20px;
+}
+
+.top-section {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 20px;
+  height: 50%;
+}
+
+.selected-series-panel,
+.mask-panel {
+  background-color: #1a2332;
+  border: 1px solid #2d3748;
+  border-radius: 4px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.selected-series-panel h3,
+.mask-panel h3,
+.series-list-section h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin: 0 0 12px 0;
+}
+
+.series-viewer,
+.mask-viewer {
+  flex: 1;
+  background-color: #0f1419;
+  border: 1px solid #2d3748;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-state {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.series-display {
+  color: #e2e8f0;
+  font-size: 14px;
+}
+
+.mask-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.btn-create-mask,
+.btn-load-mask {
+  flex: 1;
+  padding: 10px 16px;
+  background-color: #2d4a6f;
+  color: #e2e8f0;
+  border: 1px solid #4a90e2;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-create-mask:hover,
+.btn-load-mask:hover {
+  background-color: #3a5f8f;
+  border-color: #5aa3f5;
+}
+
+.series-list-section {
+  background-color: #1a2332;
+  border: 1px solid #2d3748;
+  border-radius: 4px;
+  padding: 16px;
+}
+
+.series-thumbnails {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-button {
+  background-color: #2d3748;
+  color: #e2e8f0;
+  border: 1px solid #3b4a5f;
+  border-radius: 4px;
+  width: 36px;
+  height: 36px;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.nav-button:hover {
+  background-color: #3b4a5f;
+}
+
+.thumbnails-container {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  overflow-x: auto;
+}
+
+.series-thumbnail {
+  flex-shrink: 0;
+  width: 140px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.series-thumbnail.selected .thumbnail-placeholder {
+  border-color: #4a90e2;
+  background-color: #2d4a6f;
+}
+
+.thumbnail-placeholder {
+  width: 140px;
+  height: 140px;
+  background-color: #0f1419;
+  border: 2px solid #2d3748;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  transition: all 0.2s;
+}
+
+.thumbnail-placeholder:hover {
+  border-color: #4a90e2;
+}
+
+.placeholder-content {
+  color: #64748b;
+  font-size: 12px;
+  text-align: center;
+  padding: 12px;
+}
+
+.series-name {
+  font-size: 12px;
+  color: #e2e8f0;
+  text-align: center;
+}
+
+.bottom-toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px;
+  background-color: #1a2332;
+  border-top: 1px solid #2d3748;
+}
+
+.toolbar-btn {
+  background-color: #2d3748;
+  color: #e2e8f0;
+  border: 1px solid #3b4a5f;
+  border-radius: 4px;
+  width: 32px;
+  height: 32px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toolbar-btn:hover {
+  background-color: #3b4a5f;
+}
