@@ -1,0 +1,50 @@
+/* src/pages/radiology/AcquisitionPage.css */
+.acquisition-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #0f1419;
+}
+
+.acquisition-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.upload-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-button {
+  background-color: #4a5568;
+  color: #e2e8f0;
+  border: 2px dashed #64748b;
+  border-radius: 8px;
+  padding: 60px 120px;
+  font-size: 24px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+}
+
+.upload-button:hover {
+  background-color: #5a6778;
+  border-color: #94a3b8;
+  transform: scale(1.05);
+}
+
+.upload-button:active {
+  transform: scale(0.98);
+}

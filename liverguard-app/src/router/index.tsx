@@ -16,6 +16,8 @@ import AppointmentManagementPage from "../pages/administration/AppointmentManage
 import PatientManagementPage from "../pages/administration/PatientManagementPage";
 import RadiologyLoginPage from "../pages/radiology/LoginPage";
 import RadiologyHomePage from "../pages/radiology/HomePage";
+import AcquisitionPage from "../pages/radiology/AcquisitionPage";
+import PostProcessingPage from "../pages/radiology/PostProcessingPage";
 import ProtectedRoute from "../components/auth/ProtectedRoute";
 
 const router = createBrowserRouter(
@@ -55,14 +57,17 @@ const router = createBrowserRouter(
 
       {/* radiology */}
       <Route path="/radiology/login" element={<RadiologyLoginPage />} />
-      <Route
+      <Route path="/radiology/home" element={<RadiologyHomePage />} />
+      <Route path="/radiology/acquisition" element={<AcquisitionPage />} />
+      <Route path="/radiology/post-processing" element={<PostProcessingPage />} />
+      {/* <Route
         path="/radiology/home"
         element={
           <ProtectedRoute requiredRole="radiology">
             <RadiologyHomePage />
           </ProtectedRoute>
         }
-      />
+      /> */}
     </>
   )
 );
