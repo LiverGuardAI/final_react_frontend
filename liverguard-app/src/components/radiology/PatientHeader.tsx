@@ -9,6 +9,7 @@ interface PatientHeaderProps {
   birthDate: string;
   examType: string;
   examDate: string;
+  actionButton?: React.ReactNode;
 }
 
 const PatientHeader: React.FC<PatientHeaderProps> = ({
@@ -18,6 +19,7 @@ const PatientHeader: React.FC<PatientHeaderProps> = ({
   birthDate,
   examType,
   examDate,
+  actionButton,
 }) => {
   return (
     <div className="patient-header">
@@ -43,6 +45,7 @@ const PatientHeader: React.FC<PatientHeaderProps> = ({
           <span className="value">{examDate}</span>
         </div>
       </div>
+      {actionButton && actionButton}
     </div>
   );
 };

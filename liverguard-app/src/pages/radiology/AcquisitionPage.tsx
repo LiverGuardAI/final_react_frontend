@@ -145,19 +145,19 @@ const AcquisitionPage: React.FC = () => {
     <div className="acquisition-page">
       <div className="header-container">
         {selectedPatientData ? (
-          <>
-            <PatientHeader
-              patientId={selectedPatientData.patientId}
-              patientName={selectedPatientData.patientName}
-              gender={selectedPatientData.gender}
-              birthDate={selectedPatientData.birthDate}
-              examType="CT Abdomen"
-              examDate={new Date().toLocaleString('ko-KR')}
-            />
-            <button className="end-filming-button" onClick={handleEndFilming}>
-              촬영 종료
-            </button>
-          </>
+          <PatientHeader
+            patientId={selectedPatientData.patientId}
+            patientName={selectedPatientData.patientName}
+            gender={selectedPatientData.gender}
+            birthDate={selectedPatientData.birthDate}
+            examType="CT Abdomen"
+            examDate={new Date().toLocaleString('ko-KR')}
+            actionButton={
+              <button className="end-filming-button" onClick={handleEndFilming}>
+                촬영 종료
+              </button>
+            }
+          />
         ) : (
           <div className="no-patient-selected">
             환자를 선택해주세요

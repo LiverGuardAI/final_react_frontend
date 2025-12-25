@@ -81,7 +81,8 @@
 
 .end-filming-button {
   position: absolute;
-  top: 16px;
+  top: 50%;
+  transform: translateY(-50%);
   right: 20px;
   padding: 10px 24px;
   background-color: #ef4444;
