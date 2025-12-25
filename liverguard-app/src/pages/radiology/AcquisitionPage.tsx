@@ -1,14 +1,55 @@
 // src/pages/radiology/AcquisitionPage.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PatientHeader from '../../components/radiology/PatientHeader';
 import PatientQueueSidebar from '../../components/radiology/PatientQueueSidebar';
 import type { SelectedPatientData } from '../../components/radiology/PatientQueueSidebar';
-import { endFilming } from '../../api/radiology_api';
+import { endFilming, getWaitlist } from '../../api/radiology_api';
+import { uploadMultipleDicomFiles } from '../../api/orthanc_api';
 import './AcquisitionPage.css';
 
 const AcquisitionPage: React.FC = () => {
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [selectedPatientData, setSelectedPatientData] = useState<SelectedPatientData | null>(null);
+  const [uploading, setUploading] = useState<boolean>(false);
+  const [dicomFiles, setDicomFiles] = useState<File[]>([]);
+
+  // 촬영중인 환자 자동 표시
+  useEffect(() => {
+    const fetchFilmingPatient = async () => {
+      try {
+        const response = await getWaitlist();
+        // 촬영중인 환자 찾기
+        const filmingPatient = response.patients.find(p => p.current_status === '촬영중');
+
+        if (filmingPatient) {
+          // 촬영중인 환자 정보 설정
+          const patientData: SelectedPatientData = {
+            patientId: filmingPatient.patient_id,
+            patientName: filmingPatient.name,
+            gender: filmingPatient.gender || 'N/A',
+            birthDate: filmingPatient.date_of_birth || 'N/A',
+            age: filmingPatient.age,
+            sampleId: filmingPatient.sample_id,
+          };
+          setSelectedPatientId(filmingPatient.patient_id);
+          setSelectedPatientData(patientData);
+        } else {
+          // 촬영중인 환자가 없으면 초기화
+          setSelectedPatientId('');
+          setSelectedPatientData(null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch filming patient:', error);
+      }
+    };
+
+    fetchFilmingPatient();
+
+    // 주기적으로 촬영중인 환자 확인 (5초마다)
+    const interval = setInterval(fetchFilmingPatient, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const handlePatientSelect = (patientId: string, patientData: SelectedPatientData) => {
     setSelectedPatientId(patientId);
@@ -35,12 +76,74 @@ const AcquisitionPage: React.FC = () => {
     }
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files && files.length > 0) {
-      console.log('Files selected:', files);
-      // 파일 업로드 로직 구현
+  const handleAddFiles = (files: FileList | null, type: 'file' | 'folder') => {
+    if (!files || files.length === 0) {
+      return;
     }
+
+    // DICOM 파일만 필터링
+    const newDicomFiles = Array.from(files).filter(file =>
+      file.name.endsWith('.dcm') || file.name.endsWith('.dicom')
+    );
+
+    if (newDicomFiles.length === 0) {
+      alert('DICOM 파일(.dcm, .dicom)만 업로드 가능합니다.');
+      return;
+    }
+
+    // 기존 파일 목록에 추가 (중복 체크)
+    setDicomFiles(prevFiles => {
+      const existingFileNames = new Set(prevFiles.map(f => f.name));
+      const uniqueNewFiles = newDicomFiles.filter(f => !existingFileNames.has(f.name));
+
+      if (uniqueNewFiles.length < newDicomFiles.length) {
+        alert(`${newDicomFiles.length - uniqueNewFiles.length}개의 중복 파일은 제외되었습니다.`);
+      }
+
+      return [...prevFiles, ...uniqueNewFiles];
+    });
+
+    const uploadType = type === 'folder' ? '폴더' : '파일';
+    console.log(`Added ${newDicomFiles.length} DICOM files from ${uploadType}`);
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setDicomFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
+  };
+
+  const handleSaveFiles = async () => {
+    if (dicomFiles.length === 0) {
+      alert('업로드할 파일이 없습니다.');
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      console.log(`Uploading ${dicomFiles.length} DICOM files to Orthanc...`);
+      const results = await uploadMultipleDicomFiles(dicomFiles);
+
+      console.log('Upload successful:', results);
+      alert(`${dicomFiles.length}개의 DICOM 파일이 성공적으로 업로드되었습니다.`);
+
+      // 업로드 성공 후 파일 목록 초기화
+      setDicomFiles([]);
+    } catch (error) {
+      console.error('Upload failed:', error);
+      alert('DICOM 파일 업로드에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    handleAddFiles(event.target.files, 'file');
+    event.target.value = '';
+  };
+
+  const handleFolderUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    handleAddFiles(event.target.files, 'folder');
+    event.target.value = '';
   };
 
   return (
@@ -74,19 +177,97 @@ const AcquisitionPage: React.FC = () => {
         />
 
         <div className="main-content">
-          <div className="upload-area">
-            <input
-              type="file"
-              id="file-upload"
-              multiple
-              onChange={handleFileUpload}
-              style={{ display: 'none' }}
-              accept=".dcm,.dicom"
-            />
-            <label htmlFor="file-upload" className="upload-button">
-              업로드
-            </label>
-          </div>
+          {dicomFiles.length === 0 ? (
+            <div className="upload-area">
+              {/* 파일 업로드 */}
+              <input
+                type="file"
+                id="file-upload"
+                multiple
+                onChange={handleFileUpload}
+                style={{ display: 'none' }}
+                accept=".dcm,.dicom"
+                disabled={uploading}
+              />
+              <label
+                htmlFor="file-upload"
+                className={`upload-button ${uploading ? 'uploading' : ''}`}
+              >
+                파일 업로드
+              </label>
+
+              {/* 폴더 업로드 */}
+              <input
+                type="file"
+                id="folder-upload"
+                onChange={handleFolderUpload}
+                style={{ display: 'none' }}
+                disabled={uploading}
+                {...({ webkitdirectory: '', directory: '' } as any)}
+              />
+              <label
+                htmlFor="folder-upload"
+                className={`upload-button ${uploading ? 'uploading' : ''}`}
+              >
+                폴더 업로드
+              </label>
+            </div>
+          ) : (
+            <div className="file-list-container">
+              <div className="file-list-header">
+                <h3>업로드할 파일 목록 ({dicomFiles.length}개)</h3>
+                <div className="header-buttons">
+                  <label htmlFor="file-upload-add" className="add-file-button">
+                    + 파일 추가
+                  </label>
+                  <input
+                    type="file"
+                    id="file-upload-add"
+                    multiple
+                    onChange={handleFileUpload}
+                    style={{ display: 'none' }}
+                    accept=".dcm,.dicom"
+                    disabled={uploading}
+                  />
+                  <label htmlFor="folder-upload-add" className="add-file-button">
+                    + 폴더 추가
+                  </label>
+                  <input
+                    type="file"
+                    id="folder-upload-add"
+                    onChange={handleFolderUpload}
+                    style={{ display: 'none' }}
+                    disabled={uploading}
+                    {...({ webkitdirectory: '', directory: '' } as any)}
+                  />
+                  <button
+                    className="save-button"
+                    onClick={handleSaveFiles}
+                    disabled={uploading}
+                  >
+                    {uploading ? '저장 중...' : '저장'}
+                  </button>
+                </div>
+              </div>
+              <div className="file-list">
+                {dicomFiles.map((file, index) => (
+                  <div key={index} className="file-item">
+                    <span className="file-name">{file.name}</span>
+                    <span className="file-size">
+                      {(file.size / 1024).toFixed(2)} KB
+                    </span>
+                    <button
+                      className="remove-button"
+                      onClick={() => handleRemoveFile(index)}
+                      disabled={uploading}
+                    >
+                      삭제
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
