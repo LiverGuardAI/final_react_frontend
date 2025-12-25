@@ -1,6 +1,6 @@
 // src/components/radiology/PatientQueueSidebar.tsx
 import React, { useState, useEffect } from 'react';
-import { getWaitlist } from '../../api/radiology_api';
+import { getWaitlist, startFilming } from '../../api/radiology_api';
 import type { Patient as APIPatient } from '../../api/radiology_api';
 import './PatientQueueSidebar.css';
 
@@ -11,9 +11,18 @@ interface Patient {
   status: '촬영중' | '촬영대기';
 }
 
+export interface SelectedPatientData {
+  patientId: string;
+  patientName: string;
+  gender: string;
+  birthDate: string;
+  age: number | null;
+  sampleId: string | null;
+}
+
 interface PatientQueueSidebarProps {
   selectedPatientId?: string;
-  onPatientSelect: (patientId: string) => void;
+  onPatientSelect: (patientId: string, patientData: SelectedPatientData) => void;
 }
 
 const PatientQueueSidebar: React.FC<PatientQueueSidebarProps> = ({
@@ -21,6 +30,7 @@ const PatientQueueSidebar: React.FC<PatientQueueSidebarProps> = ({
   onPatientSelect,
 }) => {
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [apiPatients, setApiPatients] = useState<APIPatient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,6 +50,7 @@ const PatientQueueSidebar: React.FC<PatientQueueSidebarProps> = ({
         }));
 
         setPatients(mappedPatients);
+        setApiPatients(response.patients);
       } catch (err) {
         console.error('Failed to fetch waitlist:', err);
         setError('환자 대기 목록을 불러오는데 실패했습니다.');
@@ -50,6 +61,41 @@ const PatientQueueSidebar: React.FC<PatientQueueSidebarProps> = ({
 
     fetchWaitlist();
   }, []);
+
+  const handleStartExam = async (patientId: string) => {
+    const apiPatient = apiPatients.find(p => p.patient_id === patientId);
+    if (apiPatient) {
+      try {
+        // 촬영 시작 API 호출 - 환자 상태를 '촬영중'으로 변경
+        await startFilming(patientId);
+
+        // 환자 정보 전달
+        const patientData: SelectedPatientData = {
+          patientId: apiPatient.patient_id,
+          patientName: apiPatient.name,
+          gender: apiPatient.gender || 'N/A',
+          birthDate: apiPatient.date_of_birth || 'N/A',
+          age: apiPatient.age,
+          sampleId: apiPatient.sample_id,
+        };
+        onPatientSelect(patientId, patientData);
+
+        // 대기 목록 새로고침
+        const response = await getWaitlist();
+        const mappedPatients: Patient[] = response.patients.map((patient: APIPatient) => ({
+          id: patient.patient_id,
+          name: patient.name,
+          episode: patient.sample_id || patient.patient_id,
+          status: patient.current_status === '촬영중' ? '촬영중' : '촬영대기'
+        }));
+        setPatients(mappedPatients);
+        setApiPatients(response.patients);
+      } catch (err) {
+        console.error('Failed to start filming:', err);
+        setError('촬영을 시작하는데 실패했습니다.');
+      }
+    }
+  };
 
   return (
     <div className="patient-queue-sidebar">
@@ -74,7 +120,6 @@ const PatientQueueSidebar: React.FC<PatientQueueSidebarProps> = ({
           <div
             key={patient.id}
             className={`patient-card ${selectedPatientId === patient.id ? 'selected' : ''}`}
-            onClick={() => onPatientSelect(patient.id)}
           >
             <div className="patient-card-header">
               <span className="patient-name">{patient.name}</span>
@@ -87,6 +132,14 @@ const PatientQueueSidebar: React.FC<PatientQueueSidebarProps> = ({
                 EPISODE<br />
                 {patient.episode}
               </div>
+              {patient.status === '촬영대기' && (
+                <button
+                  className="start-exam-button"
+                  onClick={() => handleStartExam(patient.id)}
+                >
+                  촬영 시작
+                </button>
+              )}
             </div>
           </div>
         ))}

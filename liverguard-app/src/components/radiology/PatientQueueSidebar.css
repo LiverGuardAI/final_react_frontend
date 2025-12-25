@@ -83,6 +83,28 @@
 
 .patient-episode {
   line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.start-exam-button {
+  width: 100%;
+  padding: 6px 12px;
+  background-color: #4a90e2;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.start-exam-button:hover {
+  background-color: #357abd;
+}
+
+.start-exam-button:active {
+  background-color: #2d6aa3;
 }
 
 .sidebar-footer {
