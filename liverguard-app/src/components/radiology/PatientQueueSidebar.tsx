@@ -132,12 +132,14 @@ const PatientQueueSidebar: React.FC<PatientQueueSidebarProps> = ({
                 EPISODE<br />
                 {patient.episode}
               </div>
-              <button
-                className="start-exam-button"
-                onClick={() => handleStartExam(patient.id)}
-              >
-                진료 시작
-              </button>
+              {patient.status === '촬영대기' && (
+                <button
+                  className="start-exam-button"
+                  onClick={() => handleStartExam(patient.id)}
+                >
+                  촬영 시작
+                </button>
+              )}
             </div>
           </div>
         ))}

@@ -49,3 +49,20 @@ export const startFilming = async (patientId: string): Promise<StartFilmingRespo
   );
   return response.data;
 };
+
+export interface EndFilmingResponse {
+  message: string;
+  patient: Patient;
+}
+
+/**
+ * 촬영 종료 - 환자 상태를 '촬영완료'로 변경
+ * POST /api/radiology/waitlist/end-filming/
+ */
+export const endFilming = async (patientId: string): Promise<EndFilmingResponse> => {
+  const response = await apiClient.post<EndFilmingResponse>(
+    "radiology/waitlist/end-filming/",
+    { patient_id: patientId }
+  );
+  return response.data;
+};
