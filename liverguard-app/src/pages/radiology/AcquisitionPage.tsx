@@ -44,11 +44,6 @@ const AcquisitionPage: React.FC = () => {
     };
 
     fetchFilmingPatient();
-
-    // 주기적으로 촬영중인 환자 확인 (5초마다)
-    const interval = setInterval(fetchFilmingPatient, 5000);
-
-    return () => clearInterval(interval);
   }, []);
 
   const handlePatientSelect = (patientId: string, patientData: SelectedPatientData) => {
