@@ -75,3 +75,39 @@ export const getInstanceInfo = async (instanceId: string) => {
   const response = await apiClient.get(`orthanc/instances/${instanceId}/`);
   return response.data;
 };
+
+/**
+ * 모든 Series 목록 조회
+ * GET /api/orthanc/series/
+ */
+export const getSeriesList = async () => {
+  const response = await apiClient.get('orthanc/series/');
+  return response.data;
+};
+
+/**
+ * 특정 Series 정보 조회
+ * GET /api/orthanc/series/{id}/
+ */
+export const getSeriesInfo = async (seriesId: string) => {
+  const response = await apiClient.get(`orthanc/series/${seriesId}/`);
+  return response.data;
+};
+
+/**
+ * 특정 Series의 모든 Instances 조회
+ * GET /api/orthanc/series/{id}/instances/
+ */
+export const getSeriesInstances = async (seriesId: string) => {
+  const response = await apiClient.get(`orthanc/series/${seriesId}/instances/`);
+  return response.data;
+};
+
+/**
+ * Instance 파일 URL 생성
+ * GET /api/orthanc/instances/{id}/file/
+ */
+export const getInstanceFileUrl = (instanceId: string): string => {
+  const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/';
+  return `${baseURL}orthanc/instances/${instanceId}/file/`;
+};

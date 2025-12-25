@@ -1,0 +1,94 @@
+// src/components/radiology/SeriesListSidebar.tsx
+import React from 'react';
+import './SeriesListSidebar.css';
+
+interface Series {
+  id: string;
+  data: {
+    ID: string;
+    MainDicomTags: {
+      Modality?: string;
+      SeriesDescription?: string;
+      SeriesNumber?: string;
+      SeriesDate?: string;
+    };
+    Instances?: string[];
+  };
+}
+
+interface SeriesListSidebarProps {
+  seriesList: Series[];
+  selectedSeriesId: string | null;
+  onSeriesSelect: (seriesId: string) => void;
+  isLoading?: boolean;
+}
+
+const SeriesListSidebar: React.FC<SeriesListSidebarProps> = ({
+  seriesList,
+  selectedSeriesId,
+  onSeriesSelect,
+  isLoading = false,
+}) => {
+  const formatSeriesNumber = (seriesNumber?: string) => {
+    return seriesNumber ? `Series ${seriesNumber}` : 'Series';
+  };
+
+  const formatDate = (date?: string) => {
+    if (!date) return '';
+    // DICOM date format: YYYYMMDD
+    if (date.length === 8) {
+      return `${date.substring(0, 4)}-${date.substring(4, 6)}-${date.substring(6, 8)}`;
+    }
+    return date;
+  };
+
+  return (
+    <div className="series-list-sidebar">
+      <div className="sidebar-header">
+        <h2>Series 목록</h2>
+      </div>
+
+      <div className="series-list">
+        {isLoading ? (
+          <div className="loading-state">Loading...</div>
+        ) : seriesList.length === 0 ? (
+          <div className="empty-state">Series가 없습니다</div>
+        ) : (
+          seriesList.map((series) => (
+            <div
+              key={series.id}
+              className={`series-card ${selectedSeriesId === series.id ? 'selected' : ''}`}
+              onClick={() => onSeriesSelect(series.id)}
+            >
+              <div className="series-card-header">
+                <span className="series-number">
+                  {formatSeriesNumber(series.data.MainDicomTags?.SeriesNumber)}
+                </span>
+              </div>
+              <div className="series-card-body">
+                <div className="series-description">
+                  {series.data.MainDicomTags?.SeriesDescription || 'No Description'}
+                </div>
+                <div className="series-modality">
+                  {series.data.MainDicomTags?.Modality || 'Unknown'}
+                </div>
+                <div className="series-date">
+                  {formatDate(series.data.MainDicomTags?.SeriesDate)}
+                </div>
+                <div className="series-instances">
+                  {series.data.Instances?.length || 0} images
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="sidebar-footer">
+        <h3>환자 정보</h3>
+      </div>
+    </div>
+  );
+};
+
+export default SeriesListSidebar;
