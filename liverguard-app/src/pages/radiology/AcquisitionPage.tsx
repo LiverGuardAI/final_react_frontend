@@ -2,10 +2,17 @@
 import React, { useState } from 'react';
 import PatientHeader from '../../components/radiology/PatientHeader';
 import PatientQueueSidebar from '../../components/radiology/PatientQueueSidebar';
+import type { SelectedPatientData } from '../../components/radiology/PatientQueueSidebar';
 import './AcquisitionPage.css';
 
 const AcquisitionPage: React.FC = () => {
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
+  const [selectedPatientData, setSelectedPatientData] = useState<SelectedPatientData | null>(null);
+
+  const handlePatientSelect = (patientId: string, patientData: SelectedPatientData) => {
+    setSelectedPatientId(patientId);
+    setSelectedPatientData(patientData);
+  };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -17,19 +24,25 @@ const AcquisitionPage: React.FC = () => {
 
   return (
     <div className="acquisition-page">
-      <PatientHeader
-        patientId="TCGA-BC-4073"
-        patientName="홍길동"
-        gender="M"
-        birthDate="1998-10-08"
-        examType="CT Abdomen"
-        examDate="2025-12-11 11:17 AM"
-      />
+      {selectedPatientData ? (
+        <PatientHeader
+          patientId={selectedPatientData.patientId}
+          patientName={selectedPatientData.patientName}
+          gender={selectedPatientData.gender}
+          birthDate={selectedPatientData.birthDate}
+          examType="CT Abdomen"
+          examDate={new Date().toLocaleString('ko-KR')}
+        />
+      ) : (
+        <div className="no-patient-selected">
+          환자를 선택해주세요
+        </div>
+      )}
 
       <div className="acquisition-content">
         <PatientQueueSidebar
           selectedPatientId={selectedPatientId}
-          onPatientSelect={setSelectedPatientId}
+          onPatientSelect={handlePatientSelect}
         />
 
         <div className="main-content">

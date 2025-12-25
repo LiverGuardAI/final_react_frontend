@@ -48,3 +48,15 @@
 .upload-button:active {
   transform: scale(0.98);
 }
+
+.no-patient-selected {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60px;
+  background-color: #1a2332;
+  color: #94a3b8;
+  font-size: 14px;
+  font-weight: 500;
+  border-bottom: 1px solid #2d3748;
+}
