@@ -1,5 +1,6 @@
 /* src/components/radiology/PatientHeader.css */
 .patient-header {
+  position: relative;
   background-color: #1a2332;
   border-bottom: 1px solid #2d3748;
   padding: 12px 20px;
