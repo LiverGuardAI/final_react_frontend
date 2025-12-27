@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import PatientHeader from '../../components/radiology/PatientHeader';
 import SeriesListSidebar from '../../components/radiology/SeriesListSidebar';
-import DicomViewer from '../../components/radiology/DicomViewer';
+import SimpleDicomViewer from '../../components/radiology/SimpleDicomViewer';
+import MaskOverlayViewer from '../../components/radiology/MaskOverlayViewer';
 import {
   getSeriesList,
   getSeriesInstances,
@@ -46,6 +47,7 @@ const PostProcessingPage: React.FC = () => {
   const [isCreatingMask, setIsCreatingMask] = useState<boolean>(false);
   const [maskProgress, setMaskProgress] = useState<string>('');
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
+  const [showOverlay, setShowOverlay] = useState<boolean>(true);
 
   // Fetch series list from Orthanc on component mount
   useEffect(() => {
@@ -193,7 +195,7 @@ const PostProcessingPage: React.FC = () => {
                 {isLoadingInstances ? (
                   <div className="loading-state">Loading images...</div>
                 ) : selectedSeriesId && seriesInstances.length > 0 ? (
-                  <DicomViewer
+                  <SimpleDicomViewer
                     seriesId={selectedSeriesId}
                     instances={seriesInstances}
                   />
@@ -204,14 +206,26 @@ const PostProcessingPage: React.FC = () => {
             </div>
 
             <div className="mask-panel">
-              <h3>생성 Mask</h3>
+              <h3>생성 Mask {maskSeriesId && (
+                <label className="overlay-toggle">
+                  <input
+                    type="checkbox"
+                    checked={showOverlay}
+                    onChange={(e) => setShowOverlay(e.target.checked)}
+                  />
+                  <span>Overlay 표시</span>
+                </label>
+              )}</h3>
               <div className="mask-viewer">
                 {isCreatingMask ? (
                   <div className="loading-state">{maskProgress}</div>
-                ) : maskSeriesId && maskInstances.length > 0 ? (
-                  <DicomViewer
-                    seriesId={maskSeriesId}
-                    instances={maskInstances}
+                ) : maskSeriesId && maskInstances.length > 0 && selectedSeriesId ? (
+                  <MaskOverlayViewer
+                    seriesId={selectedSeriesId}
+                    instances={seriesInstances}
+                    maskSeriesId={maskSeriesId}
+                    maskInstances={maskInstances}
+                    showOverlay={showOverlay}
                   />
                 ) : (
                   <div className="empty-state">Mask가 없습니다</div>
