@@ -111,3 +111,67 @@ export const getInstanceFileUrl = (instanceId: string): string => {
   const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/';
   return `${baseURL}orthanc/instances/${instanceId}/file/`;
 };
+
+/**
+ * AI Segmentation Mask 생성 요청
+ * POST /api/ai/mosec/segmentation/create/
+ */
+export interface CreateSegmentationResponse {
+  task_id: string;
+  status: string;
+  message: string;
+  series_id: string;
+}
+
+export const createSegmentationMask = async (seriesId: string): Promise<CreateSegmentationResponse> => {
+  try {
+    const response = await apiClient.post<CreateSegmentationResponse>(
+      'ai/mosec/segmentation/create/',
+      {
+        series_id: seriesId
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Failed to create segmentation mask:', error);
+    throw error;
+  }
+};
+
+/**
+ * Segmentation Task 상태 조회
+ * GET /api/ai/mosec/segmentation/status/{task_id}/
+ */
+export interface SegmentationTaskStatus {
+  task_id: string;
+  status: 'PENDING' | 'PROGRESS' | 'SUCCESS' | 'FAILURE';
+  message?: string;
+  progress?: {
+    step: string;
+    series_id: string;
+    progress: number;
+  };
+  result?: {
+    status: string;
+    series_id: string;
+    result: {
+      original_series_id: string;
+      mask_series_id: string;
+      message: string;
+    };
+    message: string;
+  };
+  error?: string;
+}
+
+export const getSegmentationTaskStatus = async (taskId: string): Promise<SegmentationTaskStatus> => {
+  try {
+    const response = await apiClient.get<SegmentationTaskStatus>(
+      `ai/mosec/segmentation/status/${taskId}/`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Failed to get task status:', error);
+    throw error;
+  }
+};

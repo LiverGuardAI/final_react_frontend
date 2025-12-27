@@ -3,7 +3,12 @@ import React, { useState, useEffect } from 'react';
 import PatientHeader from '../../components/radiology/PatientHeader';
 import SeriesListSidebar from '../../components/radiology/SeriesListSidebar';
 import DicomViewer from '../../components/radiology/DicomViewer';
-import { getSeriesList, getSeriesInstances } from '../../api/orthanc_api';
+import {
+  getSeriesList,
+  getSeriesInstances,
+  createSegmentationMask,
+  getSegmentationTaskStatus
+} from '../../api/orthanc_api';
 import './PostProcessingPage.css';
 
 interface Series {
@@ -34,6 +39,13 @@ const PostProcessingPage: React.FC = () => {
   const [seriesInstances, setSeriesInstances] = useState<Instance[]>([]);
   const [isLoadingSeries, setIsLoadingSeries] = useState<boolean>(false);
   const [isLoadingInstances, setIsLoadingInstances] = useState<boolean>(false);
+
+  // Segmentation mask state
+  const [maskSeriesId, setMaskSeriesId] = useState<string | null>(null);
+  const [maskInstances, setMaskInstances] = useState<Instance[]>([]);
+  const [isCreatingMask, setIsCreatingMask] = useState<boolean>(false);
+  const [maskProgress, setMaskProgress] = useState<string>('');
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
 
   // Fetch series list from Orthanc on component mount
   useEffect(() => {
@@ -75,14 +87,83 @@ const PostProcessingPage: React.FC = () => {
     fetchInstances();
   }, [selectedSeriesId]);
 
-  const handleCreateSegMask = () => {
-    console.log('Create Seg-Mask clicked');
-    // Seg-Mask 생성 로직 구현
+  // Poll task status
+  useEffect(() => {
+    if (!currentTaskId) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const taskStatus = await getSegmentationTaskStatus(currentTaskId);
+
+        if (taskStatus.status === 'PROGRESS' && taskStatus.progress) {
+          setMaskProgress(`${taskStatus.progress.step} (${taskStatus.progress.progress}%)`);
+        } else if (taskStatus.status === 'SUCCESS' && taskStatus.result) {
+          // Celery task completed - check internal status
+          const result = taskStatus.result as any;
+          if (result.status === 'failed') {
+            // AI processing failed
+            setMaskProgress(`Error: ${result.error || 'AI processing failed'}`);
+            setIsCreatingMask(false);
+            setCurrentTaskId(null);
+            clearInterval(pollInterval);
+          } else if (result.status === 'success' && result.result?.mask_series_id) {
+            // Success - mask created
+            const resultMaskSeriesId = result.result.mask_series_id;
+            setMaskSeriesId(resultMaskSeriesId);
+            setMaskProgress('Segmentation completed!');
+            setIsCreatingMask(false);
+            setCurrentTaskId(null);
+
+            // Fetch mask instances
+            const instances = await getSeriesInstances(resultMaskSeriesId);
+            setMaskInstances(instances);
+
+            clearInterval(pollInterval);
+          }
+        } else if (taskStatus.status === 'FAILURE') {
+          // Celery task itself failed
+          setMaskProgress(`Error: ${taskStatus.error || 'Task execution failed'}`);
+          setIsCreatingMask(false);
+          setCurrentTaskId(null);
+          clearInterval(pollInterval);
+        }
+      } catch (error) {
+        console.error('Failed to poll task status:', error);
+      }
+    }, 10000); // Poll every 10 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [currentTaskId]);
+
+  const handleCreateSegMask = async () => {
+    if (!selectedSeriesId) {
+      alert('Please select a series first');
+      return;
+    }
+
+    if (isCreatingMask) {
+      alert('Segmentation is already in progress');
+      return;
+    }
+
+    try {
+      setIsCreatingMask(true);
+      setMaskProgress('Starting segmentation...');
+
+      const response = await createSegmentationMask(selectedSeriesId);
+      setCurrentTaskId(response.task_id);
+      setMaskProgress('Task created, processing...');
+    } catch (error) {
+      console.error('Failed to create segmentation mask:', error);
+      alert('Failed to start segmentation task');
+      setIsCreatingMask(false);
+      setMaskProgress('');
+    }
   };
 
   const handleLoadSegMask = () => {
     console.log('Load Seg-Mask clicked');
-    // Seg-Mask 로드 로직 구현
+    // TODO: Implement load mask logic
   };
 
   return (
@@ -125,11 +206,24 @@ const PostProcessingPage: React.FC = () => {
             <div className="mask-panel">
               <h3>생성 Mask</h3>
               <div className="mask-viewer">
-                <div className="empty-state">Mask가 없습니다</div>
+                {isCreatingMask ? (
+                  <div className="loading-state">{maskProgress}</div>
+                ) : maskSeriesId && maskInstances.length > 0 ? (
+                  <DicomViewer
+                    seriesId={maskSeriesId}
+                    instances={maskInstances}
+                  />
+                ) : (
+                  <div className="empty-state">Mask가 없습니다</div>
+                )}
               </div>
               <div className="mask-buttons">
-                <button className="btn-create-mask" onClick={handleCreateSegMask}>
-                  Create Seg-Mask
+                <button
+                  className="btn-create-mask"
+                  onClick={handleCreateSegMask}
+                  disabled={isCreatingMask || !selectedSeriesId}
+                >
+                  {isCreatingMask ? 'Creating...' : 'Create Seg-Mask'}
                 </button>
                 <button className="btn-load-mask" onClick={handleLoadSegMask}>
                   Load Seg-Mask

@@ -30,8 +30,15 @@ const DicomViewer: React.FC<DicomViewerProps> = ({ seriesId, instances }) => {
     // Cornerstone 활성화
     cornerstone.enable(element);
 
+    // InstanceNumber로 정렬
+    const sortedInstances = [...instances].sort((a, b) => {
+      const numA = parseInt(a.MainDicomTags?.InstanceNumber || '0', 10);
+      const numB = parseInt(b.MainDicomTags?.InstanceNumber || '0', 10);
+      return numA - numB;
+    });
+
     // 이미지 ID 생성
-    imageIdsRef.current = instances.map((instance) => {
+    imageIdsRef.current = sortedInstances.map((instance) => {
       const instanceId = instance.ID;
       const url = getInstanceFileUrl(instanceId);
       return `wadouri:${url}`;
