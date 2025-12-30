@@ -37,16 +37,58 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// 🔹 Response Interceptor
+// 🔹 Response Interceptor - 토큰 자동 갱신
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
     const data = error.response?.data;
     const isTokenInvalid = data?.code === "token_not_valid";
-    if (isTokenInvalid) {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
+
+    // 토큰이 만료되었고, 재시도하지 않은 요청인 경우
+    if (isTokenInvalid && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      const refreshToken = localStorage.getItem("refresh_token");
+
+      if (refreshToken) {
+        try {
+          // Refresh token으로 새 access token 받기
+          const response = await axios.post(
+            `${baseURL}auth/refresh/`,
+            { refresh: refreshToken },
+            { headers: { "Content-Type": "application/json" } }
+          );
+
+          const newAccessToken = response.data.access;
+          localStorage.setItem("access_token", newAccessToken);
+
+          // 원래 요청을 새 토큰으로 재시도
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          return apiClient(originalRequest);
+        } catch (refreshError) {
+          // Refresh token도 만료됨 - 로그아웃 처리
+          console.error("Refresh token expired. Please login again.");
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("refresh_token");
+          localStorage.removeItem("user");
+          localStorage.removeItem("administration");
+
+          // 로그인 페이지로 리다이렉트
+          window.location.href = "/";
+          return Promise.reject(refreshError);
+        }
+      } else {
+        // Refresh token이 없음 - 로그아웃 처리
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        localStorage.removeItem("user");
+        localStorage.removeItem("administration");
+
+        window.location.href = "/";
+      }
     }
+
     console.error(data || error);
     return Promise.reject(error);
   }

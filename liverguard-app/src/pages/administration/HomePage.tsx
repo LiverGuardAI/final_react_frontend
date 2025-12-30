@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from "../../context/AuthContext";
+import {
+  registerPatient,
+  getPatientList,
+  getPatientDetail,
+  updatePatient,
+  type PatientRegistrationData,
+  type PatientUpdateData
+} from "../../api/administrationApi";
 import styles from './HomePage.module.css';
 import SchedulePage from './SchedulePage';
 import AppointmentManagementPage from './AppointmentManagementPage';
@@ -52,33 +60,37 @@ export default function AdministrationHomePage() {
   const [contentTab, setContentTab] = useState<ContentTabType>('search');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // 샘플 환자 데이터
-  const [patients] = useState<Patient[]>([
-    {
-      id: 1,
-      name: '송영운',
-      birthDate: '981008-1******',
-      age: 26,
-      gender: '남',
-      phone: '010-****-4098',
-      emergencyContact: '010-9876-5432',
-      address: '서울시 강남구',
-      registrationDate: '2024.01.15',
-      lastVisit: '2024.12.20'
-    },
-    {
-      id: 2,
-      name: '송영운',
-      birthDate: '960922-1******',
-      age: 28,
-      gender: '남',
-      phone: '010-****-1825',
-      emergencyContact: '010-8765-4321',
-      address: '서울시 서초구',
-      registrationDate: '2024.02.20',
-      lastVisit: '2024.12.19'
-    },
-  ]);
+  // 신규 환자 등록 폼 state
+  const [newPatientForm, setNewPatientForm] = useState({
+    patient_id: '',
+    name: '',
+    date_of_birth: '',
+    gender: '' as '' | 'M' | 'F',
+    phone: '',
+    sample_id: '',
+  });
+  const [formError, setFormError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // DB에서 가져온 환자 데이터
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [isLoadingPatients, setIsLoadingPatients] = useState(false);
+
+  // 페이지네이션
+  const [currentPage, setCurrentPage] = useState(1);
+  const patientsPerPage = 5;
+
+  // 환자 상세 모달
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    date_of_birth: '',
+    gender: '' as '' | 'M' | 'F',
+    phone: '',
+    sample_id: '',
+  });
 
   // 금일 예약 데이터
   const [appointments] = useState<Appointment[]>([
@@ -135,12 +147,6 @@ export default function AdministrationHomePage() {
     }
   ]);
 
-  const filteredPatients = patients.filter(patient =>
-    patient.name.includes(searchQuery) ||
-    patient.phone.includes(searchQuery) ||
-    patient.birthDate.includes(searchQuery)
-  );
-
   const handleTabClick = (tab: TabType) => {
     setActiveTab(tab);
     // 나중에 각 탭에 맞는 페이지로 라우팅 추가 가능
@@ -172,6 +178,9 @@ export default function AdministrationHomePage() {
     } catch (error) {
       console.error('Failed to parse administration info from storage', error);
     }
+
+    // 초기 환자 목록 로드
+    fetchPatients();
   }, []);
 
   const handleLogout = () => {
@@ -182,6 +191,216 @@ export default function AdministrationHomePage() {
 
     logout();
     navigate('/');
+  };
+
+  // 신규 환자 폼 입력 핸들러
+  const handleFormChange = (field: keyof typeof newPatientForm, value: string) => {
+    setNewPatientForm(prev => ({ ...prev, [field]: value }));
+    setFormError(''); // 입력 시 에러 메시지 제거
+  };
+
+  // 신규 환자 등록 제출 핸들러
+  const handlePatientRegistration = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError('');
+    setIsSubmitting(true);
+
+    try {
+      // 필수 필드 검증
+      if (!newPatientForm.patient_id || !newPatientForm.name || !newPatientForm.date_of_birth || !newPatientForm.gender) {
+        setFormError('필수 항목을 모두 입력해주세요.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // API 호출
+      const data: PatientRegistrationData = {
+        patient_id: newPatientForm.patient_id.trim(),
+        name: newPatientForm.name.trim(),
+        date_of_birth: newPatientForm.date_of_birth,
+        gender: newPatientForm.gender,
+        phone: newPatientForm.phone.trim() || undefined,
+        sample_id: newPatientForm.sample_id.trim() || undefined,
+      };
+
+      const response = await registerPatient(data);
+
+      alert(`환자 등록 완료: ${response.patient.name} (${response.patient.patient_id})`);
+
+      // 폼 초기화
+      setNewPatientForm({
+        patient_id: '',
+        name: '',
+        date_of_birth: '',
+        gender: '',
+        phone: '',
+        sample_id: '',
+      });
+
+      // 검색 탭으로 전환 (선택사항)
+      setContentTab('search');
+
+    } catch (error: any) {
+      console.error('환자 등록 실패:', error);
+
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        // 백엔드에서 반환한 에러 메시지 표시
+        if (typeof errorData === 'object') {
+          const errorMessages = Object.values(errorData).flat().join(', ');
+          setFormError(errorMessages || '환자 등록에 실패했습니다.');
+        } else {
+          setFormError(errorData || '환자 등록에 실패했습니다.');
+        }
+      } else {
+        setFormError('서버와의 통신에 실패했습니다.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // 폼 취소 핸들러
+  const handleFormCancel = () => {
+    setNewPatientForm({
+      patient_id: '',
+      name: '',
+      date_of_birth: '',
+      gender: '',
+      phone: '',
+      sample_id: '',
+    });
+    setFormError('');
+    setContentTab('search');
+  };
+
+  // 환자 목록 가져오기
+  const fetchPatients = async (search?: string) => {
+    setIsLoadingPatients(true);
+    try {
+      const response = await getPatientList(search || searchQuery);
+
+      // DB 데이터를 UI 형식에 맞게 변환
+      const formattedPatients: Patient[] = response.results.map((p: any) => ({
+        id: p.patient_id, // patient_id를 id로 사용
+        name: p.name,
+        birthDate: p.date_of_birth || 'N/A', // YYYY-MM-DD 형식
+        age: p.age || 0,
+        gender: p.gender === 'M' ? '남' : p.gender === 'F' ? '여' : 'N/A',
+        phone: p.phone || 'N/A',
+        emergencyContact: 'N/A',
+        address: 'N/A',
+        registrationDate: p.created_at ? new Date(p.created_at).toLocaleDateString('ko-KR').replace(/\. /g, '.').replace(/\.$/, '') : 'N/A',
+        lastVisit: 'None', // 최근 방문 기록은 Encounter에서 가져와야 함
+      }));
+
+      setPatients(formattedPatients);
+    } catch (error) {
+      console.error('환자 목록 조회 실패:', error);
+      setPatients([]);
+    } finally {
+      setIsLoadingPatients(false);
+    }
+  };
+
+  // 검색어 변경 시 환자 목록 갱신
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1); // 검색 시 첫 페이지로 이동
+    if (value.trim()) {
+      fetchPatients(value);
+    } else {
+      fetchPatients('');
+    }
+  };
+
+  // 페이지네이션 계산
+  const totalPages = Math.ceil(patients.length / patientsPerPage);
+  const indexOfLastPatient = currentPage * patientsPerPage;
+  const indexOfFirstPatient = indexOfLastPatient - patientsPerPage;
+  const currentPatients = patients.slice(indexOfFirstPatient, indexOfLastPatient);
+
+  // 페이지 변경 핸들러
+  const handlePageChange = (pageNumber: number) => {
+    setCurrentPage(pageNumber);
+  };
+
+  // 환자 클릭 핸들러 (상세 정보 모달 열기)
+  const handlePatientClick = async (patient: Patient) => {
+    try {
+      const detailData = await getPatientDetail(patient.id.toString());
+      setSelectedPatient({
+        ...patient,
+        ...detailData,
+      });
+      setEditForm({
+        name: detailData.name || '',
+        date_of_birth: detailData.date_of_birth || '',
+        gender: detailData.gender || '',
+        phone: detailData.phone || '',
+        sample_id: detailData.sample_id || '',
+      });
+      setIsModalOpen(true);
+      setIsEditing(false);
+    } catch (error) {
+      console.error('환자 상세 정보 조회 실패:', error);
+      alert('환자 정보를 불러오는데 실패했습니다.');
+    }
+  };
+
+  // 모달 닫기
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedPatient(null);
+    setIsEditing(false);
+  };
+
+  // 수정 모드 전환
+  const handleEditToggle = () => {
+    setIsEditing(!isEditing);
+  };
+
+  // 수정 폼 입력 핸들러
+  const handleEditFormChange = (field: keyof typeof editForm, value: string) => {
+    setEditForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  // 환자 정보 수정 제출
+  const handleUpdatePatient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPatient) return;
+
+    try {
+      const updateData: PatientUpdateData = {
+        name: editForm.name,
+        date_of_birth: editForm.date_of_birth,
+        gender: editForm.gender as 'M' | 'F',
+        phone: editForm.phone || undefined,
+        sample_id: editForm.sample_id || undefined,
+      };
+
+      const response = await updatePatient(selectedPatient.id.toString(), updateData);
+
+      // 수정된 환자 정보로 selectedPatient 업데이트
+      setSelectedPatient({
+        ...selectedPatient,
+        name: editForm.name,
+        birthDate: editForm.date_of_birth,
+        gender: editForm.gender === 'M' ? '남' : editForm.gender === 'F' ? '여' : 'N/A',
+        phone: editForm.phone || 'N/A',
+      });
+
+      // 수정 모드 종료
+      setIsEditing(false);
+
+      alert('환자 정보가 수정되었습니다.');
+
+      // 환자 목록 새로고침
+      await fetchPatients();
+    } catch (error: any) {
+      console.error('환자 정보 수정 실패:', error);
+      alert('환자 정보 수정에 실패했습니다.');
+    }
   };
 
   return (
@@ -346,120 +565,199 @@ export default function AdministrationHomePage() {
                       <div className={styles.searchBar}>
                         <input
                           type="text"
-                          placeholder="이름, 생년월일, 전화번호 검색"
+                          placeholder="이름, 환자 ID, 생년월일 검색"
                           className={styles.searchInput}
                           value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
+                          onChange={(e) => handleSearchChange(e.target.value)}
                         />
-                        <button className={styles.searchButton}>검색</button>
+                        <button
+                          className={styles.searchButton}
+                          onClick={() => fetchPatients()}
+                        >
+                          검색
+                        </button>
                       </div>
 
                       {/* 환자 목록 테이블 */}
                       <div className={styles.tableContainer}>
-                        <table className={styles.patientTable}>
-                          <thead>
-                            <tr>
-                              <th>이름</th>
-                              <th>생년월일</th>
-                              <th>성별</th>
-                              <th>전화번호</th>
-                              <th>최근 방문</th>
-                              <th>작업</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {filteredPatients.map((patient) => (
-                              <tr key={patient.id}>
-                                <td className={styles.patientName}>{patient.name}</td>
-                                <td>{patient.birthDate}</td>
-                                <td>{patient.gender}</td>
-                                <td>{patient.phone}</td>
-                                <td>{patient.lastVisit || '-'}</td>
-                                <td>
-                                  <div className={styles.actionButtons}>
-                                    <button className={styles.checkinBtn} title="현장 접수">현장 접수</button>
-                                    <button className={styles.appointmentBtn} title="예약 생성">예약 등록</button>
-                                  </div>
-                                </td>
+                        {isLoadingPatients ? (
+                          <div style={{ textAlign: 'center', padding: '20px' }}>환자 목록 로딩 중...</div>
+                        ) : (
+                          <table className={styles.patientTable}>
+                            <thead>
+                              <tr>
+                                <th>이름</th>
+                                <th>생년월일</th>
+                                <th>성별</th>
+                                <th>나이</th>
+                                <th>최근 방문</th>
+                                <th>작업</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {patients.length === 0 ? (
+                                <tr>
+                                  <td colSpan={6} style={{ textAlign: 'center', padding: '20px' }}>
+                                    등록된 환자가 없습니다.
+                                  </td>
+                                </tr>
+                              ) : (
+                                currentPatients.map((patient) => (
+                                  <tr key={patient.id}>
+                                    <td
+                                      className={styles.patientNameClickable}
+                                      onClick={() => handlePatientClick(patient)}
+                                      style={{ cursor: 'pointer' }}
+                                    >
+                                      {patient.name}
+                                    </td>
+                                    <td>{patient.birthDate}</td>
+                                    <td>{patient.gender}</td>
+                                    <td>{patient.age}세</td>
+                                    <td>{patient.lastVisit}</td>
+                                    <td>
+                                      <div className={styles.actionButtons}>
+                                        <button className={styles.checkinBtn} title="현장 접수">현장 접수</button>
+                                        <button className={styles.appointmentBtn} title="예약 등록">예약 등록</button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        )}
                       </div>
+
+                      {/* 페이지네이션 */}
+                      {patients.length > 0 && (
+                        <div className={styles.pagination}>
+                          <button
+                            className={styles.pageButton}
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                          >
+                            이전
+                          </button>
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => (
+                            <button
+                              key={pageNumber}
+                              className={`${styles.pageButton} ${currentPage === pageNumber ? styles.activePage : ''}`}
+                              onClick={() => handlePageChange(pageNumber)}
+                            >
+                              {pageNumber}
+                            </button>
+                          ))}
+                          <button
+                            className={styles.pageButton}
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                          >
+                            다음
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (
                   <div className={styles.contentBody}>
                     {/* 신규 환자 등록 폼 */}
-                    <div className={styles.registrationForm}>
+                    <form className={styles.registrationForm} onSubmit={handlePatientRegistration}>
+                      {formError && (
+                        <div style={{ color: 'red', marginBottom: '15px', padding: '10px', backgroundColor: '#fee', borderRadius: '4px' }}>
+                          {formError}
+                        </div>
+                      )}
+
                       <div className={styles.formSection}>
                         <h3 className={styles.formSectionTitle}>기본 정보</h3>
                         <div className={styles.formGrid}>
                           <div className={styles.formGroup}>
                             <label className={styles.formLabel}>환자 ID <span className={styles.required}>*</span></label>
-                            <input type="text" className={styles.formInput} placeholder="P-2024-0001" />
+                            <input
+                              type="text"
+                              className={styles.formInput}
+                              placeholder="P-2024-0001"
+                              value={newPatientForm.patient_id}
+                              onChange={(e) => handleFormChange('patient_id', e.target.value)}
+                              required
+                            />
                           </div>
                           <div className={styles.formGroup}>
                             <label className={styles.formLabel}>이름 <span className={styles.required}>*</span></label>
-                            <input type="text" className={styles.formInput} placeholder="환자 이름" />
+                            <input
+                              type="text"
+                              className={styles.formInput}
+                              placeholder="환자 이름"
+                              value={newPatientForm.name}
+                              onChange={(e) => handleFormChange('name', e.target.value)}
+                              required
+                            />
                           </div>
                           <div className={styles.formGroup}>
                             <label className={styles.formLabel}>생년월일 <span className={styles.required}>*</span></label>
-                            <input type="date" className={styles.formInput} />
+                            <input
+                              type="date"
+                              className={styles.formInput}
+                              value={newPatientForm.date_of_birth}
+                              onChange={(e) => handleFormChange('date_of_birth', e.target.value)}
+                              required
+                            />
                           </div>
                           <div className={styles.formGroup}>
                             <label className={styles.formLabel}>성별 <span className={styles.required}>*</span></label>
-                            <select className={styles.formInput}>
+                            <select
+                              className={styles.formInput}
+                              value={newPatientForm.gender}
+                              onChange={(e) => handleFormChange('gender', e.target.value)}
+                              required
+                            >
                               <option value="">선택</option>
-                              <option value="Male">남성</option>
-                              <option value="Female">여성</option>
+                              <option value="M">남성</option>
+                              <option value="F">여성</option>
                             </select>
                           </div>
                           <div className={styles.formGroup}>
                             <label className={styles.formLabel}>전화번호</label>
-                            <input type="text" className={styles.formInput} placeholder="010-0000-0000" />
+                            <input
+                              type="tel"
+                              className={styles.formInput}
+                              placeholder="010-0000-0000"
+                              value={newPatientForm.phone}
+                              onChange={(e) => handleFormChange('phone', e.target.value)}
+                            />
                           </div>
                           <div className={styles.formGroup}>
                             <label className={styles.formLabel}>Sample ID</label>
-                            <input type="text" className={styles.formInput} placeholder="샘플 ID (선택)" />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className={styles.formSection}>
-                        <h3 className={styles.formSectionTitle}>진료 정보</h3>
-                        <div className={styles.formGrid}>
-                          <div className={styles.formGroup}>
-                            <label className={styles.formLabel}>담당 의사</label>
-                            <select className={styles.formInput}>
-                              <option value="">선택</option>
-                              <option value="1">정예진 (소화기내과)</option>
-                              <option value="2">송영운 (소화기내과)</option>
-                            </select>
-                          </div>
-                          <div className={styles.formGroup}>
-                            <label className={styles.formLabel}>최초 방문 여부</label>
-                            <select className={styles.formInput}>
-                              <option value="true">최초 방문</option>
-                              <option value="false">재방문</option>
-                            </select>
-                          </div>
-                          <div className={styles.formGroup}>
-                            <label className={styles.formLabel}>주소</label>
-                            <input type="text" className={styles.formInput} placeholder="주소 입력" />
-                          </div>
-                          <div className={styles.formGroup}>
-                            <label className={styles.formLabel}>비고</label>
-                            <textarea className={styles.formTextarea} placeholder="특이사항 입력" rows={3}></textarea>
+                            <input
+                              type="text"
+                              className={styles.formInput}
+                              placeholder="샘플 ID (선택)"
+                              value={newPatientForm.sample_id}
+                              onChange={(e) => handleFormChange('sample_id', e.target.value)}
+                            />
                           </div>
                         </div>
                       </div>
 
                       <div className={styles.formActions}>
-                        <button className={styles.cancelButton}>취소</button>
-                        <button className={styles.submitButton}>환자 등록</button>
+                        <button
+                          type="button"
+                          className={styles.cancelButton}
+                          onClick={handleFormCancel}
+                          disabled={isSubmitting}
+                        >
+                          취소
+                        </button>
+                        <button
+                          type="submit"
+                          className={styles.submitButton}
+                          disabled={isSubmitting}
+                        >
+                          {isSubmitting ? '등록 중...' : '환자 등록'}
+                        </button>
                       </div>
-                    </div>
+                    </form>
                   </div>
                 )}
               </div>
@@ -610,6 +908,149 @@ export default function AdministrationHomePage() {
           )}
         </div>
       </div>
+
+      {/* 환자 상세 정보 모달 */}
+      {isModalOpen && selectedPatient && (
+        <div className={styles.modalOverlay} onClick={handleCloseModal}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2>환자 상세 정보</h2>
+              <button className={styles.closeButton} onClick={handleCloseModal}>×</button>
+            </div>
+
+            {!isEditing ? (
+              // 조회 모드
+              <div className={styles.modalBody}>
+                <div className={styles.detailGrid}>
+                  <div className={styles.detailItem}>
+                    <span className={styles.detailLabel}>환자 ID:</span>
+                    <span className={styles.detailValue}>{selectedPatient.id}</span>
+                  </div>
+                  <div className={styles.detailItem}>
+                    <span className={styles.detailLabel}>이름:</span>
+                    <span className={styles.detailValue}>{selectedPatient.name}</span>
+                  </div>
+                  <div className={styles.detailItem}>
+                    <span className={styles.detailLabel}>생년월일:</span>
+                    <span className={styles.detailValue}>{selectedPatient.birthDate}</span>
+                  </div>
+                  <div className={styles.detailItem}>
+                    <span className={styles.detailLabel}>성별:</span>
+                    <span className={styles.detailValue}>{selectedPatient.gender}</span>
+                  </div>
+                  <div className={styles.detailItem}>
+                    <span className={styles.detailLabel}>나이:</span>
+                    <span className={styles.detailValue}>{selectedPatient.age}세</span>
+                  </div>
+                  <div className={styles.detailItem}>
+                    <span className={styles.detailLabel}>전화번호:</span>
+                    <span className={styles.detailValue}>{selectedPatient.phone || 'N/A'}</span>
+                  </div>
+                  <div className={styles.detailItem}>
+                    <span className={styles.detailLabel}>등록일:</span>
+                    <span className={styles.detailValue}>{selectedPatient.registrationDate}</span>
+                  </div>
+                  <div className={styles.detailItem}>
+                    <span className={styles.detailLabel}>최근 방문:</span>
+                    <span className={styles.detailValue}>{selectedPatient.lastVisit}</span>
+                  </div>
+                </div>
+
+                <div className={styles.modalActions}>
+                  <button className={styles.editButton} onClick={handleEditToggle}>
+                    수정
+                  </button>
+                  <button className={styles.cancelButton} onClick={handleCloseModal}>
+                    닫기
+                  </button>
+                </div>
+              </div>
+            ) : (
+              // 수정 모드
+              <form className={styles.modalBody} onSubmit={handleUpdatePatient}>
+                <div className={styles.formGrid}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>환자 ID</label>
+                    <input
+                      type="text"
+                      className={styles.formInput}
+                      value={selectedPatient.id}
+                      disabled
+                      style={{ backgroundColor: '#f0f0f0', cursor: 'not-allowed' }}
+                    />
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>이름 <span className={styles.required}>*</span></label>
+                    <input
+                      type="text"
+                      className={styles.formInput}
+                      value={editForm.name}
+                      onChange={(e) => handleEditFormChange('name', e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>생년월일 <span className={styles.required}>*</span></label>
+                    <input
+                      type="date"
+                      className={styles.formInput}
+                      value={editForm.date_of_birth}
+                      onChange={(e) => handleEditFormChange('date_of_birth', e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>성별 <span className={styles.required}>*</span></label>
+                    <select
+                      className={styles.formInput}
+                      value={editForm.gender}
+                      onChange={(e) => handleEditFormChange('gender', e.target.value)}
+                      required
+                    >
+                      <option value="">선택</option>
+                      <option value="M">남</option>
+                      <option value="F">여</option>
+                    </select>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>전화번호</label>
+                    <input
+                      type="tel"
+                      className={styles.formInput}
+                      placeholder="010-0000-0000"
+                      value={editForm.phone}
+                      onChange={(e) => handleEditFormChange('phone', e.target.value)}
+                    />
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>샘플 ID</label>
+                    <input
+                      type="text"
+                      className={styles.formInput}
+                      value={editForm.sample_id}
+                      onChange={(e) => handleEditFormChange('sample_id', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.modalActions}>
+                  <button type="submit" className={styles.submitButton}>
+                    저장
+                  </button>
+                  <button type="button" className={styles.cancelButton} onClick={handleEditToggle}>
+                    취소
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
