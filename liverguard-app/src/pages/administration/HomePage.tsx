@@ -48,7 +48,7 @@ export default function AdministrationHomePage() {
   const { logout } = useAuth();
   const [staffName, setStaffName] = useState<string>('원무과');
   const [departmentName, setDepartmentName] = useState<string>('부서');
-  const [activeTab, setActiveTab] = useState<TabType>('questionnaire');
+  const [activeTab, setActiveTab] = useState<TabType>('home');
   const [contentTab, setContentTab] = useState<ContentTabType>('search');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -244,7 +244,7 @@ export default function AdministrationHomePage() {
               className={`${styles.tabButton} ${activeTab === 'home' ? styles.active : ''}`}
               onClick={() => handleTabClick('home')}
             >
-              <span>홈</span>
+              <span>환자 접수</span>
             </button>
 
             <button

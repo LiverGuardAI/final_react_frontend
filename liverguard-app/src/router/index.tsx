@@ -11,6 +11,11 @@ import DoctorHomePage from "../pages/doctor/HomePage";
 import SchedulePage from "../pages/doctor/SchedulePage";
 import TreatmentPage from "../pages/doctor/TreatmentPage";
 import CTResultPage from "../pages/doctor/CTResult";
+import RNAResultPage from "../pages/doctor/RNAResult";
+import BloodResultPage from "../pages/doctor/BloodResult";
+import AIResultPage from "../pages/doctor/AIResult";
+import DDIPage from "../pages/doctor/DDI";
+import DoctorPatientManagementPage from "../pages/doctor/PatientManagementPage";
 import AdministrationLoginPage from "../pages/administration/LoginPage";
 import AdministrationHomePage from "../pages/administration/HomePage";
 import AppointmentManagementPage from "../pages/administration/AppointmentManagementPage";
@@ -32,6 +37,11 @@ const router = createBrowserRouter(
       <Route path="/doctor/schedule" element={<SchedulePage />} />
       <Route path="/doctor/treatment" element={<TreatmentPage />} />
       <Route path="/doctor/ct-result" element={<CTResultPage />} />
+      <Route path="/doctor/mrna-result" element={<RNAResultPage />} />
+      <Route path="/doctor/blood-result" element={<BloodResultPage />} />
+      <Route path="/doctor/ai-result" element={<AIResultPage />} />
+      <Route path="/doctor/ddi" element={<DDIPage />} />
+      <Route path="/doctor/patient-management" element={<DoctorPatientManagementPage />} />
       {/* 테스트용 - 나중에 ProtectedRoute 복원 필요 */}
       {/* <Route
         path="/doctor/home"

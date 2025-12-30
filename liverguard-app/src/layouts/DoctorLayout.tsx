@@ -53,6 +53,10 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
     // 드롭다운 아이템에 따라 페이지 이동
     if (item === 'CT 촬영 결과') {
       navigate('/doctor/ct-result');
+    } else if (item === '유전체 검사 결과') {
+      navigate('/doctor/mrna-result');
+    } else if (item === '혈액 검사 결과') {
+      navigate('/doctor/blood-result');
     }
   };
 
@@ -67,6 +71,15 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
         break;
       case 'treatment':
         navigate('/doctor/treatment');
+        break;
+      case 'testForm':
+        navigate('/doctor/ai-result');
+        break;
+      case 'patientManagement':
+        navigate('/doctor/patient-management');
+        break;
+      case 'medication':
+        navigate('/doctor/ddi');
         break;
       default:
         break;
