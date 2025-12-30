@@ -69,7 +69,12 @@ export default function DoctorHomePage() {
   const handleDropdownItemClick = (item: string) => {
     console.log(`Dropdown item clicked: ${item}`);
     setOpenDropdown(null);
-    // 드롭다운 아이템 클릭 로직
+
+    // 드롭다운 아이템에 따라 페이지 이동
+    if (item === 'CT 촬영') {
+      navigate('/doctor/ct-result');
+    }
+    // 다른 검사 항목도 추가 가능
   };
 
   const handleLogout = () => {
@@ -228,7 +233,7 @@ export default function DoctorHomePage() {
                   </svg>
                   <span style={{ fontSize: '15px', fontWeight: '600', color: '#388E3C' }}>검사 결과</span>
                 </button>
-                <button style={{ background: '#F3E5F5', border: 'none', borderRadius: '12px', padding: '20px 15px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', justifyContent: 'center' }}>
+                <button onClick={() => navigate('/doctor/ct-result')} style={{ background: '#F3E5F5', border: 'none', borderRadius: '12px', padding: '20px 15px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', justifyContent: 'center' }}>
                   <svg width="50" height="50" viewBox="0 0 48 48" fill="none">
                     <rect x="14" y="18" width="20" height="16" rx="2" fill="white" stroke="#7B1FA2" strokeWidth="2"/>
                     <circle cx="24" cy="22" r="2" fill="#7B1FA2"/>

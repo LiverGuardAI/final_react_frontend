@@ -1,0 +1,371 @@
+/* src/pages/doctor/CTResult.module.css */
+.container {
+  display: grid;
+  grid-template-rows: 35vh 1fr;
+  height: 100%;
+  background-color: #f5f7fa;
+  gap: 20px;
+}
+
+.mainContent {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 20px;
+  padding: 20px 30px 0;
+  overflow: hidden;
+}
+
+.viewerSection {
+  padding: 0 30px 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  overflow: hidden;
+}
+
+.studySection,
+.seriesSection {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sectionTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 10px 0;
+}
+
+.studyList,
+.seriesList {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(35vh - 80px);
+  min-height: 0;
+}
+
+.studyCard {
+  padding: 10px;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.studyCard:hover {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+/* 드롭다운 래퍼 */
+.dropdownWrapper {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: #ffffff;
+  margin-bottom: 6px;
+  transition: all 0.2s;
+}
+
+.dropdownWrapper:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* 드롭다운 헤더 */
+.dropdownHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  cursor: pointer;
+  background-color: #fef3c7;
+  border-bottom: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.dropdownHeader:hover {
+  background-color: #fde68a;
+}
+
+.dropdownHeader.expanded {
+  background-color: #fbbf24;
+  border-bottom-color: #f59e0b;
+}
+
+.dropdownHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dropdownHeaderRight {
+  flex: 1;
+  text-align: right;
+  margin-left: 12px;
+}
+
+.dropdownIcon {
+  font-size: 10px;
+  color: #78350f;
+  width: 12px;
+  display: inline-block;
+}
+
+.ctBadge {
+  background-color: #f59e0b;
+  color: #ffffff;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* 드롭다운 컨텐츠 */
+.dropdownContent {
+  background-color: #fffbeb;
+  padding: 10px;
+  border-top: 1px solid #fbbf24;
+  max-height: 300px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.seriesDetail {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 10px;
+}
+
+.detailRow {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+
+.detailRow:last-child {
+  margin-bottom: 0;
+}
+
+.detailLabel {
+  font-weight: 600;
+  color: #6b7280;
+  min-width: 70px;
+}
+
+.detailValue {
+  color: #1f2937;
+  word-break: break-all;
+}
+
+/* SEG 섹션 */
+.segSection {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.segSectionTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b21a8;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #e9d5ff;
+}
+
+.segItem {
+  background-color: #faf5ff;
+  border: 1px solid #e9d5ff;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 6px;
+  transition: all 0.2s;
+}
+
+.segItem:last-child {
+  margin-bottom: 0;
+}
+
+.segItem:hover {
+  background-color: #f3e8ff;
+  border-color: #c084fc;
+  transform: translateX(4px);
+}
+
+.segItemHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.segBadge {
+  background-color: #9333ea;
+  color: #ffffff;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.segNumber {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b21a8;
+}
+
+.segItemDescription {
+  font-size: 11px;
+  color: #4b5563;
+  margin-bottom: 4px;
+}
+
+.segItemId {
+  font-size: 9px;
+  color: #9ca3af;
+  font-family: 'Courier New', monospace;
+}
+
+.studyCard.selected {
+  background-color: #EBF5FF;
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.studyHeader,
+.seriesHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.studyDate {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.seriesNumber {
+  font-size: 11px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.seriesModality {
+  padding: 2px 6px;
+  background-color: #DBEAFE;
+  color: #1E40AF;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.studyDescription,
+.seriesDescription {
+  font-size: 12px;
+  color: #1f2937;
+  margin-bottom: 4px;
+}
+
+.studyId,
+.seriesId {
+  font-size: 10px;
+  color: #9ca3af;
+  font-family: 'Courier New', monospace;
+}
+
+.loadingState,
+.errorState,
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.errorState {
+  color: #ef4444;
+}
+
+/* Viewer Styles */
+.viewerContainer {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.viewerTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 16px;
+}
+
+.viewerCanvas {
+  flex: 1;
+  background-color: #000000;
+  border-radius: 4px;
+  position: relative;
+  min-height: 400px;
+}
+
+.viewerControls {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.viewerButton {
+  padding: 8px 16px;
+  background-color: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  transition: all 0.2s;
+}
+
+.viewerButton:hover {
+  background-color: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+.viewerButton.active {
+  background-color: #3b82f6;
+  color: #ffffff;
+  border-color: #3b82f6;
+}
+
+.sliceInfo {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 8px;
+}

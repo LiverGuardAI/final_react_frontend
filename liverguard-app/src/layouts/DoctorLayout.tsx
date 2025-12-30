@@ -49,6 +49,11 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
   const handleDropdownItemClick = (item: string) => {
     console.log(`Dropdown item clicked: ${item}`);
     setOpenDropdown(null);
+
+    // 드롭다운 아이템에 따라 페이지 이동
+    if (item === 'CT 촬영') {
+      navigate('/doctor/ct-result');
+    }
   };
 
   const handleTabClick = (tab: TabType) => {

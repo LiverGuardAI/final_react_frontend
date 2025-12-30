@@ -175,3 +175,38 @@ export const getSegmentationTaskStatus = async (taskId: string): Promise<Segment
     throw error;
   }
 };
+
+/**
+ * 특정 환자의 모든 Studies 조회
+ * GET /api/orthanc/patients/{patient_id}/studies/
+ */
+export const getPatientStudies = async (patientId: string) => {
+  const response = await apiClient.get(`orthanc/patients/${patientId}/studies/`);
+  return response.data;
+};
+
+/**
+ * 특정 Study의 모든 Series 조회
+ * GET /api/orthanc/studies/{study_id}/series/
+ */
+export const getStudySeries = async (studyId: string) => {
+  const response = await apiClient.get(`orthanc/studies/${studyId}/series/`);
+  return response.data;
+};
+
+/**
+ * 특정 Series의 모든 Instances 조회
+//  * GET /api/orthanc/series/{series_id}/instances/
+//  */
+// export const getSeriesInstances = async (seriesId: string) => {
+//   const response = await apiClient.get(`orthanc/series/${seriesId}/instances/`);
+//   return response.data;
+// };
+
+// /**
+//  * 특정 Instance의 DICOM 파일 다운로드 URL 반환
+//  * GET /api/orthanc/instances/{instance_id}/file/
+//  */
+// export const getInstanceFileUrl = (instanceId: string) => {
+//   return `/api/orthanc/instances/${instanceId}/file/`;
+// };

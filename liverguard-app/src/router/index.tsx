@@ -10,6 +10,7 @@ import DoctorLoginPage from "../pages/doctor/LoginPage";
 import DoctorHomePage from "../pages/doctor/HomePage";
 import SchedulePage from "../pages/doctor/SchedulePage";
 import TreatmentPage from "../pages/doctor/TreatmentPage";
+import CTResultPage from "../pages/doctor/CTResult";
 import AdministrationLoginPage from "../pages/administration/LoginPage";
 import AdministrationHomePage from "../pages/administration/HomePage";
 import AppointmentManagementPage from "../pages/administration/AppointmentManagementPage";
@@ -30,6 +31,7 @@ const router = createBrowserRouter(
       <Route path="/doctor/home" element={<DoctorHomePage />} />
       <Route path="/doctor/schedule" element={<SchedulePage />} />
       <Route path="/doctor/treatment" element={<TreatmentPage />} />
+      <Route path="/doctor/ct-result" element={<CTResultPage />} />
       {/* 테스트용 - 나중에 ProtectedRoute 복원 필요 */}
       {/* <Route
         path="/doctor/home"
