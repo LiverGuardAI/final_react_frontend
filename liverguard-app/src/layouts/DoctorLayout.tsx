@@ -51,7 +51,7 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
     setOpenDropdown(null);
 
     // 드롭다운 아이템에 따라 페이지 이동
-    if (item === 'CT 촬영') {
+    if (item === 'CT 촬영 결과') {
       navigate('/doctor/ct-result');
     }
   };
@@ -163,24 +163,10 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
             </button>
 
             <button
-              className={`${styles.tabButton} ${activeTab === 'schedule' ? styles.active : ''}`}
-              onClick={() => handleTabClick('schedule')}
-            >
-              <span>일정 관리</span>
-            </button>
-
-            <button
               className={`${styles.tabButton} ${activeTab === 'treatment' ? styles.active : ''}`}
               onClick={() => handleTabClick('treatment')}
             >
               <span>환자 진료</span>
-            </button>
-
-            <button
-              className={`${styles.tabButton} ${activeTab === 'patientManagement' ? styles.active : ''}`}
-              onClick={() => handleTabClick('patientManagement')}
-            >
-              <span>환자 관리</span>
             </button>
 
             <div
@@ -191,27 +177,27 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
               <button
                 className={`${styles.tabButton} ${styles.hasDropdown} ${openDropdown === 'examination' ? styles.active : ''}`}
               >
-                <span>검사 확인</span>
+                <span>검사 결과</span>
               </button>
               {openDropdown === 'examination' && (
                 <div className={styles.dropdownMenu}>
                   <button
                     className={styles.dropdownItem}
-                    onClick={() => handleDropdownItemClick('CT 촬영')}
+                    onClick={() => handleDropdownItemClick('CT 촬영 결과')}
                   >
-                    CT 촬영
+                    CT 촬영 결과
                   </button>
                   <button
                     className={styles.dropdownItem}
-                    onClick={() => handleDropdownItemClick('유전체 검사 확인')}
+                    onClick={() => handleDropdownItemClick('유전체 검사 결과')}
                   >
-                    유전체 검사 확인
+                    유전체 검사 결과
                   </button>
                   <button
                     className={styles.dropdownItem}
-                    onClick={() => handleDropdownItemClick('혈액 검사 확인')}
+                    onClick={() => handleDropdownItemClick('혈액 검사 결과')}
                   >
-                    혈액 검사 확인
+                    혈액 검사 결과
                   </button>
                 </div>
               )}
@@ -221,14 +207,28 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
               className={`${styles.tabButton} ${activeTab === 'testForm' ? styles.active : ''}`}
               onClick={() => handleTabClick('testForm')}
             >
-              <span>검사표</span>
+              <span>AI분석</span>
+            </button>
+
+            <button
+              className={`${styles.tabButton} ${activeTab === 'patientManagement' ? styles.active : ''}`}
+              onClick={() => handleTabClick('patientManagement')}
+            >
+              <span>환자 관리</span>
+            </button>
+
+            <button
+              className={`${styles.tabButton} ${activeTab === 'schedule' ? styles.active : ''}`}
+              onClick={() => handleTabClick('schedule')}
+            >
+              <span>일정 관리</span>
             </button>
 
             <button
               className={`${styles.tabButton} ${activeTab === 'medication' ? styles.active : ''}`}
               onClick={() => handleTabClick('medication')}
             >
-              <span>약물</span>
+              <span>약물 상호작용</span>
             </button>
           </div>
 

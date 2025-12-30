@@ -248,17 +248,17 @@ export default function AdministrationHomePage() {
             </button>
 
             <button
-              className={`${styles.tabButton} ${activeTab === 'schedule' ? styles.active : ''}`}
-              onClick={() => handleTabClick('schedule')}
-            >
-              <span>일정 관리</span>
-            </button>
-
-            <button
               className={`${styles.tabButton} ${activeTab === 'appointments' ? styles.active : ''}`}
               onClick={() => handleTabClick('appointments')}
             >
               <span>예약관리</span>
+            </button>
+
+            <button
+              className={`${styles.tabButton} ${activeTab === 'questionnaire' ? styles.active : ''}`}
+              onClick={() => handleTabClick('questionnaire')}
+            >
+              <span>문진표 작성</span>
             </button>
 
             <button
@@ -269,10 +269,10 @@ export default function AdministrationHomePage() {
             </button>
 
             <button
-              className={`${styles.tabButton} ${activeTab === 'questionnaire' ? styles.active : ''}`}
-              onClick={() => handleTabClick('questionnaire')}
+              className={`${styles.tabButton} ${activeTab === 'schedule' ? styles.active : ''}`}
+              onClick={() => handleTabClick('schedule')}
             >
-              <span>문진표 작성</span>
+              <span>일정 관리</span>
             </button>
           </div>
 
