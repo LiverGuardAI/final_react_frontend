@@ -74,6 +74,8 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
   const [measurementMode, setMeasurementMode] = useState<'none' | 'distance'>('none');
   const [measurementPoints, setMeasurementPoints] = useState<Array<[number, number, number]>>([]);
   const [distanceMeasurement, setDistanceMeasurement] = useState<number | null>(null);
+  const measurementModeRef = useRef<'none' | 'distance'>('none');
+  const measurementPointsRef = useRef<Array<[number, number, number]>>([]);
 
   // Coordinate display state
   const [currentCoordinate, setCurrentCoordinate] = useState<[number, number, number] | null>(null);
@@ -520,7 +522,7 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
             canvas.style.height = '100%';
             canvas.style.pointerEvents = 'auto';
             canvas.style.touchAction = 'none';
-            canvas.style.cursor = measurementMode === 'distance' ? 'crosshair' : 'grab';
+            canvas.style.cursor = measurementModeRef.current === 'distance' ? 'crosshair' : 'grab';
             canvas.style.zIndex = '1';
             canvas.setAttribute('tabindex', '0'); // Make canvas focusable for wheel events
 
@@ -530,35 +532,21 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
             let isDragging = false;
             let isPanning = false;
             let previousPosition = { x: 0, y: 0 };
+            const getPickDisplayCoords = (event: MouseEvent) => {
+              const rect = canvas.getBoundingClientRect();
+              const x = event.clientX - rect.left;
+              const y = event.clientY - rect.top;
+              if (rect.width === 0 || rect.height === 0) {
+                return null;
+              }
+              const displayX = (x / rect.width) * canvas.width;
+              const displayY = ((rect.height - y) / rect.height) * canvas.height;
+              return [displayX, displayY, 0] as [number, number, number];
+            };
 
             // Mouse down - start dragging or panning
             const handleMouseDown = (event: MouseEvent) => {
               if (event.button === 0) {
-                // Left click - check if in measurement mode
-                if (measurementMode === 'distance') {
-                  // Use picker to get 3D position
-                  const picker = vtkCellPicker.newInstance();
-                  picker.setPickFromList(true);
-                  picker.initializePickList();
-                  if (actorsRef.current.liver) picker.addPickList(actorsRef.current.liver);
-                  if (actorsRef.current.tumor) picker.addPickList(actorsRef.current.tumor);
-
-                  const rect = canvas.getBoundingClientRect();
-                  const x = event.clientX - rect.left;
-                  const y = event.clientY - rect.top;
-
-                  picker.pick([x, y, 0], renderer);
-                  const pickPosition = picker.getPickPosition();
-
-                  // Check if a valid position was picked
-                  if (pickPosition && pickPosition.length === 3) {
-                    addMeasurementPoint([pickPosition[0], pickPosition[1], pickPosition[2]]);
-                    console.log('DicomViewer3D: Picked position:', pickPosition);
-                  }
-                  event.preventDefault();
-                  return;
-                }
-
                 // Normal rotation mode
                 isDragging = true;
                 canvas.style.cursor = 'grabbing';
@@ -576,18 +564,20 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
             // Mouse move - rotate or pan camera, and update coordinate display
             const handleMouseMove = (event: MouseEvent) => {
               // Always update coordinates when not in measurement mode and crosshair is disabled
-              if (!crosshairEnabledRef.current && measurementMode !== 'distance' && !isDragging && !isPanning) {
+              if (!crosshairEnabledRef.current && measurementModeRef.current !== 'distance' && !isDragging && !isPanning) {
                 const picker = vtkCellPicker.newInstance();
                 picker.setPickFromList(true);
                 picker.initializePickList();
                 if (actorsRef.current.liver) picker.addPickList(actorsRef.current.liver);
                 if (actorsRef.current.tumor) picker.addPickList(actorsRef.current.tumor);
 
-                const rect = canvas.getBoundingClientRect();
-                const x = event.clientX - rect.left;
-                const y = event.clientY - rect.top;
+                const displayCoords = getPickDisplayCoords(event);
+                if (!displayCoords) {
+                  setCurrentCoordinate(null);
+                  return;
+                }
 
-                picker.pick([x, y, 0], renderer);
+                picker.pick(displayCoords, renderer);
                 const pickPosition = picker.getPickPosition();
 
                 if (pickPosition && pickPosition.length === 3) {
@@ -687,7 +677,7 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
               if (isDragging || isPanning) {
                 isDragging = false;
                 isPanning = false;
-                canvas.style.cursor = measurementMode === 'distance' ? 'crosshair' : 'grab';
+                canvas.style.cursor = measurementModeRef.current === 'distance' ? 'crosshair' : 'grab';
                 console.log('DicomViewer3D: Mouse up - stopped interaction');
               }
             };
@@ -697,7 +687,7 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
               if (isDragging || isPanning) {
                 isDragging = false;
                 isPanning = false;
-                canvas.style.cursor = measurementMode === 'distance' ? 'crosshair' : 'grab';
+                canvas.style.cursor = measurementModeRef.current === 'distance' ? 'crosshair' : 'grab';
                 console.log('DicomViewer3D: Mouse left - stopped interaction');
               }
             };
@@ -827,10 +817,18 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
     if (openglRenderWindowRef.current && containerRef.current) {
       const canvas = openglRenderWindowRef.current.getCanvas();
       if (canvas) {
-        canvas.style.cursor = measurementMode === 'distance' ? 'crosshair' : 'grab';
+        canvas.style.cursor = measurementModeRef.current === 'distance' ? 'crosshair' : 'grab';
       }
     }
   }, [measurementMode]);
+
+  useEffect(() => {
+    measurementModeRef.current = measurementMode;
+  }, [measurementMode]);
+
+  useEffect(() => {
+    measurementPointsRef.current = measurementPoints;
+  }, [measurementPoints]);
 
   // Reset camera to initial state
   const handleResetCamera = () => {
@@ -1085,10 +1083,15 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
       setMeasurementMode('distance');
       setMeasurementPoints([]);
       setDistanceMeasurement(null);
+      measurementModeRef.current = 'distance';
+      measurementPointsRef.current = [];
+      enableCrosshair(crosshairPosition ?? undefined);
       console.log('DicomViewer3D: Distance measurement mode enabled');
     } else {
       setMeasurementMode('none');
+      measurementModeRef.current = 'none';
       clearMeasurements();
+      disableCrosshair();
       console.log('DicomViewer3D: Measurement mode disabled');
     }
   };
@@ -1105,14 +1108,16 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
     }
     setMeasurementPoints([]);
     setDistanceMeasurement(null);
+    measurementPointsRef.current = [];
   };
 
   // Add measurement point (called when user clicks on the 3D view)
   const addMeasurementPoint = (worldPos: [number, number, number]) => {
-    if (measurementMode !== 'distance') return;
+    if (measurementModeRef.current !== 'distance') return;
 
-    const newPoints = [...measurementPoints, worldPos];
+    const newPoints = [...measurementPointsRef.current, worldPos];
     setMeasurementPoints(newPoints);
+    measurementPointsRef.current = newPoints;
 
     // Create sphere marker at the point
     const sphereSource = vtkSphereSource.newInstance({
@@ -1165,37 +1170,40 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
 
       // Reset for next measurement
       setMeasurementPoints([]);
+      measurementPointsRef.current = [];
     }
 
     renderWindowRef.current?.render();
   };
 
-  // Crosshair toggle
-  const handleCrosshairToggle = () => {
-    const newEnabled = !crosshairEnabled;
-    setCrosshairEnabled(newEnabled);
-    crosshairEnabledRef.current = newEnabled;
+  const enableCrosshair = (position?: [number, number, number]) => {
+    setCrosshairEnabled(true);
+    crosshairEnabledRef.current = true;
 
-    if (newEnabled) {
-      // Initialize crosshair at center of bounds
-      if (boundsRef.current) {
-        const bounds = boundsRef.current;
-        const centerX = (bounds[0] + bounds[1]) / 2;
-        const centerY = (bounds[2] + bounds[3]) / 2;
-        const centerZ = (bounds[4] + bounds[5]) / 2;
-        const initialPos: [number, number, number] = [centerX, centerY, centerZ];
-        setCrosshairPosition(initialPos);
-        setCurrentCoordinate(initialPos);
-        createCrosshair(initialPos);
-        console.log('DicomViewer3D: Crosshair enabled at', initialPos);
-      }
-    } else {
-      // Remove crosshair
-      clearCrosshair();
-      setCrosshairPosition(null);
-      setCurrentCoordinate(null);
-      console.log('DicomViewer3D: Crosshair disabled');
+    if (!boundsRef.current) return;
+
+    let targetPosition = position;
+    if (!targetPosition) {
+      const bounds = boundsRef.current;
+      const centerX = (bounds[0] + bounds[1]) / 2;
+      const centerY = (bounds[2] + bounds[3]) / 2;
+      const centerZ = (bounds[4] + bounds[5]) / 2;
+      targetPosition = [centerX, centerY, centerZ];
     }
+
+    setCrosshairPosition(targetPosition);
+    setCurrentCoordinate(targetPosition);
+    createCrosshair(targetPosition);
+    console.log('DicomViewer3D: Crosshair enabled at', targetPosition);
+  };
+
+  const disableCrosshair = () => {
+    setCrosshairEnabled(false);
+    crosshairEnabledRef.current = false;
+    clearCrosshair();
+    setCrosshairPosition(null);
+    setCurrentCoordinate(null);
+    console.log('DicomViewer3D: Crosshair disabled');
   };
 
   // Create crosshair lines (X, Y, Z axes)
@@ -1753,10 +1761,10 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
           </div>
         </div>
 
-        {/* Measurement Tools */}
-        <div style={{ marginBottom: '12px' }}>
+        {/* Coordinate + Distance Measurement */}
+        <div>
           <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
-            측정 도구
+            좌표/거리 측정
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <button
@@ -1773,9 +1781,27 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
                 transition: 'all 0.2s',
               }}
             >
-              {measurementMode === 'distance' ? '✗ 측정 종료' : '📏 거리 측정'}
+              {measurementMode === 'distance' ? '✗ 좌표/거리 측정 종료' : '좌표/거리 측정'}
             </button>
 
+            {measurementMode === 'distance' && crosshairPosition && (
+              <button
+                onClick={() => addMeasurementPoint([crosshairPosition[0], crosshairPosition[1], crosshairPosition[2]])}
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  color: '#1e40af',
+                  backgroundColor: '#dbeafe',
+                  border: '1px solid #3b82f6',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                현재 좌표 저장 ({measurementPoints.length}/2)
+              </button>
+            )}
 
             {distanceMeasurement !== null && (
               <div style={{
@@ -1790,33 +1816,8 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
                 📊 측정 거리: {distanceMeasurement.toFixed(2)} mm
               </div>
             )}
-          </div>
-        </div>
 
-        {/* Crosshair Tool */}
-        <div>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
-            좌표 표시선 (크로스헤어)
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <button
-              onClick={handleCrosshairToggle}
-              style={{
-                padding: '6px 12px',
-                fontSize: '12px',
-                fontWeight: 500,
-                color: crosshairEnabled ? '#dc2626' : '#059669',
-                backgroundColor: crosshairEnabled ? '#fee2e2' : '#d1fae5',
-                border: `1px solid ${crosshairEnabled ? '#dc2626' : '#10b981'}`,
-                borderRadius: '4px',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-              }}
-            >
-              {crosshairEnabled ? '✗ 크로스헤어 끄기' : '➕ 크로스헤어 켜기'}
-            </button>
-
-            {crosshairEnabled && boundsRef.current && crosshairPosition && (
+            {measurementMode === 'distance' && boundsRef.current && crosshairPosition && (
               <div style={{ display: 'flex', gap: '12px' }}>
                 {/* X-axis slider */}
                 <div style={{ flex: 1 }}>
