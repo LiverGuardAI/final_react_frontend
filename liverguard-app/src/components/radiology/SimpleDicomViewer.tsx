@@ -12,8 +12,10 @@ cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
 
 // Configure WADO Image Loader
 cornerstoneWADOImageLoader.configure({
-  useWebWorkers: false,
+  useWebWorkers: true,
 });
+
+const PREFETCH_DISTANCE = 3;
 
 interface SimpleDicomViewerProps {
   seriesId: string;
@@ -29,6 +31,7 @@ const SimpleDicomViewer: React.FC<SimpleDicomViewerProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const imageIdsRef = useRef<string[]>([]);
+  const hasViewportRef = useRef(false);
 
   useEffect(() => {
     if (!viewerRef.current || instances.length === 0) return;
@@ -80,6 +83,23 @@ const SimpleDicomViewer: React.FC<SimpleDicomViewerProps> = ({
     };
   }, [seriesId, instances]);
 
+  const prefetchImages = (index: number) => {
+    const ids = imageIdsRef.current;
+    if (!ids.length) return;
+
+    for (let offset = 1; offset <= PREFETCH_DISTANCE; offset++) {
+      const nextIndex = index + offset;
+      const prevIndex = index - offset;
+
+      if (ids[nextIndex]) {
+        cornerstone.loadAndCacheImage(ids[nextIndex]).catch(() => undefined);
+      }
+      if (ids[prevIndex]) {
+        cornerstone.loadAndCacheImage(ids[prevIndex]).catch(() => undefined);
+      }
+    }
+  };
+
   const loadImage = async (index: number) => {
     if (!viewerRef.current || !imageIdsRef.current[index]) return;
 
@@ -87,20 +107,22 @@ const SimpleDicomViewer: React.FC<SimpleDicomViewerProps> = ({
     setError(null);
 
     try {
-      const image = await cornerstone.loadImage(imageIdsRef.current[index]);
+      const image = await cornerstone.loadAndCacheImage(imageIdsRef.current[index]);
       const element = viewerRef.current;
 
       cornerstone.displayImage(element, image);
 
-      // Force resize to fit container
-      cornerstone.resize(element, true);
-
-      // Fit image to viewport
-      const viewport = cornerstone.getDefaultViewportForImage(element, image);
-      cornerstone.setViewport(element, viewport);
+      // Fit image to viewport (only on first load to reduce overhead)
+      if (!hasViewportRef.current) {
+        const viewport = cornerstone.getDefaultViewportForImage(element, image);
+        cornerstone.setViewport(element, viewport);
+        cornerstone.resize(element, true);
+        hasViewportRef.current = true;
+      }
 
       setCurrentIndex(index);
       setIsLoading(false);
+      prefetchImages(index);
     } catch (err) {
       console.error('Error loading image:', err);
       setError('이미지 로드에 실패했습니다.');

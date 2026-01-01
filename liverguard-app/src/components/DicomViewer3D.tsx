@@ -81,9 +81,11 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
   // Crosshair state
   const [crosshairEnabled, setCrosshairEnabled] = useState(false);
   const [crosshairPosition, setCrosshairPosition] = useState<[number, number, number] | null>(null);
+  const crosshairEnabledRef = useRef(false);
 
   const renderWindowRef = useRef<any>(null);
   const rendererRef = useRef<any>(null);
+  const openglRenderWindowRef = useRef<any>(null);
   const interactorRef = useRef<any>(null);
   const actorsRef = useRef<{ liver: any; tumor: any }>({ liver: null, tumor: null });
   const clippingPlaneRef = useRef<any>(null);
@@ -104,6 +106,8 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
       });
       return;
     }
+
+    let cancelled = false;
 
     const load3DVolume = async () => {
       const startTime = performance.now();
@@ -280,6 +284,15 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
           renderWindowRef.current.delete();
           renderWindowRef.current = null;
         }
+        if (openglRenderWindowRef.current) {
+          try {
+            openglRenderWindowRef.current.setContainer(null);
+            openglRenderWindowRef.current.delete();
+          } catch (e) {
+            console.warn('DicomViewer3D: Error deleting openglRenderWindow', e);
+          }
+          openglRenderWindowRef.current = null;
+        }
         if (rendererRef.current) {
           rendererRef.current.delete();
           rendererRef.current = null;
@@ -319,6 +332,7 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
         // Store references early (before adding actors)
         renderWindowRef.current = renderWindow;
         rendererRef.current = renderer;
+        openglRenderWindowRef.current = openglRenderWindow;
 
         console.log('DicomViewer3D: VTK.js basic setup complete, ready to add actors');
 
@@ -562,7 +576,7 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
             // Mouse move - rotate or pan camera, and update coordinate display
             const handleMouseMove = (event: MouseEvent) => {
               // Always update coordinates when not in measurement mode and crosshair is disabled
-              if (!crosshairEnabled && measurementMode !== 'distance' && !isDragging && !isPanning) {
+              if (!crosshairEnabledRef.current && measurementMode !== 'distance' && !isDragging && !isPanning) {
                 const picker = vtkCellPicker.newInstance();
                 picker.setPickFromList(true);
                 picker.initializePickList();
@@ -694,11 +708,11 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
               console.log('DicomViewer3D: Context menu prevented');
             };
 
-            // Mouse wheel - zoom
+            // Mouse wheel - zoom (reversed direction)
             const handleWheel = (event: WheelEvent) => {
               event.preventDefault();
 
-              const zoomFactor = event.deltaY > 0 ? 1.1 : 0.9;
+              const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
               camera.dolly(zoomFactor);
               camera.orthogonalizeViewUp();
 
@@ -731,6 +745,7 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
         // Calculate and save rendering statistics
         const endTime = performance.now();
         const loadTime = (endTime - startTime) / 1000; // Convert to seconds
+        if (cancelled) return;
         setRenderStats({ totalPolygons, loadTime });
 
         console.log('DicomViewer3D: 3D Surface rendering complete');
@@ -738,9 +753,13 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
 
       } catch (err) {
         console.error('DicomViewer3D: Failed to load 3D segmentation:', err);
-        setError('Failed to load 3D segmentation');
+        if (!cancelled) {
+          setError('Failed to load 3D segmentation');
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
@@ -748,6 +767,9 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
 
     // Cleanup on unmount
     return () => {
+      // Signal any in-flight load to stop touching refs/state
+      cancelled = true;
+
       // Cleanup in reverse order: interactor -> renderWindow -> renderer
       if (interactorRef.current) {
         try {
@@ -765,6 +787,15 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
         }
         renderWindowRef.current = null;
       }
+      if (openglRenderWindowRef.current) {
+        try {
+          openglRenderWindowRef.current.setContainer(null);
+          openglRenderWindowRef.current.delete();
+        } catch (e) {
+          console.warn('DicomViewer3D: Error deleting openglRenderWindow', e);
+        }
+        openglRenderWindowRef.current = null;
+      }
       if (rendererRef.current) {
         try {
           rendererRef.current.delete();
@@ -779,13 +810,11 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
   // Handle window resize
   useEffect(() => {
     const handleResize = () => {
-      if (renderWindowRef.current && containerRef.current) {
+      if (renderWindowRef.current && openglRenderWindowRef.current && containerRef.current) {
         const { width, height } = containerRef.current.getBoundingClientRect();
-        const openglRenderWindow = renderWindowRef.current.getViews()[0];
-        if (openglRenderWindow) {
-          openglRenderWindow.setSize(width, height);
-          renderWindowRef.current.render();
-        }
+        if (width === 0 || height === 0) return;
+        openglRenderWindowRef.current.setSize(width, height);
+        renderWindowRef.current.render();
       }
     };
 
@@ -795,13 +824,10 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
 
   // Update canvas cursor when measurement mode changes
   useEffect(() => {
-    if (renderWindowRef.current && containerRef.current) {
-      const openglRenderWindow = renderWindowRef.current.getViews()[0];
-      if (openglRenderWindow) {
-        const canvas = openglRenderWindow.getCanvas();
-        if (canvas) {
-          canvas.style.cursor = measurementMode === 'distance' ? 'crosshair' : 'grab';
-        }
+    if (openglRenderWindowRef.current && containerRef.current) {
+      const canvas = openglRenderWindowRef.current.getCanvas();
+      if (canvas) {
+        canvas.style.cursor = measurementMode === 'distance' ? 'crosshair' : 'grab';
       }
     }
   }, [measurementMode]);
@@ -1148,6 +1174,7 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
   const handleCrosshairToggle = () => {
     const newEnabled = !crosshairEnabled;
     setCrosshairEnabled(newEnabled);
+    crosshairEnabledRef.current = newEnabled;
 
     if (newEnabled) {
       // Initialize crosshair at center of bounds
@@ -1406,32 +1433,19 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
             {error}
           </div>
         )}
-        {/* Coordinate Display Overlay */}
-        {currentCoordinate && (
+        {/* Coordinate Display Overlay - only show when crosshair is enabled */}
+        {crosshairEnabled && currentCoordinate && (
           <div style={{
             position: 'absolute',
             top: '12px',
             left: '12px',
-            backgroundColor: crosshairEnabled ? 'rgba(59, 130, 246, 0.95)' : 'rgba(0, 0, 0, 0.75)',
             color: '#ffffff',
-            padding: crosshairEnabled ? '10px 14px' : '8px 12px',
-            borderRadius: '6px',
             fontSize: '12px',
             fontFamily: 'monospace',
             pointerEvents: 'none',
             zIndex: 20,
             lineHeight: '1.6',
-            border: crosshairEnabled ? '2px solid rgba(255, 255, 255, 0.4)' : '1px solid rgba(255, 255, 255, 0.2)',
-            boxShadow: crosshairEnabled ? '0 4px 12px rgba(0, 0, 0, 0.3)' : 'none',
           }}>
-            <div style={{
-              fontWeight: 700,
-              marginBottom: '4px',
-              color: crosshairEnabled ? '#ffffff' : '#60a5fa',
-              fontSize: crosshairEnabled ? '13px' : '12px'
-            }}>
-              {crosshairEnabled ? '🎯 크로스헤어 좌표 (mm)' : '좌표 (mm)'}
-            </div>
             <div style={{ color: '#fca5a5' }}>X: {currentCoordinate[0].toFixed(2)}</div>
             <div style={{ color: '#86efac' }}>Y: {currentCoordinate[1].toFixed(2)}</div>
             <div style={{ color: '#93c5fd' }}>Z: {currentCoordinate[2].toFixed(2)}</div>
@@ -1762,26 +1776,6 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
               {measurementMode === 'distance' ? '✗ 측정 종료' : '📏 거리 측정'}
             </button>
 
-            {measurementMode === 'distance' && (
-              <div style={{
-                padding: '8px',
-                backgroundColor: '#fffbeb',
-                borderRadius: '4px',
-                border: '1px solid #fbbf24',
-                fontSize: '11px',
-                color: '#92400e'
-              }}>
-                <div style={{ marginBottom: '4px', fontWeight: 600 }}>
-                  📌 측정 방법:
-                </div>
-                <div>두 지점을 클릭하여 거리를 측정하세요</div>
-                {measurementPoints.length === 1 && (
-                  <div style={{ marginTop: '4px', color: '#f59e0b' }}>
-                    ⚠️ 두 번째 지점을 클릭하세요
-                  </div>
-                )}
-              </div>
-            )}
 
             {distanceMeasurement !== null && (
               <div style={{
@@ -1823,24 +1817,9 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
             </button>
 
             {crosshairEnabled && boundsRef.current && crosshairPosition && (
-              <>
-                <div style={{
-                  padding: '8px',
-                  backgroundColor: '#fffbeb',
-                  borderRadius: '4px',
-                  border: '1px solid #fbbf24',
-                  fontSize: '11px',
-                  color: '#92400e'
-                }}>
-                  <div style={{ marginBottom: '4px', fontWeight: 600 }}>
-                    🎯 슬라이더로 위치 조정:
-                  </div>
-                  <div style={{ marginBottom: '2px' }}>• <strong style={{ color: '#dc2626' }}>빨강(X축)</strong>, <strong style={{ color: '#059669' }}>초록(Y축)</strong>, <strong style={{ color: '#3b82f6' }}>파랑(Z축)</strong></div>
-                  <div>• 좌측 상단에 좌표값 표시</div>
-                </div>
-
+              <div style={{ display: 'flex', gap: '12px' }}>
                 {/* X-axis slider */}
-                <div>
+                <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                     <label style={{ fontSize: '11px', color: '#dc2626', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <div style={{ width: '10px', height: '10px', backgroundColor: '#dc2626', borderRadius: '2px' }} />
@@ -1862,7 +1841,7 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
                 </div>
 
                 {/* Y-axis slider */}
-                <div>
+                <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                     <label style={{ fontSize: '11px', color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <div style={{ width: '10px', height: '10px', backgroundColor: '#059669', borderRadius: '2px' }} />
@@ -1884,7 +1863,7 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
                 </div>
 
                 {/* Z-axis slider */}
-                <div>
+                <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                     <label style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <div style={{ width: '10px', height: '10px', backgroundColor: '#3b82f6', borderRadius: '2px' }} />
@@ -1904,7 +1883,7 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
                     style={{ width: '100%', cursor: 'pointer' }}
                   />
                 </div>
-              </>
+              </div>
             )}
           </div>
         </div>
@@ -1916,20 +1895,6 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
           🎯 Optimization Level {OPTIMIZATION_LEVEL}
         </div>
       )}
-      <div style={{ marginTop: '8px', fontSize: '12px', color: '#6b7280', textAlign: 'center', flexShrink: 0 }}>
-        <strong>Controls:</strong>{' '}
-        {measurementMode === 'distance' ? (
-          <span style={{ color: '#f59e0b', fontWeight: 600 }}>
-            Click on the surface to measure distance
-          </span>
-        ) : crosshairEnabled ? (
-          <span style={{ color: '#3b82f6', fontWeight: 600 }}>
-            Use X/Y/Z sliders to adjust crosshair position • Left-click + drag to rotate • Scroll to zoom
-          </span>
-        ) : (
-          'Left-click + drag to rotate • Scroll to zoom • Right-click + drag to pan'
-        )}
-      </div>
     </div>
   );
 }

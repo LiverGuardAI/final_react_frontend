@@ -1,8 +1,8 @@
 // src/components/radiology/MaskOverlayViewer.tsx
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import * as cornerstone from 'cornerstone-core';
-import * as cornerstoneWADOImageLoader from 'cornerstone-wado-image-loader';
-import * as dicomParser from 'dicom-parser';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import cornerstone from 'cornerstone-core';
+import cornerstoneWADOImageLoader from 'cornerstone-wado-image-loader';
+import dicomParser from 'dicom-parser';
 import { getInstanceFileUrl } from '../../api/orthanc_api';
 import './DicomViewer.css';
 
@@ -12,9 +12,10 @@ cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
 
 // Configure WADO Image Loader
 cornerstoneWADOImageLoader.configure({
-  useWebWorkers: false,
+  useWebWorkers: true,
 });
 
+const PREFETCH_DISTANCE = 3;
 // Fixed color mapping for specific mask values
 // This ensures consistent colors across all slices
 const FIXED_MASK_COLORS: { [key: number]: { r: number; g: number; b: number; a: number } } = {
@@ -67,13 +68,13 @@ interface MaskOverlayViewerProps {
   showOverlay: boolean;
 }
 
-const MaskOverlayViewer: React.FC<MaskOverlayViewerProps> = ({
+const MaskOverlayViewer = ({
   seriesId,
   instances,
   maskSeriesId,
   maskInstances,
   showOverlay
-}) => {
+}: MaskOverlayViewerProps) => {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -82,6 +83,7 @@ const MaskOverlayViewer: React.FC<MaskOverlayViewerProps> = ({
   const maskImageIdsRef = useRef<string[]>([]);
   const currentMaskImageRef = useRef<any>(null);
   const showOverlayRef = useRef<boolean>(showOverlay);
+  const hasViewportRef = useRef(false);
 
   // Keep showOverlayRef in sync with showOverlay state
   useEffect(() => {
@@ -342,13 +344,13 @@ const MaskOverlayViewer: React.FC<MaskOverlayViewerProps> = ({
 
     try {
       // Load base image
-      const image = await cornerstone.loadImage(baseImageIdsRef.current[index]);
+      const image = await cornerstone.loadAndCacheImage(baseImageIdsRef.current[index]);
       const element = viewerRef.current;
 
       // Load corresponding mask image if available
       if (maskImageIdsRef.current[index]) {
         try {
-          const maskImage = await cornerstone.loadImage(maskImageIdsRef.current[index]);
+          const maskImage = await cornerstone.loadAndCacheImage(maskImageIdsRef.current[index]);
           currentMaskImageRef.current = maskImage;
 
           // Debug: Check mask values
@@ -369,12 +371,13 @@ const MaskOverlayViewer: React.FC<MaskOverlayViewerProps> = ({
       // Display base image
       cornerstone.displayImage(element, image);
 
-      // Set viewport
-      const viewport = cornerstone.getDefaultViewportForImage(element, image);
-      cornerstone.setViewport(element, viewport);
-
-      // Force resize to fit container
-      cornerstone.resize(element, true);
+      // Set viewport (only on first load to reduce overhead)
+      if (!hasViewportRef.current) {
+        const viewport = cornerstone.getDefaultViewportForImage(element, image);
+        cornerstone.setViewport(element, viewport);
+        cornerstone.resize(element, true);
+        hasViewportRef.current = true;
+      }
 
       // Force one more render to ensure overlay is applied after all Cornerstone operations
       // Use setTimeout to ensure it happens after Cornerstone's internal rendering is complete
@@ -392,6 +395,26 @@ const MaskOverlayViewer: React.FC<MaskOverlayViewerProps> = ({
 
       setCurrentIndex(index);
       setIsLoading(false);
+
+      // Prefetch adjacent slices for smoother scrolling
+      for (let offset = 1; offset <= PREFETCH_DISTANCE; offset++) {
+        const nextIndex = index + offset;
+        const prevIndex = index - offset;
+
+        if (baseImageIdsRef.current[nextIndex]) {
+          cornerstone.loadAndCacheImage(baseImageIdsRef.current[nextIndex]).catch(() => undefined);
+        }
+        if (baseImageIdsRef.current[prevIndex]) {
+          cornerstone.loadAndCacheImage(baseImageIdsRef.current[prevIndex]).catch(() => undefined);
+        }
+
+        if (maskImageIdsRef.current[nextIndex]) {
+          cornerstone.loadAndCacheImage(maskImageIdsRef.current[nextIndex]).catch(() => undefined);
+        }
+        if (maskImageIdsRef.current[prevIndex]) {
+          cornerstone.loadAndCacheImage(maskImageIdsRef.current[prevIndex]).catch(() => undefined);
+        }
+      }
     } catch (err) {
       console.error('Error loading image:', err);
       setError('이미지 로드에 실패했습니다.');
