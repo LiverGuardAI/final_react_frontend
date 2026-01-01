@@ -1,37 +1,44 @@
 /* src/pages/doctor/CTResult.module.css */
 .container {
-  display: grid;
-  grid-template-rows: 35vh 1fr;
-  height: 100%;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
   background-color: #f5f7fa;
-  gap: 20px;
+  overflow: hidden;
 }
 
 .mainContent {
   display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 20px;
-  padding: 20px 30px 0;
-  overflow: hidden;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  padding: 8px 30px 10px;
+  overflow: visible;
+  position: relative;
+  z-index: 100;
+  height: fit-content;
+  flex-shrink: 0;
 }
 
 .viewerSection {
   padding: 0 30px 20px;
   display: grid;
   grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
   gap: 20px;
   overflow: hidden;
+  flex: 1;
+  min-height: 0;
 }
 
 .studySection,
-.seriesSection {
-  background-color: #ffffff;
-  border-radius: 8px;
-  padding: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+.seriesSection,
+.segSection {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
+  position: relative;
+  height: fit-content;
+  width: 100%;
 }
 
 .sectionTitle {
@@ -41,87 +48,148 @@
   margin: 0 0 10px 0;
 }
 
-.studyList,
-.seriesList {
+/* 섹션 헤더 (드롭다운) */
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  background-color: #ffffff;
+  border-bottom: 2px solid #e5e7eb;
+  border-radius: 6px 6px 0 0;
+  transition: all 0.2s;
+  user-select: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.sectionHeader:hover {
+  background-color: #f9fafb;
+}
+
+.sectionHeader.collapsed {
+  border-bottom: none;
+  border-radius: 6px;
+}
+
+.sectionHeaderIcon {
+  font-size: 12px;
+  color: #6b7280;
+  width: 14px;
+  display: inline-block;
+  transition: transform 0.2s;
+}
+
+.sectionHeaderIcon.collapsed {
+  transform: rotate(-90deg);
+}
+
+.sectionHeaderTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
   flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.sectionHeaderCount {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7280;
+  background-color: #ffffff;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.studyList,
+.seriesList,
+.segList {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
   overflow-y: auto;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: calc(35vh - 80px);
-  min-height: 0;
+  max-height: 400px;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  padding: 8px;
+  margin-top: 4px;
+  box-sizing: border-box;
 }
 
-.studyCard {
+.studyCard,
+.seriesCard,
+.segCard {
   padding: 10px;
   background-color: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
+  box-sizing: border-box;
+  width: 100%;
 }
 
-.studyCard:hover {
+.studyCard:hover,
+.seriesCard:hover,
+.segCard:hover {
   background-color: #f3f4f6;
   border-color: #d1d5db;
   transform: translateY(-2px);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
-/* 드롭다운 래퍼 */
-.dropdownWrapper {
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  overflow: hidden;
-  background-color: #ffffff;
-  margin-bottom: 6px;
-  transition: all 0.2s;
+.studyCard.selected {
+  background-color: #EBF5FF;
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 
-.dropdownWrapper:hover {
-  border-color: #d1d5db;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+.seriesCard.selected {
+  background-color: #FEF3C7;
+  border-color: #F59E0B;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.1);
 }
 
-/* 드롭다운 헤더 */
-.dropdownHeader {
+.segCard.selected {
+  background-color: #FAF5FF;
+  border-color: #9333EA;
+  box-shadow: 0 0 0 2px rgba(147, 51, 234, 0.1);
+}
+
+
+.studyHeader,
+.seriesHeader,
+.segCardHeader {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 8px 10px;
-  cursor: pointer;
-  background-color: #fef3c7;
-  border-bottom: 1px solid transparent;
-  transition: all 0.2s;
-}
-
-.dropdownHeader:hover {
-  background-color: #fde68a;
-}
-
-.dropdownHeader.expanded {
-  background-color: #fbbf24;
-  border-bottom-color: #f59e0b;
-}
-
-.dropdownHeaderLeft {
-  display: flex;
   align-items: center;
+  margin-bottom: 4px;
   gap: 8px;
 }
 
-.dropdownHeaderRight {
-  flex: 1;
-  text-align: right;
-  margin-left: 12px;
+.studyDate {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
 }
 
-.dropdownIcon {
-  font-size: 10px;
-  color: #78350f;
-  width: 12px;
-  display: inline-block;
+.seriesNumber,
+.segNumber {
+  font-size: 11px;
+  font-weight: 600;
+  color: #374151;
 }
 
 .ctBadge {
@@ -133,174 +201,57 @@
   font-weight: 600;
 }
 
-/* 드롭다운 컨텐츠 */
-.dropdownContent {
-  background-color: #fffbeb;
-  padding: 10px;
-  border-top: 1px solid #fbbf24;
-  max-height: 300px;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.seriesDetail {
-  background-color: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-  padding: 8px;
-  margin-bottom: 10px;
-}
-
-.detailRow {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 6px;
-  font-size: 11px;
-}
-
-.detailRow:last-child {
-  margin-bottom: 0;
-}
-
-.detailLabel {
-  font-weight: 600;
-  color: #6b7280;
-  min-width: 70px;
-}
-
-.detailValue {
-  color: #1f2937;
-  word-break: break-all;
-}
-
-/* SEG 섹션 */
-.segSection {
-  background-color: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-  padding: 8px;
-}
-
-.segSectionTitle {
-  font-size: 12px;
-  font-weight: 600;
-  color: #6b21a8;
-  margin-bottom: 8px;
-  padding-bottom: 6px;
-  border-bottom: 2px solid #e9d5ff;
-}
-
-.segItem {
-  background-color: #faf5ff;
-  border: 1px solid #e9d5ff;
-  border-radius: 4px;
-  padding: 8px;
-  margin-bottom: 6px;
-  transition: all 0.2s;
-}
-
-.segItem:last-child {
-  margin-bottom: 0;
-}
-
-.segItem:hover {
-  background-color: #f3e8ff;
-  border-color: #c084fc;
-  transform: translateX(4px);
-}
-
-.segItemHeader {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-
 .segBadge {
   background-color: #9333ea;
   color: #ffffff;
   padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 9px;
-  font-weight: 700;
-}
-
-.segNumber {
-  font-size: 11px;
-  font-weight: 600;
-  color: #6b21a8;
-}
-
-.segItemDescription {
-  font-size: 11px;
-  color: #4b5563;
-  margin-bottom: 4px;
-}
-
-.segItemId {
-  font-size: 9px;
-  color: #9ca3af;
-  font-family: 'Courier New', monospace;
-}
-
-.studyCard.selected {
-  background-color: #EBF5FF;
-  border-color: #3B82F6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
-}
-
-.studyHeader,
-.seriesHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-}
-
-.studyDate {
-  font-size: 12px;
-  font-weight: 600;
-  color: #374151;
-}
-
-.seriesNumber {
-  font-size: 11px;
-  font-weight: 600;
-  color: #374151;
-}
-
-.seriesModality {
-  padding: 2px 6px;
-  background-color: #DBEAFE;
-  color: #1E40AF;
   border-radius: 3px;
   font-size: 10px;
   font-weight: 600;
 }
 
 .studyDescription,
-.seriesDescription {
+.seriesDescription,
+.segCardDescription {
   font-size: 12px;
   color: #1f2937;
   margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .studyId,
-.seriesId {
+.seriesId,
+.segCardId {
   font-size: 10px;
   color: #9ca3af;
   font-family: 'Courier New', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .loadingState,
 .errorState,
 .emptyState {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 1;
+  padding: 20px;
   font-size: 12px;
   color: #9ca3af;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  margin-top: 4px;
+  box-sizing: border-box;
 }
 
 .errorState {
@@ -316,6 +267,9 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
 }
 
 .viewerTitle {
@@ -330,7 +284,7 @@
   background-color: #000000;
   border-radius: 4px;
   position: relative;
-  min-height: 400px;
+  max-height: 100%;
 }
 
 .viewerControls {

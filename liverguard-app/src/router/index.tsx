@@ -14,6 +14,9 @@ import CTResultPage from "../pages/doctor/CTResult";
 import RNAResultPage from "../pages/doctor/RNAResult";
 import BloodResultPage from "../pages/doctor/BloodResult";
 import AIResultPage from "../pages/doctor/AIResult";
+import StagePredictionPage from "../pages/doctor/StagePrediction";
+import RecurrencePredictionPage from "../pages/doctor/RecurrencePrediction";
+import SurvivalAnalysisPage from "../pages/doctor/SurvivalAnalysis";
 import DDIPage from "../pages/doctor/DDI";
 import DoctorPatientManagementPage from "../pages/doctor/PatientManagementPage";
 import AdministrationLoginPage from "../pages/administration/LoginPage";
@@ -40,6 +43,9 @@ const router = createBrowserRouter(
       <Route path="/doctor/mrna-result" element={<RNAResultPage />} />
       <Route path="/doctor/blood-result" element={<BloodResultPage />} />
       <Route path="/doctor/ai-result" element={<AIResultPage />} />
+      <Route path="/doctor/ai-stage-prediction" element={<StagePredictionPage />} />
+      <Route path="/doctor/ai-recurrence-prediction" element={<RecurrencePredictionPage />} />
+      <Route path="/doctor/ai-survival-analysis" element={<SurvivalAnalysisPage />} />
       <Route path="/doctor/ddi" element={<DDIPage />} />
       <Route path="/doctor/patient-management" element={<DoctorPatientManagementPage />} />
       {/* 테스트용 - 나중에 ProtectedRoute 복원 필요 */}

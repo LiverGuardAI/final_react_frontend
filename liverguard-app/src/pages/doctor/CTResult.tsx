@@ -28,11 +28,14 @@ export default function CTResultPage() {
   const [studies, setStudies] = useState<Study[]>([]);
   const [seriesList, setSeriesList] = useState<Series[]>([]);
   const [selectedStudy, setSelectedStudy] = useState<string | null>(null);
-  const [expandedSeriesId, setExpandedSeriesId] = useState<string | null>(null);
   const [selectedCtSeries, setSelectedCtSeries] = useState<Series | null>(null);
   const [selectedSegSeries, setSelectedSegSeries] = useState<Series | null>(null);
   const [loading, setLoading] = useState(true);
+  const [seriesLoading, setSeriesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [studySectionExpanded, setStudySectionExpanded] = useState(false);
+  const [seriesSectionExpanded, setSeriesSectionExpanded] = useState(false);
+  const [segSectionExpanded, setSegSectionExpanded] = useState(false);
 
   // 임시로 TCGA-BC-A3KF 환자 ID 사용
   const patientId = 'TCGA-BC-A3KF';
@@ -63,17 +66,21 @@ export default function CTResultPage() {
 
   const fetchSeriesForStudy = async (studyId: string) => {
     try {
+      setSeriesLoading(true);
       const seriesData = await getStudySeries(studyId);
       setSeriesList(seriesData);
       setSelectedStudy(studyId);
     } catch (err) {
       console.error('Failed to fetch series:', err);
       setError('Series 목록을 불러오는데 실패했습니다.');
+    } finally {
+      setSeriesLoading(false);
     }
   };
 
   const handleStudyClick = (studyId: string) => {
     fetchSeriesForStudy(studyId);
+    setStudySectionExpanded(false); // 드롭다운 닫기
   };
 
   return (
@@ -83,165 +90,238 @@ export default function CTResultPage() {
         <div className={styles.mainContent}>
         {/* Study 목록 */}
         <div className={styles.studySection}>
-          <h2 className={styles.sectionTitle}>Study 목록</h2>
-          {loading ? (
-            <div className={styles.loadingState}>로딩 중...</div>
-          ) : error ? (
-            <div className={styles.errorState}>{error}</div>
-          ) : studies.length === 0 ? (
-            <div className={styles.emptyState}>Study가 없습니다.</div>
-          ) : (
-            <div className={styles.studyList}>
-              {studies.map((study) => (
-                <div
-                  key={study.ID}
-                  className={`${styles.studyCard} ${selectedStudy === study.ID ? styles.selected : ''}`}
-                  onClick={() => handleStudyClick(study.ID)}
-                >
-                  <div className={styles.studyHeader}>
-                    <span className={styles.studyDate}>{study.StudyDate || 'N/A'}</span>
-                  </div>
-                  <div className={styles.studyDescription}>
-                    {study.StudyDescription || 'No Description'}
-                  </div>
-                  <div className={styles.studyId}>ID: {study.ID}</div>
+          {/* 섹션 헤더 (드롭다운) */}
+          <div
+            className={`${styles.sectionHeader} ${!studySectionExpanded ? styles.collapsed : ''}`}
+            onClick={() => setStudySectionExpanded(!studySectionExpanded)}
+          >
+            <span className={`${styles.sectionHeaderIcon} ${!studySectionExpanded ? styles.collapsed : ''}`}>
+              ▼
+            </span>
+            <span className={styles.sectionHeaderTitle}>Study 목록</span>
+            {!loading && !error && studies.length > 0 && (
+              <span className={styles.sectionHeaderCount}>{studies.length}개</span>
+            )}
+          </div>
+
+          {/* 섹션 컨텐츠 */}
+          {studySectionExpanded && (
+            <>
+              {loading ? (
+                <div className={styles.loadingState}>로딩 중...</div>
+              ) : error ? (
+                <div className={styles.errorState}>{error}</div>
+              ) : studies.length === 0 ? (
+                <div className={styles.emptyState}>Study가 없습니다.</div>
+              ) : (
+                <div className={styles.studyList}>
+                  {studies.map((study) => (
+                    <div
+                      key={study.ID}
+                      className={`${styles.studyCard} ${selectedStudy === study.ID ? styles.selected : ''}`}
+                      onClick={() => handleStudyClick(study.ID)}
+                    >
+                      <div className={styles.studyHeader}>
+                        <span className={styles.studyDate}>{study.StudyDate || 'N/A'}</span>
+                      </div>
+                      <div className={styles.studyDescription}>
+                        {study.StudyDescription || 'No Description'}
+                      </div>
+                      <div className={styles.studyId}>ID: {study.ID}</div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
 
-        {/* Series 목록 (CT와 연결된 SEG 드롭다운) */}
+        {/* CT Series 목록 */}
         <div className={styles.seriesSection}>
-          <h2 className={styles.sectionTitle}>Series 목록</h2>
-          {selectedStudy ? (
-            ctSeriesList.length === 0 ? (
-              <div className={styles.emptyState}>CT Series가 없습니다.</div>
-            ) : (
-              <div className={styles.seriesList}>
-                {ctSeriesList.map((ctSeries) => {
-                  const isExpanded = expandedSeriesId === ctSeries.ID;
+          <div
+            className={`${styles.sectionHeader} ${!seriesSectionExpanded ? styles.collapsed : ''}`}
+            onClick={() => setSeriesSectionExpanded(!seriesSectionExpanded)}
+          >
+            <span className={`${styles.sectionHeaderIcon} ${!seriesSectionExpanded ? styles.collapsed : ''}`}>
+              ▼
+            </span>
+            <span className={styles.sectionHeaderTitle}>CT Series</span>
+            {!seriesLoading && selectedStudy && ctSeriesList.length > 0 && (
+              <span className={styles.sectionHeaderCount}>{ctSeriesList.length}개</span>
+            )}
+          </div>
 
-                  // 이 CT Series와 연결된 SEG Series만 필터링
-                  const linkedSegSeries = segSeriesList.filter(segSeries => {
-                    // 1. ReferencedSeriesInstanceUID가 있으면 그것으로 매칭
-                    if (segSeries.ReferencedSeriesInstanceUID) {
-                      return segSeries.ReferencedSeriesInstanceUID === ctSeries.SeriesInstanceUID;
-                    }
-
-                    // 2. SeriesNumber 기반 매칭 (SEG SeriesNumber - 1000 = CT SeriesNumber)
-                    const ctSeriesNum = parseInt(ctSeries.SeriesNumber);
-                    const segSeriesNum = parseInt(segSeries.SeriesNumber);
-                    if (!isNaN(ctSeriesNum) && !isNaN(segSeriesNum)) {
-                      return segSeriesNum === ctSeriesNum + 1000;
-                    }
-
-                    return false;
-                  });
-
-                  return (
-                    <div key={ctSeries.ID} className={styles.dropdownWrapper}>
-                      {/* CT Series 드롭다운 헤더 */}
+          {seriesSectionExpanded && (
+            <>
+              {seriesLoading ? (
+                <div className={styles.loadingState}>로딩 중...</div>
+              ) : selectedStudy ? (
+                ctSeriesList.length === 0 ? (
+                  <div className={styles.emptyState}>CT Series가 없습니다.</div>
+                ) : (
+                  <div className={styles.seriesList}>
+                    {ctSeriesList.map((ctSeries) => (
                       <div
-                        className={`${styles.dropdownHeader} ${isExpanded ? styles.expanded : ''}`}
-                        onClick={() => setExpandedSeriesId(isExpanded ? null : ctSeries.ID)}
+                        key={ctSeries.ID}
+                        className={`${styles.seriesCard} ${selectedCtSeries?.ID === ctSeries.ID ? styles.selected : ''}`}
+                        onClick={() => {
+                          setSelectedCtSeries(ctSeries);
+                          setSeriesSectionExpanded(false); // 드롭다운 닫기
+                          // SEG는 자동 선택하지 않음 - 사용자가 직접 선택해야 함
+                        }}
                       >
-                        <div className={styles.dropdownHeaderLeft}>
-                          <span className={styles.dropdownIcon}>{isExpanded ? '▼' : '▶'}</span>
+                        <div className={styles.seriesHeader}>
                           <span className={styles.seriesNumber}>Series #{ctSeries.SeriesNumber}</span>
                           <span className={styles.ctBadge}>CT</span>
                         </div>
-                        <div className={styles.dropdownHeaderRight}>
-                          <span className={styles.seriesDescription}>
-                            {ctSeries.SeriesDescription || 'No Description'}
-                          </span>
+                        <div className={styles.seriesDescription}>
+                          {ctSeries.SeriesDescription || 'No Description'}
                         </div>
+                        <div className={styles.seriesId}>ID: {ctSeries.ID}</div>
                       </div>
+                    ))}
+                  </div>
+                )
+              ) : (
+                <div className={styles.emptyState}>Study를 선택해주세요.</div>
+              )}
+            </>
+          )}
+        </div>
 
-                      {/* 드롭다운 컨텐츠 (펼쳐졌을 때만 표시) */}
-                      {isExpanded && (
-                        <div className={styles.dropdownContent}>
-                          {/* CT Series 상세 정보 */}
-                          <div className={styles.seriesDetail}>
-                            <div className={styles.detailRow}>
-                              <span className={styles.detailLabel}>Series ID:</span>
-                              <span className={styles.detailValue}>{ctSeries.ID}</span>
-                            </div>
-                            <div className={styles.detailRow}>
-                              <span className={styles.detailLabel}>Description:</span>
-                              <span className={styles.detailValue}>{ctSeries.SeriesDescription || 'N/A'}</span>
-                            </div>
-                            <div className={styles.detailRow}>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedCtSeries(ctSeries);
-                                  setSelectedSegSeries(linkedSegSeries.length > 0 ? linkedSegSeries[0] : null);
-                                }}
-                                style={{
-                                  padding: '4px 10px',
-                                  backgroundColor: selectedCtSeries?.ID === ctSeries.ID ? '#3b82f6' : '#f59e0b',
-                                  color: '#ffffff',
-                                  border: 'none',
-                                  borderRadius: '4px',
-                                  cursor: 'pointer',
-                                  fontWeight: 600,
-                                  fontSize: '11px',
-                                }}
-                              >
-                                {selectedCtSeries?.ID === ctSeries.ID ? '선택됨' : 'Viewer에서 보기'}
-                              </button>
-                            </div>
-                          </div>
+        {/* SEG Series 목록 */}
+        <div className={styles.segSection}>
+          <div
+            className={`${styles.sectionHeader} ${!segSectionExpanded ? styles.collapsed : ''}`}
+            onClick={() => setSegSectionExpanded(!segSectionExpanded)}
+          >
+            <span className={`${styles.sectionHeaderIcon} ${!segSectionExpanded ? styles.collapsed : ''}`}>
+              ▼
+            </span>
+            <span className={styles.sectionHeaderTitle}>Segmentation</span>
+            {selectedCtSeries && (() => {
+              // 선택된 CT Series와 연결된 SEG Series만 필터링
+              const linkedSegSeries = segSeriesList.filter(segSeries => {
+                if (segSeries.ReferencedSeriesInstanceUID) {
+                  return segSeries.ReferencedSeriesInstanceUID === selectedCtSeries.SeriesInstanceUID;
+                }
+                const ctSeriesNum = parseInt(selectedCtSeries.SeriesNumber);
+                const segSeriesNum = parseInt(segSeries.SeriesNumber);
+                if (!isNaN(ctSeriesNum) && !isNaN(segSeriesNum)) {
+                  return segSeriesNum === ctSeriesNum + 1000;
+                }
+                return false;
+              });
+              return linkedSegSeries.length > 0 && (
+                <span className={styles.sectionHeaderCount}>{linkedSegSeries.length}개</span>
+              );
+            })()}
+          </div>
 
-                          {/* 연결된 SEG Series */}
-                          {linkedSegSeries.length > 0 && (
-                            <div className={styles.segSection}>
-                              <div className={styles.segSectionTitle}>연결된 Segmentation</div>
-                              {linkedSegSeries.map((segSeries) => (
-                                <div key={segSeries.ID} className={styles.segItem}>
-                                  <div className={styles.segItemHeader}>
-                                    <span className={styles.segBadge}>SEG</span>
-                                    <span className={styles.segNumber}>Series #{segSeries.SeriesNumber}</span>
-                                  </div>
-                                  <div className={styles.segItemDescription}>
-                                    {segSeries.SeriesDescription || 'No Description'}
-                                  </div>
-                                  <div className={styles.segItemId}>ID: {segSeries.ID}</div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+          {segSectionExpanded && (
+            <>
+              {!selectedCtSeries ? (
+                <div className={styles.emptyState}>CT Series를 선택해주세요.</div>
+              ) : (() => {
+                // 선택된 CT Series와 연결된 SEG Series만 필터링
+                const linkedSegSeries = segSeriesList.filter(segSeries => {
+                  if (segSeries.ReferencedSeriesInstanceUID) {
+                    return segSeries.ReferencedSeriesInstanceUID === selectedCtSeries.SeriesInstanceUID;
+                  }
+                  const ctSeriesNum = parseInt(selectedCtSeries.SeriesNumber);
+                  const segSeriesNum = parseInt(segSeries.SeriesNumber);
+                  if (!isNaN(ctSeriesNum) && !isNaN(segSeriesNum)) {
+                    return segSeriesNum === ctSeriesNum + 1000;
+                  }
+                  return false;
+                });
+
+                return linkedSegSeries.length === 0 ? (
+                  <div className={styles.emptyState}>연결된 SEG가 없습니다.</div>
+                ) : (
+                  <div className={styles.segList}>
+                    {linkedSegSeries.map((segSeries) => (
+                      <div
+                        key={segSeries.ID}
+                        className={`${styles.segCard} ${selectedSegSeries?.ID === segSeries.ID ? styles.selected : ''}`}
+                        onClick={() => {
+                          setSelectedSegSeries(segSeries);
+                          setSegSectionExpanded(false); // 드롭다운 닫기
+                        }}
+                      >
+                        <div className={styles.segCardHeader}>
+                          <span className={styles.segBadge}>SEG</span>
+                          <span className={styles.segNumber}>Series #{segSeries.SeriesNumber}</span>
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )
-          ) : (
-            <div className={styles.emptyState}>Study를 선택해주세요.</div>
+                        <div className={styles.segCardDescription}>
+                          {segSeries.SeriesDescription || 'No Description'}
+                        </div>
+                        <div className={styles.segCardId}>ID: {segSeries.ID}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </>
           )}
         </div>
       </div>
 
-        {/* Viewer 섹션 */}
-        {selectedCtSeries && (
-          <div className={styles.viewerSection}>
-            <div className={styles.viewerContainer}>
+        {/* Viewer 섹션 - 항상 표시 */}
+        <div className={styles.viewerSection}>
+          <div className={styles.viewerContainer}>
+            {selectedCtSeries ? (
               <DicomViewer2D
                 seriesId={selectedCtSeries.ID}
                 segmentationSeriesId={selectedSegSeries?.ID || null}
               />
-            </div>
-            <div className={styles.viewerContainer}>
-              <DicomViewer3D
-                seriesId={selectedCtSeries.ID}
-                segmentationSeriesId={selectedSegSeries?.ID || null}
-              />
-            </div>
+            ) : (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#9ca3af',
+                textAlign: 'center',
+                padding: '40px'
+              }}>
+                <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 600 }}>
+                  2D Viewer
+                </h3>
+                <div style={{ fontSize: '14px' }}>
+                  CT Series를 선택하여 영상을 확인하세요
+                </div>
+              </div>
+            )}
           </div>
-        )}
+          <div className={styles.viewerContainer}>
+            {selectedSegSeries ? (
+              <DicomViewer3D
+                segmentationSeriesId={selectedSegSeries.ID}
+              />
+            ) : (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#9ca3af',
+                textAlign: 'center',
+                padding: '40px'
+              }}>
+                <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 600 }}>
+                  3D Segmentation Rendering
+                </h3>
+                <div style={{ fontSize: '14px' }}>
+                  Segmentation이 있는 CT Series를 선택하여<br />
+                  3D 영상을 확인하세요
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </DoctorLayout>
   );

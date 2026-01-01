@@ -38,8 +38,8 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
     completed: completedPatients.length,
   };
 
-  const handleMouseEnter = () => {
-    setOpenDropdown('examination');
+  const handleMouseEnter = (dropdown: string) => {
+    setOpenDropdown(dropdown);
   };
 
   const handleMouseLeave = () => {
@@ -57,6 +57,12 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
       navigate('/doctor/mrna-result');
     } else if (item === '혈액 검사 결과') {
       navigate('/doctor/blood-result');
+    } else if (item === '병기예측') {
+      navigate('/doctor/ai-stage-prediction');
+    } else if (item === '조기재발예측') {
+      navigate('/doctor/ai-recurrence-prediction');
+    } else if (item === '생존분석') {
+      navigate('/doctor/ai-survival-analysis');
     }
   };
 
@@ -184,7 +190,7 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
 
             <div
               style={{ position: 'relative', flex: 1, maxWidth: '150px' }}
-              onMouseEnter={handleMouseEnter}
+              onMouseEnter={() => handleMouseEnter('examination')}
               onMouseLeave={handleMouseLeave}
             >
               <button
@@ -216,12 +222,39 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
               )}
             </div>
 
-            <button
-              className={`${styles.tabButton} ${activeTab === 'testForm' ? styles.active : ''}`}
-              onClick={() => handleTabClick('testForm')}
+            <div
+              style={{ position: 'relative', flex: 1, maxWidth: '150px' }}
+              onMouseEnter={() => handleMouseEnter('aiAnalysis')}
+              onMouseLeave={handleMouseLeave}
             >
-              <span>AI분석</span>
-            </button>
+              <button
+                className={`${styles.tabButton} ${styles.hasDropdown} ${openDropdown === 'aiAnalysis' ? styles.active : ''}`}
+              >
+                <span>AI분석</span>
+              </button>
+              {openDropdown === 'aiAnalysis' && (
+                <div className={styles.dropdownMenu}>
+                  <button
+                    className={styles.dropdownItem}
+                    onClick={() => handleDropdownItemClick('병기예측')}
+                  >
+                    병기예측
+                  </button>
+                  <button
+                    className={styles.dropdownItem}
+                    onClick={() => handleDropdownItemClick('조기재발예측')}
+                  >
+                    조기재발예측
+                  </button>
+                  <button
+                    className={styles.dropdownItem}
+                    onClick={() => handleDropdownItemClick('생존분석')}
+                  >
+                    생존분석
+                  </button>
+                </div>
+              )}
+            </div>
 
             <button
               className={`${styles.tabButton} ${activeTab === 'patientManagement' ? styles.active : ''}`}

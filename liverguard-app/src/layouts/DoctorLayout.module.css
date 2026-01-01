@@ -215,6 +215,7 @@
   height: 45px;
   margin: 7px 20px 20px 20px;
   zoom: 0.9;
+  z-index: 200;
 }
 
 .tabsContainer {
@@ -275,7 +276,7 @@
   border-radius: 12px;
   margin-top: 3px;
   min-width: 180px;
-  z-index: 100;
+  z-index: 300;
   padding: 8px 0;
   border: 1px solid rgba(107, 88, 177, 0.1);
 }

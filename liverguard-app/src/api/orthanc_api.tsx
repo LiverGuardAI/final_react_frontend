@@ -113,6 +113,15 @@ export const getInstanceFileUrl = (instanceId: string): string => {
 };
 
 /**
+ * Series NIfTI 파일 URL 생성
+ * GET /api/orthanc/series/{series_id}/nifti/
+ */
+export const getSeriesNiftiUrl = (seriesId: string): string => {
+  const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/';
+  return `${baseURL}orthanc/series/${seriesId}/nifti/`;
+};
+
+/**
  * AI Segmentation Mask 생성 요청
  * POST /api/ai/mosec/segmentation/create/
  */
