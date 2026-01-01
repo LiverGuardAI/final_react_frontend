@@ -14,6 +14,59 @@ interface DicomViewer2DProps {
 
 let initialized = false;
 
+const FIXED_MASK_COLORS: Record<number, { r: number; g: number; b: number; a: number }> = {
+  1: { r: 255, g: 0, b: 0, a: 180 },
+  2: { r: 0, g: 255, b: 0, a: 180 },
+  1000: { r: 255, g: 0, b: 0, a: 180 },
+  2000: { r: 0, g: 255, b: 0, a: 180 },
+  208: { r: 0, g: 255, b: 0, a: 180 },
+  232: { r: 255, g: 0, b: 0, a: 180 },
+  3: { r: 0, g: 0, b: 255, a: 180 },
+  4: { r: 255, g: 255, b: 0, a: 180 },
+  5: { r: 255, g: 0, b: 255, a: 180 },
+  6: { r: 0, g: 255, b: 255, a: 180 },
+};
+
+const FALLBACK_COLOR_PALETTE = [
+  { r: 255, g: 165, b: 0, a: 180 },
+  { r: 128, g: 0, b: 128, a: 180 },
+  { r: 255, g: 192, b: 203, a: 180 },
+  { r: 165, g: 42, b: 42, a: 180 },
+];
+
+const getColorForMaskValue = (
+  maskValue: number,
+  unknownColorMap: Map<number, { r: number; g: number; b: number; a: number }>
+) => {
+  if (maskValue === 0) {
+    return { r: 0, g: 0, b: 0, a: 0 };
+  }
+  if (FIXED_MASK_COLORS[maskValue]) {
+    return FIXED_MASK_COLORS[maskValue];
+  }
+  if (!unknownColorMap.has(maskValue)) {
+    const colorIndex = unknownColorMap.size % FALLBACK_COLOR_PALETTE.length;
+    unknownColorMap.set(maskValue, FALLBACK_COLOR_PALETTE[colorIndex]);
+  }
+  return unknownColorMap.get(maskValue)!;
+};
+
+const getDicomNumber = (value: unknown): number | null => {
+  if (value === undefined || value === null) return null;
+  if (Array.isArray(value)) {
+    return getDicomNumber(value[0]);
+  }
+  if (typeof value === 'string') {
+    const first = value.split('\\')[0];
+    const parsed = parseFloat(first);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  return null;
+};
+
 function initializeWADOImageLoader() {
   cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
   cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
@@ -31,8 +84,36 @@ export default function DicomViewer2D({ seriesId, segmentationSeriesId }: DicomV
   const [currentSlice, setCurrentSlice] = useState(0);
   const [totalSlices, setTotalSlices] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [overlayEnabled, setOverlayEnabled] = useState(true);
+  const [overlayOpacity, setOverlayOpacity] = useState(0.6);
+  const [classVisibility, setClassVisibility] = useState<Record<string, boolean>>({
+    liver: true,
+    tumor: true,
+    other: true,
+  });
   const renderingEngineRef = useRef<RenderingEngine | null>(null);
+  const renderHandlerRef = useRef<((evt: Event) => void) | null>(null);
+  const overlayRenderTokenRef = useRef(0);
   const segImageIdsRef = useRef<string[]>([]);
+  const ctInstancesRef = useRef<any[]>([]);
+  const segInstanceNumberMapRef = useRef<Map<number, string>>(new Map());
+  const preloadCancelledRef = useRef(false);
+  const [preloadProgress, setPreloadProgress] = useState(0);
+  const renderSegmentationOverlayRef = useRef<((sliceIndex: number, retryCount?: number) => Promise<void>) | null>(null);
+
+  const getClassKeyForValue = useCallback((value: number) => {
+    if (value === 0) return 'background';
+    if (value === 1 || value === 1000 || value === 232) return 'liver';
+    if (value === 2 || value === 2000 || value === 208) return 'tumor';
+    return 'other';
+  }, []);
+
+  const getInstanceNumber = useCallback((instance: any): number | null => {
+    const rawValue = instance?.MainDicomTags?.InstanceNumber ?? instance?.IndexInSeries;
+    if (rawValue === undefined || rawValue === null) return null;
+    const parsed = parseInt(String(rawValue), 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, []);
 
   useEffect(() => {
     const initializeCornerstone = async () => {
@@ -53,28 +134,78 @@ export default function DicomViewer2D({ seriesId, segmentationSeriesId }: DicomV
 
   // Render SEG overlay on canvas with viewport transformation
   const renderSegmentationOverlay = useCallback(async (sliceIndex: number, retryCount = 0) => {
-    if (!overlayCanvasRef.current || !renderingEngineRef.current || segImageIdsRef.current.length === 0) {
+    const renderToken = ++overlayRenderTokenRef.current;
+    const canvas = overlayCanvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+
+    if (
+      !overlayCanvasRef.current ||
+      !renderingEngineRef.current ||
+      segImageIdsRef.current.length === 0 ||
+      !overlayEnabled
+    ) {
       return;
     }
 
-    const canvas = overlayCanvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas?.getContext('2d');
     if (!ctx) return;
 
-    // Check if we have a corresponding SEG image for this slice
-    if (sliceIndex >= segImageIdsRef.current.length) {
-      console.log('DicomViewer2D: No SEG image for slice', sliceIndex);
+    const ctInstance = ctInstancesRef.current[sliceIndex];
+    const ctInstanceNumber = getInstanceNumber(ctInstance);
+    let segImageId: string | undefined;
+
+    if (ctInstanceNumber !== null) {
+      segImageId = segInstanceNumberMapRef.current.get(ctInstanceNumber);
+    }
+
+    if (!segImageId) {
+      segImageId = segImageIdsRef.current[sliceIndex];
+    }
+
+    if (!segImageId) {
+      console.log('DicomViewer2D: No SEG image for slice', sliceIndex, 'instance', ctInstanceNumber);
       return;
     }
 
     try {
-      const segImageId = segImageIdsRef.current[sliceIndex];
       console.log('DicomViewer2D: Loading SEG overlay for slice', sliceIndex);
 
       const image = await cornerstone.imageLoader.loadAndCacheImage(segImageId);
+      if (renderToken !== overlayRenderTokenRef.current) {
+        return;
+      }
       const pixelData = image.getPixelData();
       const maskWidth = image.width;
       const maskHeight = image.height;
+      const maskLength = pixelData.length;
+
+      // Sample pixel values to diagnose empty/flat masks without heavy cost
+      const sampleStep = Math.max(1, Math.floor(maskLength / 5000));
+      const uniqueSampleValues = new Set<number>();
+      let sampleNonZero = 0;
+      for (let i = 0; i < maskLength; i += sampleStep) {
+        const value = pixelData[i];
+        uniqueSampleValues.add(value);
+        if (value !== 0) {
+          sampleNonZero++;
+        }
+      }
+      const sampleValues = Array.from(uniqueSampleValues).slice(0, 12);
+      console.log(
+        'DicomViewer2D: SEG pixel sample',
+        {
+          type: pixelData.constructor?.name,
+          length: maskLength,
+          uniqueSampleValues: sampleValues,
+          sampleNonZero,
+        }
+      );
 
       // Get viewport and base image from Cornerstone3D
       const viewport = renderingEngineRef.current.getViewport('CT_STACK') as any;
@@ -87,7 +218,7 @@ export default function DicomViewer2D({ seriesId, segmentationSeriesId }: DicomV
       // Use requestAnimationFrame to ensure DOM is ready
       const getCanvas = (): HTMLCanvasElement | null => {
         const viewportElement = viewport.element;
-        return viewportElement.querySelector('canvas') as HTMLCanvasElement;
+        return viewportElement.querySelector('canvas:not([data-overlay])') as HTMLCanvasElement;
       };
 
       let cornerstoneCanvas = getCanvas();
@@ -107,6 +238,11 @@ export default function DicomViewer2D({ seriesId, segmentationSeriesId }: DicomV
       }
 
       // Match overlay canvas to Cornerstone canvas
+      if (!canvas) {
+        console.warn('DicomViewer2D: Overlay canvas not available');
+        return;
+      }
+
       canvas.width = cornerstoneCanvas.width;
       canvas.height = cornerstoneCanvas.height;
 
@@ -124,6 +260,9 @@ export default function DicomViewer2D({ seriesId, segmentationSeriesId }: DicomV
       const currentImageIdIndex = viewport.getCurrentImageIdIndex();
       const currentImageId = viewport.imageIds[currentImageIdIndex];
       const baseImage = await cornerstone.imageLoader.loadAndCacheImage(currentImageId);
+      if (renderToken !== overlayRenderTokenRef.current) {
+        return;
+      }
       const baseWidth = baseImage.width;
       const baseHeight = baseImage.height;
 
@@ -131,25 +270,63 @@ export default function DicomViewer2D({ seriesId, segmentationSeriesId }: DicomV
       const scaleX = baseWidth / maskWidth;
       const scaleY = baseHeight / maskHeight;
 
-      // Apply viewport transformation
+      const imagePlaneModule = cornerstone.metaData.get('imagePlaneModule', currentImageId);
+      const imageOrientation = imagePlaneModule?.imageOrientationPatient;
+      const rowCosines = imagePlaneModule?.rowCosines ??
+        (imageOrientation ? imageOrientation.slice(0, 3) : [1, 0, 0]);
+      const columnCosines = imagePlaneModule?.columnCosines ??
+        (imageOrientation ? imageOrientation.slice(3, 6) : [0, 1, 0]);
+      const rowPixelSpacing = imagePlaneModule?.rowPixelSpacing ?? imagePlaneModule?.pixelSpacing?.[0] ?? 1;
+      const columnPixelSpacing = imagePlaneModule?.columnPixelSpacing ?? imagePlaneModule?.pixelSpacing?.[1] ?? 1;
+      const originWorld = imagePlaneModule?.imagePositionPatient ?? [0, 0, 0];
+
+      // Build an affine transform from image IJK to canvas using worldToCanvas
+      const worldToCanvas = typeof viewport.worldToCanvas === 'function'
+        ? viewport.worldToCanvas.bind(viewport)
+        : null;
+
+      if (!worldToCanvas) {
+        console.warn('DicomViewer2D: worldToCanvas not available, using fallback transform');
+      }
+
+      const originCanvas = worldToCanvas
+        ? worldToCanvas(originWorld)
+        : [0, 0];
+      // DICOM: rowCosines = image x-axis (columns), columnCosines = image y-axis (rows)
+      const xWorld = [
+        originWorld[0] + rowCosines[0] * columnPixelSpacing,
+        originWorld[1] + rowCosines[1] * columnPixelSpacing,
+        originWorld[2] + rowCosines[2] * columnPixelSpacing,
+      ];
+      const yWorld = [
+        originWorld[0] + columnCosines[0] * rowPixelSpacing,
+        originWorld[1] + columnCosines[1] * rowPixelSpacing,
+        originWorld[2] + columnCosines[2] * rowPixelSpacing,
+      ];
+      const xCanvas = worldToCanvas ? worldToCanvas(xWorld) : [1, 0];
+      const yCanvas = worldToCanvas ? worldToCanvas(yWorld) : [0, 1];
+      const basisX = [xCanvas[0] - originCanvas[0], xCanvas[1] - originCanvas[1]];
+      const basisY = [yCanvas[0] - originCanvas[0], yCanvas[1] - originCanvas[1]];
+
       ctx.save();
+      ctx.setTransform(basisX[0], basisX[1], basisY[0], basisY[1], originCanvas[0], originCanvas[1]);
 
-      // Get viewport camera/properties for transformation
-      const camera = viewport.getCamera();
-      const { parallelScale } = camera;
+      // Pre-compute min/max for dynamic masks (not just 0/1/2)
+      let minValue = Number.POSITIVE_INFINITY;
+      let maxValue = Number.NEGATIVE_INFINITY;
+      for (let i = 0; i < pixelData.length; i++) {
+        const v = pixelData[i];
+        if (!Number.isFinite(v)) continue;
+        if (v < minValue) minValue = v;
+        if (v > maxValue) maxValue = v;
+      }
 
-      // Calculate scale based on canvas and image dimensions
-      const canvasScale = Math.min(canvas.width / baseWidth, canvas.height / baseHeight);
-      const viewportScale = canvasScale / parallelScale;
+      const hasDynamicRange =
+        Number.isFinite(minValue) &&
+        Number.isFinite(maxValue) &&
+        maxValue > minValue;
 
-      // Center the canvas
-      ctx.translate(canvas.width / 2, canvas.height / 2);
-
-      // Apply scale
-      ctx.scale(viewportScale, viewportScale);
-
-      // Translate to image center
-      ctx.translate(-baseWidth / 2, -baseHeight / 2);
+      const unknownColorMap = new Map<number, { r: number; g: number; b: number; a: number }>();
 
       // Draw mask pixels
       let nonZeroCount = 0;
@@ -158,29 +335,80 @@ export default function DicomViewer2D({ seriesId, segmentationSeriesId }: DicomV
           const maskIndex = y * maskWidth + x;
           const maskValue = pixelData[maskIndex];
 
-          if (maskValue > 0) {
+          // Treat any non-zero value as mask; handle float/large values too
+          if (maskValue !== 0) {
+            const classKey = getClassKeyForValue(maskValue);
+            if (classKey !== 'background' && !classVisibility[classKey]) {
+              continue;
+            }
+
             nonZeroCount++;
             // Map mask coordinates to base image coordinates
             const baseX = x * scaleX;
             const baseY = y * scaleY;
 
-            ctx.fillStyle = 'rgba(255, 128, 0, 0.5)'; // Orange with 50% opacity
+            const color = getColorForMaskValue(maskValue, unknownColorMap);
+            let alpha = (color.a / 255) * overlayOpacity;
+            if (hasDynamicRange && maskValue !== 0) {
+              const normalized = (maskValue - minValue) / (maxValue - minValue);
+              alpha = Math.max(alpha, (0.2 + Math.min(0.6, Math.max(0, normalized)) * 0.6) * overlayOpacity);
+            }
+
+            ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
             ctx.fillRect(baseX, baseY, scaleX, scaleY);
           }
         }
       }
 
+      if (renderToken !== overlayRenderTokenRef.current) {
+        return;
+      }
       ctx.restore();
       console.log('DicomViewer2D: SEG overlay rendered -', nonZeroCount, 'pixels');
     } catch (error) {
       console.error('DicomViewer2D: Failed to render SEG overlay:', error);
     }
-  }, []);
+  }, [classVisibility, getClassKeyForValue, overlayEnabled, overlayOpacity]);
+
+  // Update ref whenever renderSegmentationOverlay changes
+  useEffect(() => {
+    renderSegmentationOverlayRef.current = renderSegmentationOverlay;
+  }, [renderSegmentationOverlay]);
+
+  // Keep viewport sized to container so overlay matches visible canvas
+  useEffect(() => {
+    const element = viewportRef.current;
+    if (!element) return;
+    if (typeof ResizeObserver === 'undefined') return;
+
+    const observer = new ResizeObserver(() => {
+      if (!renderingEngineRef.current) return;
+      renderingEngineRef.current.resize();
+      const viewport = renderingEngineRef.current.getViewport('CT_STACK') as any;
+      if (viewport) {
+        viewport.render();
+        const currentIndex = viewport.getCurrentImageIdIndex();
+        renderSegmentationOverlay(currentIndex);
+      }
+    });
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [renderSegmentationOverlay]);
 
   // Load SEG images when segmentationSeriesId changes
   useEffect(() => {
     if (!segmentationSeriesId) {
       segImageIdsRef.current = [];
+      segInstanceNumberMapRef.current = new Map();
+      const canvas = overlayCanvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
       return;
     }
 
@@ -201,23 +429,47 @@ export default function DicomViewer2D({ seriesId, segmentationSeriesId }: DicomV
         );
 
         segImageIdsRef.current = segImageIds;
+        const instanceNumberMap = new Map<number, string>();
+        sortedSegInstances.forEach((instance: any, index: number) => {
+          const instanceNumber = getInstanceNumber(instance);
+          if (instanceNumber !== null) {
+            instanceNumberMap.set(instanceNumber, segImageIds[index]);
+          }
+        });
+        segInstanceNumberMapRef.current = instanceNumberMap;
         console.log('DicomViewer2D: Loaded', segImageIds.length, 'SEG images');
+
+        const renderingEngine = renderingEngineRef.current;
+        if (renderingEngine) {
+          const viewport = renderingEngine.getViewport('CT_STACK') as any;
+          if (viewport) {
+            const currentIndex = viewport.getCurrentImageIdIndex();
+            renderSegmentationOverlay(currentIndex);
+          }
+        }
       } catch (error) {
         console.error('DicomViewer2D: Failed to load segmentation:', error);
       }
     };
 
     loadSegmentation();
-  }, [segmentationSeriesId]);
+  }, [segmentationSeriesId, getInstanceNumber, renderSegmentationOverlay]);
 
   useEffect(() => {
     if (!seriesId || !viewportRef.current) return;
+
+    let isCancelled = false;
 
     const loadSeries = async () => {
       setLoading(true);
       try {
         // Fetch instances
         const instances = await getSeriesInstances(seriesId);
+
+        if (isCancelled) {
+          console.log('DicomViewer2D: Load cancelled after fetching instances');
+          return;
+        }
 
         // Sort instances by InstanceNumber
         const sortedInstances = [...instances].sort((a: any, b: any) => {
@@ -227,11 +479,17 @@ export default function DicomViewer2D({ seriesId, segmentationSeriesId }: DicomV
         });
 
         setTotalSlices(sortedInstances.length);
+        ctInstancesRef.current = sortedInstances;
 
         // Create rendering engine
         const renderingEngineId = 'dicomViewer2DEngine';
         if (renderingEngineRef.current) {
           renderingEngineRef.current.destroy();
+        }
+
+        if (isCancelled) {
+          console.log('DicomViewer2D: Load cancelled before creating rendering engine');
+          return;
         }
 
         const renderingEngine = new RenderingEngine(renderingEngineId);
@@ -253,79 +511,108 @@ export default function DicomViewer2D({ seriesId, segmentationSeriesId }: DicomV
         );
 
         const viewport = renderingEngine.getViewport(viewportId) as any;
-        await viewport.setStack(imageIds);
-        viewport.render();
 
+        if (isCancelled) {
+          console.log('DicomViewer2D: Load cancelled before setting stack');
+          renderingEngine.destroy();
+          renderingEngineRef.current = null;
+          return;
+        }
+
+        await viewport.setStack(imageIds);
+
+        if (isCancelled) {
+          console.log('DicomViewer2D: Load cancelled after setting stack');
+          renderingEngine.destroy();
+          renderingEngineRef.current = null;
+          return;
+        }
+
+        // Apply windowing before the first render to avoid the initial white flash
+        try {
+          const currentImageId = imageIds[0];
+          const image = await cornerstone.imageLoader.loadAndCacheImage(currentImageId);
+
+          const voiLutModule = cornerstone.metaData.get('voiLutModule', currentImageId);
+          const modalityLutModule = cornerstone.metaData.get('modalityLutModule', currentImageId) || {};
+
+          const voiWindowCenter = getDicomNumber(voiLutModule?.windowCenter ?? image.windowCenter);
+          const voiWindowWidth = getDicomNumber(voiLutModule?.windowWidth ?? image.windowWidth);
+
+          let windowCenter = voiWindowCenter ?? 40;   // Default for soft tissue
+          let windowWidth = voiWindowWidth ?? 400;   // Default for soft tissue
+
+          if (voiWindowCenter !== null && voiWindowWidth !== null) {
+            console.log('DicomViewer2D: Using DICOM window - WC:', windowCenter, 'WW:', windowWidth);
+          } else {
+            console.log('DicomViewer2D: No window metadata found, using default - WC:', windowCenter, 'WW:', windowWidth);
+          }
+
+          const rescaleSlope = getDicomNumber(modalityLutModule?.rescaleSlope ?? image.slope) ?? 1;
+          const rescaleIntercept = getDicomNumber(modalityLutModule?.rescaleIntercept ?? image.intercept) ?? 0;
+          const pixelMin = image.minPixelValue ?? 0;
+
+          if (
+            Number.isFinite(rescaleSlope) &&
+            Number.isFinite(rescaleIntercept) &&
+            rescaleSlope !== 0 &&
+            pixelMin >= 0 &&
+            rescaleIntercept !== 0
+          ) {
+            windowCenter = (windowCenter - rescaleIntercept) / rescaleSlope;
+            windowWidth = windowWidth / Math.abs(rescaleSlope);
+            console.log(
+              'DicomViewer2D: Adjusted window for rescale - WC:',
+              windowCenter,
+              'WW:',
+              windowWidth
+            );
+          }
+
+          if (!Number.isFinite(windowCenter) || !Number.isFinite(windowWidth) || windowWidth <= 1) {
+            const min = image.minPixelValue ?? 0;
+            const max = image.maxPixelValue ?? 1;
+            windowCenter = (max + min) / 2;
+            windowWidth = Math.max(1, max - min);
+            console.log('DicomViewer2D: Fallback window from pixel range - WC:', windowCenter, 'WW:', windowWidth);
+          }
+
+          const lower = windowCenter - windowWidth / 2;
+          const upper = windowCenter + windowWidth / 2;
+
+          viewport.setProperties({
+            voiRange: {
+              lower,
+              upper
+            }
+          });
+          console.log('DicomViewer2D: Applied windowing - Lower:', lower, 'Upper:', upper);
+        } catch (error) {
+          console.error('DicomViewer2D: Error applying windowing:', error);
+        }
+
+        viewport.render();
         setCurrentSlice(1);
 
         // Add event listener for viewport rendering to update overlay
         const viewportElement = viewport.element;
         const handleViewportRender = () => {
           const currentIndex = viewport.getCurrentImageIdIndex();
-          renderSegmentationOverlay(currentIndex);
+          // Use ref to always call the latest renderSegmentationOverlay function
+          if (renderSegmentationOverlayRef.current) {
+            renderSegmentationOverlayRef.current(currentIndex);
+          }
         };
+        renderHandlerRef.current = handleViewportRender;
         viewportElement.addEventListener(cornerstone.Enums.Events.IMAGE_RENDERED, handleViewportRender);
 
-        // Apply windowing from DICOM metadata
-        setTimeout(async () => {
-          const currentViewport = renderingEngine.getViewport(viewportId) as any;
-          if (currentViewport) {
-            try {
-              // Get current image ID
-              const currentImageId = imageIds[0];
+        // Render initial SEG overlay if available
+        renderSegmentationOverlay(0);
 
-              // Try to get VOI LUT module from metadata
-              const voiLutModule = cornerstone.metaData.get('voiLutModule', currentImageId);
-
-              let windowCenter = 40;   // Default for soft tissue
-              let windowWidth = 400;   // Default for soft tissue
-
-              if (voiLutModule && voiLutModule.windowCenter && voiLutModule.windowWidth) {
-                // DICOM can have multiple window settings, use the first one
-                windowCenter = Array.isArray(voiLutModule.windowCenter)
-                  ? voiLutModule.windowCenter[0]
-                  : voiLutModule.windowCenter;
-                windowWidth = Array.isArray(voiLutModule.windowWidth)
-                  ? voiLutModule.windowWidth[0]
-                  : voiLutModule.windowWidth;
-
-                console.log('DicomViewer2D: Using DICOM metadata window - WC:', windowCenter, 'WW:', windowWidth);
-              } else {
-                // Fallback: Try to load the image and check its properties
-                const image = await cornerstone.imageLoader.loadAndCacheImage(currentImageId);
-                if (image.windowCenter && image.windowWidth) {
-                  windowCenter = Array.isArray(image.windowCenter)
-                    ? image.windowCenter[0]
-                    : image.windowCenter;
-                  windowWidth = Array.isArray(image.windowWidth)
-                    ? image.windowWidth[0]
-                    : image.windowWidth;
-                  console.log('DicomViewer2D: Using image property window - WC:', windowCenter, 'WW:', windowWidth);
-                } else {
-                  console.log('DicomViewer2D: No window metadata found, using default - WC:', windowCenter, 'WW:', windowWidth);
-                }
-              }
-
-              // Calculate VOI range from window center and width
-              const lower = windowCenter - windowWidth / 2;
-              const upper = windowCenter + windowWidth / 2;
-
-              currentViewport.setProperties({
-                voiRange: {
-                  lower,
-                  upper
-                }
-              });
-              currentViewport.render();
-              console.log('DicomViewer2D: Applied windowing - Lower:', lower, 'Upper:', upper);
-            } catch (error) {
-              console.error('DicomViewer2D: Error applying windowing:', error);
-            }
-          }
-
-          // Render initial SEG overlay if available
-          renderSegmentationOverlay(0);
-        }, 200);
+        // Start preloading all images in the background
+        if (!isCancelled) {
+          preloadImages(imageIds);
+        }
       } catch (error) {
         console.error('Failed to load series:', error);
       } finally {
@@ -333,15 +620,97 @@ export default function DicomViewer2D({ seriesId, segmentationSeriesId }: DicomV
       }
     };
 
+    // Preload all images progressively in the background
+    const preloadImages = async (imageIds: string[]) => {
+      preloadCancelledRef.current = false;
+      console.log('DicomViewer2D: Starting background preload of', imageIds.length, 'images');
+
+      const totalImages = imageIds.length;
+      let loadedCount = 0;
+
+      // Strategy: Load images in chunks with prioritization
+      // Priority 1: Current image (index 0) - already loaded
+      // Priority 2: Images near current position (1-10)
+      // Priority 3: Rest of the series
+
+      const loadImage = async (index: number) => {
+        if (preloadCancelledRef.current || isCancelled) {
+          return;
+        }
+
+        try {
+          await cornerstone.imageLoader.loadAndCacheImage(imageIds[index]);
+          loadedCount++;
+          const progress = Math.round((loadedCount / totalImages) * 100);
+          setPreloadProgress(progress);
+
+          if (loadedCount % 10 === 0 || loadedCount === totalImages) {
+            console.log(`DicomViewer2D: Preloaded ${loadedCount}/${totalImages} images (${progress}%)`);
+          }
+        } catch (error) {
+          console.warn(`DicomViewer2D: Failed to preload image ${index}:`, error);
+        }
+      };
+
+      // Priority queue: nearby images first, then the rest
+      const nearbyIndices: number[] = [];
+      const farIndices: number[] = [];
+
+      for (let i = 1; i < totalImages; i++) {
+        if (i <= 10) {
+          nearbyIndices.push(i);
+        } else {
+          farIndices.push(i);
+        }
+      }
+
+      // Load nearby images first (with concurrency limit)
+      const concurrencyLimit = 3;
+      for (let i = 0; i < nearbyIndices.length; i += concurrencyLimit) {
+        if (preloadCancelledRef.current || isCancelled) break;
+
+        const chunk = nearbyIndices.slice(i, i + concurrencyLimit);
+        await Promise.all(chunk.map(idx => loadImage(idx)));
+
+        // Small delay to avoid overwhelming the browser
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+
+      // Load remaining images
+      for (let i = 0; i < farIndices.length; i += concurrencyLimit) {
+        if (preloadCancelledRef.current || isCancelled) break;
+
+        const chunk = farIndices.slice(i, i + concurrencyLimit);
+        await Promise.all(chunk.map(idx => loadImage(idx)));
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+
+      if (!preloadCancelledRef.current && !isCancelled) {
+        console.log('DicomViewer2D: Preloading complete - all images cached');
+        setPreloadProgress(100);
+      }
+    };
+
     loadSeries();
 
     return () => {
+      // Cancel any ongoing load operations
+      isCancelled = true;
+      preloadCancelledRef.current = true;
+      console.log('DicomViewer2D: Cleanup - cancelling load and preload operations');
+
       // Remove event listener
       if (renderingEngineRef.current) {
         try {
           const viewport = renderingEngineRef.current.getViewport('CT_STACK') as any;
           if (viewport && viewport.element) {
-            viewport.element.removeEventListener(cornerstone.Enums.Events.IMAGE_RENDERED, () => {});
+            if (renderHandlerRef.current) {
+              viewport.element.removeEventListener(
+                cornerstone.Enums.Events.IMAGE_RENDERED,
+                renderHandlerRef.current
+              );
+            }
           }
         } catch (e) {
           // Ignore errors during cleanup
@@ -350,7 +719,22 @@ export default function DicomViewer2D({ seriesId, segmentationSeriesId }: DicomV
         renderingEngineRef.current = null;
       }
     };
-  }, [seriesId, renderSegmentationOverlay]);
+  }, [seriesId]);
+
+  // Re-render overlay when visibility settings change (without reloading the series)
+  useEffect(() => {
+    if (!renderingEngineRef.current) return;
+
+    try {
+      const viewport = renderingEngineRef.current.getViewport('CT_STACK') as any;
+      if (viewport) {
+        const currentIndex = viewport.getCurrentImageIdIndex();
+        renderSegmentationOverlay(currentIndex);
+      }
+    } catch (error) {
+      // Viewport might not be ready yet, ignore
+    }
+  }, [classVisibility, overlayEnabled, overlayOpacity, renderSegmentationOverlay]);
 
   const handleSliceChange = useCallback((delta: number) => {
     if (!renderingEngineRef.current) return;
@@ -390,6 +774,61 @@ export default function DicomViewer2D({ seriesId, segmentationSeriesId }: DicomV
       <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 600, flexShrink: 0 }}>
         2D Viewer {segmentationSeriesId && '(with Overlay)'}
       </h3>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+        <button
+          onClick={() => setOverlayEnabled((prev) => !prev)}
+          style={{
+            padding: '6px 12px',
+            backgroundColor: overlayEnabled ? '#111827' : '#f3f4f6',
+            color: overlayEnabled ? '#fff' : '#111827',
+            border: '1px solid #d1d5db',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '12px',
+          }}
+        >
+          Overlay {overlayEnabled ? 'On' : 'Off'}
+        </button>
+        <button
+          onClick={() => setClassVisibility((prev) => ({ ...prev, liver: !prev.liver }))}
+          style={{
+            padding: '6px 12px',
+            backgroundColor: classVisibility.liver ? '#ef4444' : '#f3f4f6',
+            color: classVisibility.liver ? '#fff' : '#111827',
+            border: '1px solid #d1d5db',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '12px',
+          }}
+        >
+          Liver
+        </button>
+        <button
+          onClick={() => setClassVisibility((prev) => ({ ...prev, tumor: !prev.tumor }))}
+          style={{
+            padding: '6px 12px',
+            backgroundColor: classVisibility.tumor ? '#22c55e' : '#f3f4f6',
+            color: classVisibility.tumor ? '#fff' : '#111827',
+            border: '1px solid #d1d5db',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '12px',
+          }}
+        >
+          Tumor
+        </button>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#374151' }}>
+          Opacity
+          <input
+            type="range"
+            min={0.1}
+            max={1}
+            step={0.05}
+            value={overlayOpacity}
+            onChange={(e) => setOverlayOpacity(parseFloat(e.target.value))}
+          />
+        </label>
+      </div>
       <div
         ref={viewportRef}
         style={{
@@ -413,46 +852,71 @@ export default function DicomViewer2D({ seriesId, segmentationSeriesId }: DicomV
         {/* SEG Overlay Canvas */}
         <canvas
           ref={overlayCanvasRef}
+          data-overlay="true"
           style={{
             position: 'absolute',
             top: 0,
             left: 0,
             width: '100%',
             height: '100%',
+            zIndex: 2,
             pointerEvents: 'none',
             imageRendering: 'pixelated',
           }}
         />
       </div>
       {totalSlices > 0 && (
-        <div style={{ marginTop: '12px', display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
-          <button
-            onClick={() => handleSliceChange(-1)}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#f3f4f6',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              cursor: 'pointer',
-            }}
-          >
-            Previous
-          </button>
-          <span style={{ fontSize: '13px', color: '#6b7280' }}>
-            Slice {currentSlice} / {totalSlices}
-          </span>
-          <button
-            onClick={() => handleSliceChange(1)}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#f3f4f6',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              cursor: 'pointer',
-            }}
-          >
-            Next
-          </button>
+        <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button
+              onClick={() => handleSliceChange(-1)}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#f3f4f6',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                cursor: 'pointer',
+              }}
+            >
+              Previous
+            </button>
+            <span style={{ fontSize: '13px', color: '#6b7280' }}>
+              Slice {currentSlice} / {totalSlices}
+            </span>
+            <button
+              onClick={() => handleSliceChange(1)}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#f3f4f6',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                cursor: 'pointer',
+              }}
+            >
+              Next
+            </button>
+          </div>
+          {preloadProgress > 0 && preloadProgress < 100 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                flex: 1,
+                height: '4px',
+                backgroundColor: '#e5e7eb',
+                borderRadius: '2px',
+                overflow: 'hidden',
+              }}>
+                <div style={{
+                  width: `${preloadProgress}%`,
+                  height: '100%',
+                  backgroundColor: '#3b82f6',
+                  transition: 'width 0.3s ease',
+                }} />
+              </div>
+              <span style={{ fontSize: '11px', color: '#9ca3af', minWidth: '45px' }}>
+                {preloadProgress}%
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>

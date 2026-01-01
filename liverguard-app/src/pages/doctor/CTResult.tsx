@@ -167,7 +167,8 @@ export default function CTResultPage() {
                         onClick={() => {
                           setSelectedCtSeries(ctSeries);
                           setSeriesSectionExpanded(false); // 드롭다운 닫기
-                          // SEG는 자동 선택하지 않음 - 사용자가 직접 선택해야 함
+                          // CT 변경 시 이전 SEG 선택 해제
+                          setSelectedSegSeries(null);
                         }}
                       >
                         <div className={styles.seriesHeader}>
