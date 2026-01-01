@@ -67,8 +67,45 @@ const getDicomNumber = (value: unknown): number | null => {
   return null;
 };
 
+const getDicomString = (value: unknown): string | null => {
+  if (value === undefined || value === null) return null;
+  if (Array.isArray(value)) {
+    return getDicomString(value[0]);
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? String(value) : null;
+  }
+  return null;
+};
+
+const formatDicomDateParts = (value: any): string | null => {
+  if (!value || typeof value !== 'object') return null;
+  const year = typeof value.year === 'number' ? value.year : Number(value.year);
+  const month = typeof value.month === 'number' ? value.month : Number(value.month);
+  const day = typeof value.day === 'number' ? value.day : Number(value.day);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+  const y = String(year).padStart(4, '0');
+  const m = String(month).padStart(2, '0');
+  const d = String(day).padStart(2, '0');
+  return `${y}${m}${d}`;
+};
+
+const getDicomTagString = (image: any, tag: string): string | null => {
+  const data = image?.data;
+  if (!data || typeof data.string !== 'function') return null;
+  return getDicomString(data.string(tag));
+};
+
 function initializeWADOImageLoader() {
-  cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
+  const cornerstoneWithEvents = cornerstone as typeof cornerstone & { EVENTS?: typeof cornerstone.Enums.Events };
+  if (!cornerstoneWithEvents.EVENTS) {
+    cornerstoneWithEvents.EVENTS = cornerstone.Enums.Events;
+  }
+  cornerstoneWADOImageLoader.external.cornerstone = cornerstoneWithEvents;
   cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
   cornerstoneWADOImageLoader.configure({
     useWebWorkers: true,
@@ -100,6 +137,12 @@ export default function DicomViewer2D({ seriesId, segmentationSeriesId }: DicomV
   const preloadCancelledRef = useRef(false);
   const [preloadProgress, setPreloadProgress] = useState(0);
   const renderSegmentationOverlayRef = useRef<((sliceIndex: number, retryCount?: number) => Promise<void>) | null>(null);
+  const [seriesMetadata, setSeriesMetadata] = useState<{
+    studyDate?: string;
+    seriesLabel?: string;
+    modality?: string;
+    pixelSpacing?: string;
+  } | null>(null);
 
   const getClassKeyForValue = useCallback((value: number) => {
     if (value === 0) return 'background';
@@ -587,6 +630,53 @@ export default function DicomViewer2D({ seriesId, segmentationSeriesId }: DicomV
             }
           });
           console.log('DicomViewer2D: Applied windowing - Lower:', lower, 'Upper:', upper);
+
+          // Extract series metadata
+          const generalSeriesModule = cornerstone.metaData.get('generalSeriesModule', currentImageId);
+          const generalStudyModule = cornerstone.metaData.get('generalStudyModule', currentImageId);
+          const imagePlaneModule = cornerstone.metaData.get('imagePlaneModule', currentImageId);
+          const firstInstance = sortedInstances[0];
+          const mainTags = firstInstance?.MainDicomTags || {};
+
+          console.log('DicomViewer2D: Metadata debug', {
+            currentImageId,
+            mainTags,
+            generalStudyModule,
+            generalSeriesModule,
+            imagePlaneModule,
+            imageSpacing: {
+              rowPixelSpacing: image.rowPixelSpacing,
+              columnPixelSpacing: image.columnPixelSpacing,
+            },
+          });
+
+          setSeriesMetadata({
+            studyDate: getDicomTagString(image, 'x00080020')
+              || getDicomString(mainTags?.StudyDate)
+              || getDicomTagString(image, 'x00080021')
+              || getDicomString(mainTags?.SeriesDate)
+              || getDicomTagString(image, 'x00080022')
+              || getDicomString(mainTags?.AcquisitionDate)
+              || getDicomTagString(image, 'x00080012')
+              || getDicomString(mainTags?.InstanceCreationDate)
+              || formatDicomDateParts(generalStudyModule?.studyDate)
+              || formatDicomDateParts(generalSeriesModule?.seriesDate)
+              || getDicomString(generalStudyModule?.studyDate)
+              || 'N/A',
+            seriesLabel: getDicomTagString(image, 'x0008103e')
+              || getDicomString(mainTags?.SeriesDescription)
+              || getDicomString(generalSeriesModule?.seriesDescription)
+              || getDicomString(generalSeriesModule?.bodyPartExamined)
+              || 'N/A',
+            modality: getDicomString(mainTags?.Modality)
+              || getDicomString(generalSeriesModule?.modality)
+              || 'N/A',
+            pixelSpacing: imagePlaneModule?.pixelSpacing
+              ? `${imagePlaneModule.pixelSpacing[0]?.toFixed(2)} × ${imagePlaneModule.pixelSpacing[1]?.toFixed(2)}`
+              : (image.columnPixelSpacing && image.rowPixelSpacing)
+                ? `${Number(image.rowPixelSpacing).toFixed(2)} × ${Number(image.columnPixelSpacing).toFixed(2)}`
+                : 'N/A',
+          });
         } catch (error) {
           console.error('DicomViewer2D: Error applying windowing:', error);
         }
@@ -864,6 +954,26 @@ export default function DicomViewer2D({ seriesId, segmentationSeriesId }: DicomV
             imageRendering: 'pixelated',
           }}
         />
+        {/* Series Metadata Overlay */}
+        {seriesMetadata && (
+          <div style={{
+            position: 'absolute',
+            top: '12px',
+            left: '12px',
+            color: '#ffffff',
+            fontSize: '11px',
+            fontFamily: 'monospace',
+            pointerEvents: 'none',
+            zIndex: 10,
+            lineHeight: '1.5',
+            textShadow: '1px 1px 2px rgba(0, 0, 0, 0.8)',
+          }}>
+            <div>{seriesMetadata.studyDate}</div>
+            <div>{seriesMetadata.seriesLabel}</div>
+            <div>{seriesMetadata.modality}</div>
+            <div>Spacing: {seriesMetadata.pixelSpacing} mm</div>
+          </div>
+        )}
       </div>
       {totalSlices > 0 && (
         <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>

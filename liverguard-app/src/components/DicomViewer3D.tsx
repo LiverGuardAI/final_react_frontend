@@ -605,7 +605,7 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
               if (isDragging) {
                 // Rotate around Y axis (left-right motion)
                 if (Math.abs(deltaX) > 0) {
-                  camera.azimuth(deltaX * 0.5);
+                  camera.azimuth(-deltaX * 0.5);
                 }
 
                 // Rotate around X axis (up-down motion)
