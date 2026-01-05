@@ -199,6 +199,31 @@
   background: #405F7F;
 }
 
+.questionnaireBtn {
+  padding: 6px 12px;
+  background: #8BC34A;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.questionnaireBtn:hover {
+  background: #7CB342;
+}
+
+.questionnaireCard {
+  background: #FFFFFF;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 15px;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 /* 모달 */
 .modalOverlay {
   position: fixed;
