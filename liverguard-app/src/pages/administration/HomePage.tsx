@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -75,10 +75,16 @@ export default function AdministrationHomePage() {
   // DB에서 가져온 환자 데이터
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
+  const [totalPatients, setTotalPatients] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
 
-  // 페이지네이션
+  // 검색 관련 refs (Debouncing + Request ID)
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const requestIdRef = useRef(0);
+
+  // 페이지네이션 (백엔드 페이지네이션)
   const [currentPage, setCurrentPage] = useState(1);
-  const patientsPerPage = 5;
+  const patientsPerPage = 5; // 한 페이지에 5명씩 표시
 
   // 환자 상세 모달
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -274,11 +280,21 @@ export default function AdministrationHomePage() {
     setContentTab('search');
   };
 
-  // 환자 목록 가져오기
-  const fetchPatients = async (search?: string) => {
+  // 환자 목록 가져오기 (백엔드 페이지네이션 사용)
+  const fetchPatients = async (search?: string, page: number = currentPage) => {
+    // Request ID 증가
+    const currentRequestId = ++requestIdRef.current;
+
     setIsLoadingPatients(true);
     try {
-      const response = await getPatientList(search || searchQuery);
+      const effectiveSearch = search !== undefined ? search : searchQuery;
+      const response = await getPatientList(effectiveSearch, page, patientsPerPage);
+
+      // 최신 요청이 아니면 무시 (Race Condition 방지)
+      if (currentRequestId !== requestIdRef.current) {
+        console.log('Ignoring outdated search request');
+        return;
+      }
 
       // DB 데이터를 UI 형식에 맞게 변환
       const formattedPatients: Patient[] = response.results.map((p: any) => ({
@@ -295,34 +311,49 @@ export default function AdministrationHomePage() {
       }));
 
       setPatients(formattedPatients);
+      setTotalPatients(response.count);
+      setTotalPages(response.total_pages);
     } catch (error) {
+      // 최신 요청이 아니면 무시
+      if (currentRequestId !== requestIdRef.current) {
+        return;
+      }
       console.error('환자 목록 조회 실패:', error);
       setPatients([]);
+      setTotalPatients(0);
+      setTotalPages(0);
     } finally {
-      setIsLoadingPatients(false);
+      // 최신 요청일 때만 로딩 상태 해제
+      if (currentRequestId === requestIdRef.current) {
+        setIsLoadingPatients(false);
+      }
     }
   };
 
-  // 검색어 변경 시 환자 목록 갱신
+  // 검색어 변경 시 환자 목록 갱신 (Debouncing 적용)
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
     setCurrentPage(1); // 검색 시 첫 페이지로 이동
-    if (value.trim()) {
-      fetchPatients(value);
-    } else {
-      fetchPatients('');
-    }
-  };
 
-  // 페이지네이션 계산
-  const totalPages = Math.ceil(patients.length / patientsPerPage);
-  const indexOfLastPatient = currentPage * patientsPerPage;
-  const indexOfFirstPatient = indexOfLastPatient - patientsPerPage;
-  const currentPatients = patients.slice(indexOfFirstPatient, indexOfLastPatient);
+    // 이전 타이머 취소
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // 150ms 후에 검색 실행 (Debouncing)
+    searchTimeoutRef.current = setTimeout(() => {
+      if (value.trim()) {
+        fetchPatients(value, 1);
+      } else {
+        fetchPatients('', 1);
+      }
+    }, 150);
+  };
 
   // 페이지 변경 핸들러
   const handlePageChange = (pageNumber: number) => {
     setCurrentPage(pageNumber);
+    fetchPatients(searchQuery, pageNumber); // 페이지 변경 시 해당 페이지 데이터 로드
   };
 
   // 환자 클릭 핸들러 (상세 정보 모달 열기)
@@ -602,7 +633,7 @@ export default function AdministrationHomePage() {
                                   </td>
                                 </tr>
                               ) : (
-                                currentPatients.map((patient) => (
+                                patients.map((patient: Patient) => (
                                   <tr key={patient.id}>
                                     <td
                                       className={styles.patientNameClickable}
