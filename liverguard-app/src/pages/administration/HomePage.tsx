@@ -301,22 +301,27 @@ export default function AdministrationHomePage() {
     fetchPatients(); // 목록 갱신
   };
 
-  // 검색어 변경 시 환자 목록 갱신
+  // 검색어 변경 시 환자 목록 갱신 (Debouncing 적용)
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
     setCurrentPage(1);
     fetchPatients(value, 1);
   };
 
-  // 페이지네이션 계산
-  const totalPages = Math.ceil(patients.length / patientsPerPage);
-  const indexOfLastPatient = currentPage * patientsPerPage;
-  const indexOfFirstPatient = indexOfLastPatient - patientsPerPage;
-  const currentPatients = patients.slice(indexOfFirstPatient, indexOfLastPatient);
+    // 150ms 후에 검색 실행 (Debouncing)
+    searchTimeoutRef.current = setTimeout(() => {
+      if (value.trim()) {
+        fetchPatients(value, 1);
+      } else {
+        fetchPatients('', 1);
+      }
+    }, 150);
+  };
 
   // 페이지 변경 핸들러
   const handlePageChange = (pageNumber: number) => {
     setCurrentPage(pageNumber);
+    fetchPatients(searchQuery, pageNumber); // 페이지 변경 시 해당 페이지 데이터 로드
   };
 
   // 환자 클릭 핸들러 (상세 정보 모달 열기)

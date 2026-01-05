@@ -18,8 +18,11 @@ export const registerPatient = async (data: PatientRegistrationData) => {
 };
 
 // 환자 목록 조회 API
-export const getPatientList = async (search?: string) => {
-  const params = search ? { search } : {};
+export const getPatientList = async (search?: string, page: number = 1, pageSize: number = 20) => {
+  const params: any = { page, page_size: pageSize };
+  if (search) {
+    params.search = search;
+  }
   const response = await apiClient.get("administration/patients/", { params });
   return response.data;
 };
