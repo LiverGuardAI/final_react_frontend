@@ -111,6 +111,32 @@
   box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+/* 총 대기 현황 카드 */
+.totalWaitingPatientCard {
+  background: #FFFFFF;
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.patientMainInfo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.patientDetailInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 4px;
+  border-left: 3px solid #52759C;
+}
+
 .clinicHeader {
   display: flex;
   justify-content: space-between;
@@ -190,7 +216,7 @@
 }
 
 .statusTag.접수완료 {
-  background: #8BC34A;
+  background: #5884be;
   color: #FFFFFF;
 }
 
@@ -312,17 +338,23 @@
 }
 
 .mainLayout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr auto auto;
+  display: flex;
+  flex-direction: column;
   gap: 20px;
   height: 100%;
 }
 
+/* 상단 행 - 환자 검색 & 금일 예약 */
+.topRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  min-height: 0;
+  flex: 1;
+}
+
 /* 왼쪽 섹션 */
 .leftSection {
-  grid-column: 1 / 2;
-  grid-row: 1 / 2;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -497,12 +529,12 @@
 }
 
 .checkinBtn {
-  background: #8BC34A;
+  background: #a2b6ec;
   color: #FFFFFF;
 }
 
 .checkinBtn:hover {
-  background: #7CB342;
+  background: #8a9fd8;
 }
 
 /* 신규 환자 등록 폼 */
@@ -609,8 +641,6 @@
 
 /* 오른쪽 섹션 */
 .rightSection {
-  grid-column: 2 / 3;
-  grid-row: 1 / 2;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -775,8 +805,6 @@
 
 /* 진료실별 대기 현황 (3행) */
 .detailedWaitingContainer {
-  grid-column: 1 / 3;
-  grid-row: 3 / 4;
   background: #FFFFFF;
   border-radius: 15px;
   box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
@@ -784,43 +812,53 @@
   display: flex;
   flex-direction: column;
   gap: 15px;
-  max-height: 280px;
+  max-height: 350px;
   overflow-y: auto;
 }
 
 .waitingDetailCards {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 15px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
 }
 
 .waitingDetailCard {
-  border: 1px solid #E0E0E0;
-  border-radius: 10px;
+  border: 2px solid #52759C;
+  border-radius: 12px;
   overflow: hidden;
+  background: #FFFFFF;
+  box-shadow: 0px 2px 8px rgba(82, 117, 156, 0.15);
+  transition: all 0.3s;
+}
+
+.waitingDetailCard:hover {
+  box-shadow: 0px 4px 12px rgba(82, 117, 156, 0.25);
+  transform: translateY(-2px);
 }
 
 .cardHeader {
-  background: #F8F9FA;
-  padding: 12px 15px;
-  border-bottom: 1px solid #E0E0E0;
+  background: linear-gradient(135deg, #52759C 0%, #6B88AB 100%);
+  padding: 15px;
+  border-bottom: none;
 }
 
 .cardTitleSection {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .cardTitle {
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 700;
-  color: #000000;
+  color: #FFFFFF;
 }
 
 .cardButton {
-  background: #52759C;
-  color: #FFFFFF;
+  background: #FFFFFF;
+  color: #52759C;
   border: none;
   border-radius: 6px;
   padding: 5px 12px;
@@ -880,7 +918,7 @@
 }
 
 .statusBadgeLarge.대기중 {
-  background: #FFB800;
+  background: #5884be;
   color: #FFFFFF;
 }
 
@@ -896,6 +934,25 @@
   font-size: 13px;
 }
 
+/* 대기 취소 버튼 */
+.cancelWaitingBtn {
+  padding: 6px 12px;
+  background: #a2b6ec;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.cancelWaitingBtn:hover {
+  background: #E64545;
+  transform: scale(1.05);
+}
+
 /* 클릭 가능한 환자 이름 */
 .patientNameClickable {
   font-weight: 700;
@@ -907,6 +964,18 @@
 
 .patientNameClickable:hover {
   color: #405F7F !important;
+}
+
+/* 접수 완료 표시 */
+.alreadyCheckedIn {
+  padding: 6px 12px;
+  background: #5884be;
+  color: #FFFFFF;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+  white-space: nowrap;
 }
 
 /* 페이지네이션 */

@@ -1,0 +1,167 @@
+import React, { useState } from 'react';
+import styles from '../../pages/administration/HomePage.module.css';
+import type { PatientRegistrationData } from '../../api/administrationApi';
+
+interface PatientRegistrationFormProps {
+  onSubmit: (data: PatientRegistrationData) => Promise<void>;
+  onCancel: () => void;
+}
+
+const PatientRegistrationForm: React.FC<PatientRegistrationFormProps> = ({ onSubmit, onCancel }) => {
+  const [formData, setFormData] = useState({
+    patient_id: '',
+    name: '',
+    date_of_birth: '',
+    gender: '' as '' | 'M' | 'F',
+    phone: '',
+    sample_id: '',
+  });
+  const [formError, setFormError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleChange = (field: keyof typeof formData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormError('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError('');
+    setIsSubmitting(true);
+
+    try {
+      if (!formData.patient_id || !formData.name || !formData.date_of_birth || !formData.gender) {
+        setFormError('필수 항목을 모두 입력해주세요.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const data: PatientRegistrationData = {
+        patient_id: formData.patient_id.trim(),
+        name: formData.name.trim(),
+        date_of_birth: formData.date_of_birth,
+        gender: formData.gender,
+        phone: formData.phone.trim() || undefined,
+        sample_id: formData.sample_id.trim() || undefined,
+      };
+
+      await onSubmit(data);
+
+      // 폼 초기화
+      setFormData({
+        patient_id: '',
+        name: '',
+        date_of_birth: '',
+        gender: '',
+        phone: '',
+        sample_id: '',
+      });
+    } catch (error: any) {
+      console.error('환자 등록 실패:', error);
+
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        if (typeof errorData === 'object') {
+          const errorMessages = Object.values(errorData).flat().join(', ');
+          setFormError(errorMessages || '환자 등록에 실패했습니다.');
+        } else {
+          setFormError(errorData || '환자 등록에 실패했습니다.');
+        }
+      } else {
+        setFormError('서버와의 통신에 실패했습니다.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className={styles.registrationForm}>
+      <h3>신규 환자 등록</h3>
+
+      {formError && <div className={styles.errorMessage}>{formError}</div>}
+
+      <div className={styles.formGroup}>
+        <label className={styles.formLabel}>환자 ID <span className={styles.required}>*</span></label>
+        <input
+          type="text"
+          className={styles.formInput}
+          value={formData.patient_id}
+          onChange={(e) => handleChange('patient_id', e.target.value)}
+          placeholder="P2024001"
+          required
+        />
+      </div>
+
+      <div className={styles.formGroup}>
+        <label className={styles.formLabel}>이름 <span className={styles.required}>*</span></label>
+        <input
+          type="text"
+          className={styles.formInput}
+          value={formData.name}
+          onChange={(e) => handleChange('name', e.target.value)}
+          placeholder="홍길동"
+          required
+        />
+      </div>
+
+      <div className={styles.formGroup}>
+        <label className={styles.formLabel}>생년월일 <span className={styles.required}>*</span></label>
+        <input
+          type="date"
+          className={styles.formInput}
+          value={formData.date_of_birth}
+          onChange={(e) => handleChange('date_of_birth', e.target.value)}
+          required
+        />
+      </div>
+
+      <div className={styles.formGroup}>
+        <label className={styles.formLabel}>성별 <span className={styles.required}>*</span></label>
+        <select
+          className={styles.formInput}
+          value={formData.gender}
+          onChange={(e) => handleChange('gender', e.target.value)}
+          required
+        >
+          <option value="">선택하세요</option>
+          <option value="M">남성</option>
+          <option value="F">여성</option>
+        </select>
+      </div>
+
+      <div className={styles.formGroup}>
+        <label className={styles.formLabel}>연락처</label>
+        <input
+          type="tel"
+          className={styles.formInput}
+          value={formData.phone}
+          onChange={(e) => handleChange('phone', e.target.value)}
+          placeholder="010-1234-5678"
+        />
+      </div>
+
+      <div className={styles.formGroup}>
+        <label className={styles.formLabel}>검체 ID</label>
+        <input
+          type="text"
+          className={styles.formInput}
+          value={formData.sample_id}
+          onChange={(e) => handleChange('sample_id', e.target.value)}
+          placeholder="S2024001"
+        />
+      </div>
+
+      <div className={styles.formActions}>
+        <button type="submit" className={styles.submitButton} disabled={isSubmitting}>
+          {isSubmitting ? '등록 중...' : '등록'}
+        </button>
+        <button type="button" className={styles.cancelButton} onClick={onCancel} disabled={isSubmitting}>
+          취소
+        </button>
+      </div>
+    </form>
+  );
+};
+
+export default PatientRegistrationForm;

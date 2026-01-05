@@ -1,22 +1,38 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from "../../context/AuthContext";
+import { useWebSocket } from "../../hooks/useWebSocket";
+import { useWaitingQueue } from "../../hooks/useWaitingQueue";
+import { useDashboardStats } from "../../hooks/useDashboardStats";
+import { useDoctors } from "../../hooks/useDoctors";
+import { usePatients } from "../../hooks/usePatients";
 import {
   registerPatient,
-  getPatientList,
   getPatientDetail,
   updatePatient,
   type PatientRegistrationData,
   type PatientUpdateData
 } from "../../api/administrationApi";
+import {
+  createEncounter,
+  getAppointments,
+  updateAppointment,
+  cancelEncounter,
+  updateEncounter,
+  createQuestionnaire
+} from "../../api/administration_api";
 import styles from './HomePage.module.css';
 import SchedulePage from './SchedulePage';
 import AppointmentManagementPage from './AppointmentManagementPage';
 import PatientManagementPage from './PatientManagementPage';
-import QuestionnaireFormPage from './QuestionnaireFormPage';
+import CheckinModal from '../../components/administration/CheckinModal';
+import PatientSearchPanel from '../../components/administration/PatientSearchPanel';
+import PatientRegistrationForm from '../../components/administration/PatientRegistrationForm';
+import PatientDetailModal from '../../components/administration/PatientDetailModal';
+import QuestionnaireModal, { type QuestionnaireData } from '../../components/administration/QuestionnaireModal';
 
 interface Patient {
-  id: number;
+  id: string;  // patient_id is a string like "P251230002"
   name: string;
   birthDate: string;
   age: number;
@@ -35,20 +51,37 @@ interface Appointment {
   phone: string;
   doctor: string;
   consultationType: string;
-  status: '예약완료' | '접수완료' | '진료중';
+  status: string;
+  appointmentDate?: string;
+  patientId?: string;
+  doctorId?: number;
+  appointmentId?: number;
+  createdAt?: string;
 }
 
 interface ClinicWaiting {
   id: number;
   clinicName: string;
+  doctorName: string;
+  roomNumber: string;
   patients: {
+    encounterId: number;
     name: string;
     phone: string;
     status: '진료중' | '대기중' | '접수완료';
   }[];
 }
 
-type TabType = 'home' | 'schedule' | 'appointments' | 'patients' | 'questionnaire';
+interface Doctor {
+  doctor_id: number;
+  name: string;
+  department: {
+    dept_name: string;
+  };
+  room_number?: string;
+}
+
+type TabType = 'home' | 'schedule' | 'appointments' | 'patients';
 type ContentTabType = 'search' | 'newPatient';
 
 export default function AdministrationHomePage() {
@@ -60,31 +93,11 @@ export default function AdministrationHomePage() {
   const [contentTab, setContentTab] = useState<ContentTabType>('search');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // 신규 환자 등록 폼 state
-  const [newPatientForm, setNewPatientForm] = useState({
-    patient_id: '',
-    name: '',
-    date_of_birth: '',
-    gender: '' as '' | 'M' | 'F',
-    phone: '',
-    sample_id: '',
-  });
-  const [formError, setFormError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // 신규 환자 등록은 PatientRegistrationForm 컴포넌트에서 처리
 
-  // DB에서 가져온 환자 데이터
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [isLoadingPatients, setIsLoadingPatients] = useState(false);
-  const [totalPatients, setTotalPatients] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-
-  // 검색 관련 refs (Debouncing + Request ID)
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const requestIdRef = useRef(0);
-
-  // 페이지네이션 (백엔드 페이지네이션)
-  const [currentPage, setCurrentPage] = useState(1);
-  const patientsPerPage = 5; // 한 페이지에 5명씩 표시
+  // Custom Hook으로 환자 관리
+  const { patients, fetchPatients, isLoading: isLoadingPatients, currentPage, setCurrentPage } = usePatients();
+  const patientsPerPage = 5;
 
   // 환자 상세 모달
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -98,60 +111,130 @@ export default function AdministrationHomePage() {
     sample_id: '',
   });
 
-  // 금일 예약 데이터
-  const [appointments] = useState<Appointment[]>([
-    {
-      id: 1,
-      time: '09:00~09:30',
-      patientName: '송영운',
-      phone: '981008-1******',
-      doctor: '정예진',
-      consultationType: '복통, 소화불량',
-      status: '예약완료'
-    },
-    {
-      id: 2,
-      time: '10:00~10:30',
-      patientName: '장보윤',
-      phone: '960922-1******',
-      doctor: '정예진',
-      consultationType: '정기 검진',
-      status: '접수완료'
-    },
-    {
-      id: 3,
-      time: '14:00~14:30',
-      patientName: '김철수',
-      phone: '850315-1******',
-      doctor: '송영운',
-      consultationType: '두통, 어지러움 증상',
-      status: '예약완료'
-    },
-  ]);
+  // 현장 접수 모달
+  const [isCheckinModalOpen, setIsCheckinModalOpen] = useState(false);
+  const [checkinPatient, setCheckinPatient] = useState<Patient | null>(null);
 
-  // 진료실별 대기 현황
-  const [clinicWaitingList] = useState<ClinicWaiting[]>([
-    {
-      id: 1,
-      clinicName: '진료실 1 (송영운)',
-      patients: [
-        { name: '송영운', phone: '981008-1******', status: '진료중' }
-      ]
-    },
-    {
-      id: 2,
-      clinicName: '진료실 2 (송영운)',
-      patients: [
-        { name: '송영운', phone: '960922-1******', status: '대기중' },
-        { name: '송영운', phone: '960922-1******', status: '접수완료' }
-      ]
-    },
-    {
-      id: 3,
-      clinicName: '후무 진료실 3 (송영운)',
-      patients: []
+  // 문진표 모달
+  const [isQuestionnaireModalOpen, setIsQuestionnaireModalOpen] = useState(false);
+  const [questionnairePatient, setQuestionnairePatient] = useState<Patient | null>(null);
+  const [lastEncounterId, setLastEncounterId] = useState<number | null>(null);
+
+  // 실시간 대기열 데이터 (Hooks에서 가져온 데이터를 로컬 상태로 유지)
+  const [waitingQueueData, setWaitingQueueData] = useState<any>(null);
+
+  // 금일 예약 데이터
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+
+  // 예약 승인 모달
+  const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [appointmentDoctor, setAppointmentDoctor] = useState<number | null>(null);
+
+  // Custom Hooks로 데이터 관리 - 먼저 선언
+  const { waitingQueueData: queueData, fetchWaitingQueue } = useWaitingQueue();
+  const { stats: dashboardStats, fetchStats: fetchDashboardStats } = useDashboardStats();
+  const { doctors: sidebarDoctors, fetchDoctors } = useDoctors();
+
+  // 진료실별 대기 현황 계산 - useMemo로 최적화
+  const clinicWaitingList = useMemo((): ClinicWaiting[] => {
+    // 1. 근무 중인 의사가 없으면 빈 배열
+    if (sidebarDoctors.length === 0) return [];
+
+    // 2. 각 의사별로 대기열(Queue)에서 환자를 찾아서 매칭
+    return sidebarDoctors.map((doctor) => {
+      // 현재 이 의사에게 배정된 환자 찾기
+      const myPatients = waitingQueueData?.queue?.filter((q: any) =>
+        // 주의: API 응답의 doctor_id 필드명 확인 필요 (보통 doctor_id 또는 doctor)
+        q.doctor_id === doctor.doctor_id || q.doctor === doctor.doctor_id
+      ) || [];
+
+      // 환자 정보 매핑
+      const formattedPatients = myPatients.map((p: any) => ({
+        encounterId: p.encounter_id,
+        name: p.patient_name || '이름 없음',
+        phone: '010-****-****', // 개인정보 마스킹
+        status: (p.encounter_status === 'IN_PROGRESS' ? '진료중' : '대기중') as '진료중' | '대기중'
+      }));
+
+      return {
+        id: doctor.doctor_id,
+        clinicName: doctor.department.dept_name,
+        roomNumber: doctor.room_number ? `${doctor.room_number}호` : '미배정',
+        doctorName: doctor.name,
+        patients: formattedPatients
+      };
+    });
+  }, [sidebarDoctors, waitingQueueData]);
+
+  // 대기 중인 환자 ID 목록 계산
+  const waitingPatientIds = useMemo(() => {
+    if (!waitingQueueData?.queue) return [];
+    return waitingQueueData.queue.map((q: any) => q.patient_id || q.patient).filter(Boolean);
+  }, [waitingQueueData]);
+
+  // 대기열 데이터 업데이트
+  useEffect(() => {
+    if (queueData) {
+      setWaitingQueueData(queueData);
     }
-  ]);
+  }, [queueData]);
+
+  // 4. 금일 예약 조회
+  const fetchTodayAppointments = useCallback(async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const data = await getAppointments({ date: today });
+
+      // API 응답을 UI 형식에 맞게 변환
+      const formattedAppointments: Appointment[] = data.results.map((apt: any) => ({
+        id: apt.appointment_id,
+        time: `${apt.appointment_time || 'N/A'}`,
+        patientName: apt.patient_name || '이름 없음',
+        phone: apt.patient?.date_of_birth || 'N/A',
+        doctor: apt.doctor_name || '미배정',
+        consultationType: apt.notes || apt.appointment_type || '일반 진료',
+        status: apt.status || '예약완료',
+        // 추가 정보 저장
+        appointmentDate: apt.appointment_date,
+        patientId: apt.patient,
+        doctorId: apt.doctor,
+        appointmentId: apt.appointment_id,
+        createdAt: apt.created_at
+      }));
+
+      setAppointments(formattedAppointments);
+    } catch (error) {
+      console.error('예약 조회 실패:', error);
+    }
+  }, []);
+
+  // WebSocket 실시간 알림 처리 (Custom Hook 사용)
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const hostname = window.location.hostname;
+  const WS_URL = `${protocol}//${hostname}:8000/ws/clinic/`;
+
+  useWebSocket(WS_URL, {
+    onMessage: (data) => {
+      if (data.type === 'queue_update') {
+        console.log("🔔 실시간 업데이트:", data.message);
+        // WebSocket 메시지에 이미 업데이트된 데이터가 포함되어 있으므로
+        // 대기열과 통계만 새로고침 (의사, 예약은 변경 없음)
+        fetchWaitingQueue();
+        fetchDashboardStats();
+      }
+    },
+    onOpen: () => {
+      console.log("✅ WebSocket 연결 성공");
+    },
+    onClose: () => {
+      console.log("⚠️ WebSocket 연결 종료 (5초 후 자동 재연결)");
+    },
+    onError: () => {
+      console.error("❌ WebSocket 에러 (10초 폴링으로 백업)");
+    },
+    enabled: true,
+  });
 
   const handleTabClick = (tab: TabType) => {
     setActiveTab(tab);
@@ -168,26 +251,37 @@ export default function AdministrationHomePage() {
   };
 
   useEffect(() => {
+    // 관리자 정보 로드 (있으면)
     const storedAdmin = localStorage.getItem('administration');
-    if (!storedAdmin) {
-      return;
+    if (storedAdmin) {
+      try {
+        const adminStaff = JSON.parse(storedAdmin) as { name?: string; department?: string };
+        if (adminStaff.name) {
+          setStaffName(adminStaff.name);
+        }
+        if (adminStaff.department) {
+          setDepartmentName(adminStaff.department);
+        }
+      } catch (error) {
+        console.error('Failed to parse administration info from storage', error);
+      }
     }
 
-    try {
-      const adminStaff = JSON.parse(storedAdmin) as { name?: string; department?: string };
-      if (adminStaff.name) {
-        setStaffName(adminStaff.name);
-      }
-      if (adminStaff.department) {
-        setDepartmentName(adminStaff.department);
-      }
-    } catch (error) {
-      console.error('Failed to parse administration info from storage', error);
-    }
+    // 의사 목록 로드 (진료실 정보)
+    fetchDoctors();
 
     // 초기 환자 목록 로드
     fetchPatients();
-  }, []);
+
+    // 대기열 및 통계 로드 (초기 1회만)
+    fetchWaitingQueue();
+    fetchDashboardStats();
+    fetchTodayAppointments();
+
+    // WebSocket으로 실시간 업데이트 받으므로 폴링 제거
+    // 필요시 수동 새로고침만 사용
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 빈 배열: 컴포넌트 마운트 시 한 번만 실행
 
   const handleLogout = () => {
     localStorage.removeItem('access_token');
@@ -199,146 +293,20 @@ export default function AdministrationHomePage() {
     navigate('/');
   };
 
-  // 신규 환자 폼 입력 핸들러
-  const handleFormChange = (field: keyof typeof newPatientForm, value: string) => {
-    setNewPatientForm(prev => ({ ...prev, [field]: value }));
-    setFormError(''); // 입력 시 에러 메시지 제거
-  };
-
-  // 신규 환자 등록 제출 핸들러
-  const handlePatientRegistration = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError('');
-    setIsSubmitting(true);
-
-    try {
-      // 필수 필드 검증
-      if (!newPatientForm.patient_id || !newPatientForm.name || !newPatientForm.date_of_birth || !newPatientForm.gender) {
-        setFormError('필수 항목을 모두 입력해주세요.');
-        setIsSubmitting(false);
-        return;
-      }
-
-      // API 호출
-      const data: PatientRegistrationData = {
-        patient_id: newPatientForm.patient_id.trim(),
-        name: newPatientForm.name.trim(),
-        date_of_birth: newPatientForm.date_of_birth,
-        gender: newPatientForm.gender,
-        phone: newPatientForm.phone.trim() || undefined,
-        sample_id: newPatientForm.sample_id.trim() || undefined,
-      };
-
-      const response = await registerPatient(data);
-
-      alert(`환자 등록 완료: ${response.patient.name} (${response.patient.patient_id})`);
-
-      // 폼 초기화
-      setNewPatientForm({
-        patient_id: '',
-        name: '',
-        date_of_birth: '',
-        gender: '',
-        phone: '',
-        sample_id: '',
-      });
-
-      // 검색 탭으로 전환 (선택사항)
-      setContentTab('search');
-
-    } catch (error: any) {
-      console.error('환자 등록 실패:', error);
-
-      if (error.response?.data) {
-        const errorData = error.response.data;
-        // 백엔드에서 반환한 에러 메시지 표시
-        if (typeof errorData === 'object') {
-          const errorMessages = Object.values(errorData).flat().join(', ');
-          setFormError(errorMessages || '환자 등록에 실패했습니다.');
-        } else {
-          setFormError(errorData || '환자 등록에 실패했습니다.');
-        }
-      } else {
-        setFormError('서버와의 통신에 실패했습니다.');
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // 폼 취소 핸들러
-  const handleFormCancel = () => {
-    setNewPatientForm({
-      patient_id: '',
-      name: '',
-      date_of_birth: '',
-      gender: '',
-      phone: '',
-      sample_id: '',
-    });
-    setFormError('');
+  // 신규 환자 등록 제출 (PatientRegistrationForm에서 사용)
+  const handlePatientRegistrationSubmit = async (data: PatientRegistrationData) => {
+    const response = await registerPatient(data);
+    alert(`환자 등록 완료: ${response.patient.name} (${response.patient.patient_id})`);
     setContentTab('search');
-  };
-
-  // 환자 목록 가져오기 (백엔드 페이지네이션 사용)
-  const fetchPatients = async (search?: string, page: number = currentPage) => {
-    // Request ID 증가
-    const currentRequestId = ++requestIdRef.current;
-
-    setIsLoadingPatients(true);
-    try {
-      const effectiveSearch = search !== undefined ? search : searchQuery;
-      const response = await getPatientList(effectiveSearch, page, patientsPerPage);
-
-      // 최신 요청이 아니면 무시 (Race Condition 방지)
-      if (currentRequestId !== requestIdRef.current) {
-        console.log('Ignoring outdated search request');
-        return;
-      }
-
-      // DB 데이터를 UI 형식에 맞게 변환
-      const formattedPatients: Patient[] = response.results.map((p: any) => ({
-        id: p.patient_id, // patient_id를 id로 사용
-        name: p.name,
-        birthDate: p.date_of_birth || 'N/A', // YYYY-MM-DD 형식
-        age: p.age || 0,
-        gender: p.gender === 'M' ? '남' : p.gender === 'F' ? '여' : 'N/A',
-        phone: p.phone || 'N/A',
-        emergencyContact: 'N/A',
-        address: 'N/A',
-        registrationDate: p.created_at ? new Date(p.created_at).toLocaleDateString('ko-KR').replace(/\. /g, '.').replace(/\.$/, '') : 'N/A',
-        lastVisit: 'None', // 최근 방문 기록은 Encounter에서 가져와야 함
-      }));
-
-      setPatients(formattedPatients);
-      setTotalPatients(response.count);
-      setTotalPages(response.total_pages);
-    } catch (error) {
-      // 최신 요청이 아니면 무시
-      if (currentRequestId !== requestIdRef.current) {
-        return;
-      }
-      console.error('환자 목록 조회 실패:', error);
-      setPatients([]);
-      setTotalPatients(0);
-      setTotalPages(0);
-    } finally {
-      // 최신 요청일 때만 로딩 상태 해제
-      if (currentRequestId === requestIdRef.current) {
-        setIsLoadingPatients(false);
-      }
-    }
+    fetchPatients(); // 목록 갱신
   };
 
   // 검색어 변경 시 환자 목록 갱신 (Debouncing 적용)
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
-    setCurrentPage(1); // 검색 시 첫 페이지로 이동
-
-    // 이전 타이머 취소
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
+    setCurrentPage(1);
+    fetchPatients(value, 1);
+  };
 
     // 150ms 후에 검색 실행 (Debouncing)
     searchTimeoutRef.current = setTimeout(() => {
@@ -410,7 +378,7 @@ export default function AdministrationHomePage() {
         sample_id: editForm.sample_id || undefined,
       };
 
-      const response = await updatePatient(selectedPatient.id.toString(), updateData);
+      await updatePatient(selectedPatient.id.toString(), updateData);
 
       // 수정된 환자 정보로 selectedPatient 업데이트
       setSelectedPatient({
@@ -434,6 +402,120 @@ export default function AdministrationHomePage() {
     }
   };
 
+  // 현장 접수 버튼 클릭 (의사 선택 모달 열기)
+  const handleCheckinClick = async (patient: Patient) => {
+    try {
+      setCheckinPatient(patient);
+      await fetchDoctors(); // 최신 의사 목록 갱신
+      setIsCheckinModalOpen(true);
+    } catch (error) {
+      console.error('의사 목록 조회 실패:', error);
+      alert('의사 목록을 불러오는데 실패했습니다.');
+    }
+  };
+
+  // 현장 접수 제출 (CheckinModal에서 사용)
+  const handleCheckinSubmit = async (patientId: string, doctorId: number) => {
+    try {
+      const now = new Date();
+
+      // 선택된 의사의 부서 정보 가져오기
+      const selectedDoctor = sidebarDoctors.find(d => d.doctor_id === doctorId);
+
+      const encounterData = {
+        patient: patientId,
+        doctor: doctorId,
+        encounter_date: now.toISOString().split('T')[0],
+        encounter_time: now.toTimeString().split(' ')[0].substring(0, 8),
+        chief_complaint: '접수 완료',
+        is_first_visit: false,
+        department: selectedDoctor?.department?.dept_name || '일반',
+        priority: 5,
+      };
+
+      const response = await createEncounter(encounterData);
+
+      // Encounter ID 저장
+      const encounterId = response.encounter?.encounter_id || response.encounter_id;
+      console.log('생성된 Encounter ID:', encounterId);
+      setLastEncounterId(encounterId);
+
+      // 접수 완료 - 체크인 모달 먼저 닫기
+      setIsCheckinModalOpen(false);
+
+      // 대기열 새로고침 (백그라운드에서)
+      Promise.all([
+        fetchWaitingQueue(),
+        fetchDashboardStats()
+      ]).catch(err => console.error('대기열 새로고침 실패:', err));
+
+      // 문진표 작성 여부 물어보기
+      const writeQuestionnaire = window.confirm('접수가 완료되었습니다.\n문진표를 작성하시겠습니까?');
+
+      if (writeQuestionnaire) {
+        setQuestionnairePatient(checkinPatient);
+        setIsQuestionnaireModalOpen(true);
+      }
+    } catch (error: any) {
+      console.error('접수 처리 실패:', error);
+      alert(error.response?.data?.message || '접수 처리 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 대기 취소 핸들러
+  const handleCancelWaiting = async (encounterId: number, patientName: string) => {
+    const confirmed = window.confirm(`${patientName} 환자의 대기를 취소하시겠습니까?`);
+
+    if (!confirmed) return;
+
+    try {
+      await cancelEncounter(encounterId);
+      alert('대기가 취소되었습니다.');
+
+      // 대기열 새로고침
+      await Promise.all([
+        fetchWaitingQueue(),
+        fetchDashboardStats()
+      ]);
+    } catch (error: any) {
+      console.error('대기 취소 실패:', error);
+      alert(error.response?.data?.message || '대기 취소 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 문진표 제출 핸들러
+  const handleQuestionnaireSubmit = async (data: QuestionnaireData) => {
+    try {
+      if (lastEncounterId) {
+        // 기존 Encounter 업데이트
+        console.log('Encounter 업데이트:', lastEncounterId);
+        const questionnaireJson = JSON.stringify(data);
+        await updateEncounter(lastEncounterId, {
+          chief_complaint: questionnaireJson
+        });
+        alert('문진표가 제출되었습니다.');
+      } else {
+        // Encounter ID가 없으면 새로 생성 (환자 관리 탭에서 문진표 작성할 때)
+        console.log('새 Encounter 생성');
+        await createQuestionnaire(data);
+        alert('문진표가 제출되었습니다.');
+      }
+
+      // 대기열 새로고침
+      Promise.all([
+        fetchWaitingQueue(),
+        fetchDashboardStats()
+      ]).catch(err => console.error('대기열 새로고침 실패:', err));
+
+      setIsQuestionnaireModalOpen(false);
+      setQuestionnairePatient(null);
+      setLastEncounterId(null); // 초기화
+    } catch (error: any) {
+      console.error('문진표 제출 실패:', error);
+      alert(error.response?.data?.message || '문진표 제출 중 오류가 발생했습니다.');
+    }
+  };
+
   return (
     <div className={styles.container}>
       {/* 왼쪽 사이드바 */}
@@ -451,35 +533,50 @@ export default function AdministrationHomePage() {
             </div>
           </div>
 
-          {/* 진료실별 대기 현황 섹션 */}
+          {/* 총 대기 현황 섹션 */}
           <div className={styles.waitingSection}>
-            <div className={styles.waitingSectionTitle}>진료실별 대기 현황</div>
+            <div className={styles.waitingSectionTitle}>총 대기 현황</div>
             <div className={styles.waitingList}>
-              {clinicWaitingList.map((clinic) => (
-                <div key={clinic.id} className={styles.waitingClinicCard}>
-                  <div className={styles.clinicHeader}>
-                    <span className={styles.clinicName}>{clinic.clinicName}</span>
-                    <button className={styles.clinicDetailButton}>진료대기</button>
-                  </div>
-                  <div className={styles.clinicPatients}>
-                    {clinic.patients.length > 0 ? (
-                      clinic.patients.map((patient, index) => (
-                        <div key={index} className={styles.clinicPatientItem}>
-                          <div className={styles.patientInfo}>
-                            <span className={styles.patientNameSmall}>{patient.name}</span>
-                            <span className={styles.patientPhone}>{patient.phone}</span>
-                          </div>
-                          <span className={`${styles.statusTag} ${styles[patient.status]}`}>
-                            {patient.status}
+              {!waitingQueueData || !waitingQueueData.queue || waitingQueueData.queue.length === 0 ? (
+                <div style={{color:'#333', padding:'20px', textAlign:'center', opacity:0.7}}>
+                  대기 중인 환자가 없습니다.
+                </div>
+              ) : (
+                waitingQueueData.queue.map((queueItem: any, index: number) => {
+                  // 해당 환자의 의사 정보 찾기
+                  const doctorId = queueItem.doctor_id || queueItem.doctor;
+                  const doctor = sidebarDoctors.find(d => d.doctor_id === doctorId);
+
+                  return (
+                    <div key={index} className={styles.totalWaitingPatientCard}>
+                      <div className={styles.patientMainInfo}>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                          <span style={{fontSize: '0.75em', fontWeight: 'bold', color: '#52759C', minWidth: '24px'}}>
+                            {index + 1}
+                          </span>
+                          <span style={{fontSize: '1em', fontWeight: 'bold', color: '#000'}}>
+                            {queueItem.patient_name || '이름 없음'}
                           </span>
                         </div>
-                      ))
-                    ) : (
-                      <div className={styles.emptyClinic}>대기 환자 없음</div>
-                    )}
-                  </div>
-                </div>
-              ))}
+                        <span className={`${styles.statusTag} ${queueItem.encounter_status === 'IN_PROGRESS' ? styles.진료중 : styles.대기중}`} style={{fontSize: '0.75em'}}>
+                          {queueItem.encounter_status === 'IN_PROGRESS' ? '진료중' : '대기중'}
+                        </span>
+                      </div>
+                      <div className={styles.patientDetailInfo}>
+                        <div style={{fontSize: '0.75em', color: '#555'}}>
+                          환자ID: {queueItem.patient || 'N/A'}
+                        </div>
+                        <div style={{fontSize: '0.75em', color: '#555'}}>
+                          접수시간: {queueItem.created_at ? new Date(queueItem.created_at).toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit'}) : 'N/A'}
+                        </div>
+                        <div style={{fontSize: '0.75em', color: '#555'}}>
+                          배정의사: {doctor ? `${doctor.name} (${doctor.room_number || '미배정'}호)` : queueItem.doctor_name || '의사 정보 없음'}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
@@ -502,13 +599,6 @@ export default function AdministrationHomePage() {
               onClick={() => handleTabClick('appointments')}
             >
               <span>예약관리</span>
-            </button>
-
-            <button
-              className={`${styles.tabButton} ${activeTab === 'questionnaire' ? styles.active : ''}`}
-              onClick={() => handleTabClick('questionnaire')}
-            >
-              <span>문진표 작성</span>
             </button>
 
             <button
@@ -566,10 +656,10 @@ export default function AdministrationHomePage() {
             <AppointmentManagementPage />
           ) : activeTab === 'patients' ? (
             <PatientManagementPage />
-          ) : activeTab === 'questionnaire' ? (
-            <QuestionnaireFormPage />
           ) : (
           <div className={styles.mainLayout}>
+            {/* 상단 영역 - 환자 검색 및 금일 예약 */}
+            <div className={styles.topRow}>
             {/* 왼쪽 영역 - 환자 검색 및 등록 */}
             <div className={styles.leftSection}>
               <div className={styles.contentContainer}>
@@ -633,27 +723,39 @@ export default function AdministrationHomePage() {
                                   </td>
                                 </tr>
                               ) : (
-                                patients.map((patient: Patient) => (
-                                  <tr key={patient.id}>
-                                    <td
-                                      className={styles.patientNameClickable}
-                                      onClick={() => handlePatientClick(patient)}
-                                      style={{ cursor: 'pointer' }}
-                                    >
-                                      {patient.name}
-                                    </td>
-                                    <td>{patient.birthDate}</td>
-                                    <td>{patient.gender}</td>
-                                    <td>{patient.age}세</td>
-                                    <td>{patient.lastVisit}</td>
-                                    <td>
-                                      <div className={styles.actionButtons}>
-                                        <button className={styles.checkinBtn} title="현장 접수">현장 접수</button>
-                                        <button className={styles.appointmentBtn} title="예약 등록">예약 등록</button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                ))
+                                currentPatients.map((patient) => {
+                                  const isWaiting = waitingPatientIds.includes(patient.id);
+                                  return (
+                                    <tr key={patient.id}>
+                                      <td
+                                        className={styles.patientNameClickable}
+                                        onClick={() => handlePatientClick(patient)}
+                                        style={{ cursor: 'pointer' }}
+                                      >
+                                        {patient.name}
+                                      </td>
+                                      <td>{patient.birthDate}</td>
+                                      <td>{patient.gender}</td>
+                                      <td>{patient.age}세</td>
+                                      <td>{patient.lastVisit}</td>
+                                      <td>
+                                        <div className={styles.actionButtons}>
+                                          {isWaiting ? (
+                                            <span className={styles.alreadyCheckedIn}>접수 완료</span>
+                                          ) : (
+                                            <button
+                                              className={styles.checkinBtn}
+                                              title="현장 접수"
+                                              onClick={() => handleCheckinClick(patient)}
+                                            >
+                                              현장 접수
+                                            </button>
+                                          )}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })
                               )}
                             </tbody>
                           </table>
@@ -692,103 +794,11 @@ export default function AdministrationHomePage() {
                   </div>
                 ) : (
                   <div className={styles.contentBody}>
-                    {/* 신규 환자 등록 폼 */}
-                    <form className={styles.registrationForm} onSubmit={handlePatientRegistration}>
-                      {formError && (
-                        <div style={{ color: 'red', marginBottom: '15px', padding: '10px', backgroundColor: '#fee', borderRadius: '4px' }}>
-                          {formError}
-                        </div>
-                      )}
-
-                      <div className={styles.formSection}>
-                        <h3 className={styles.formSectionTitle}>기본 정보</h3>
-                        <div className={styles.formGrid}>
-                          <div className={styles.formGroup}>
-                            <label className={styles.formLabel}>환자 ID <span className={styles.required}>*</span></label>
-                            <input
-                              type="text"
-                              className={styles.formInput}
-                              placeholder="P-2024-0001"
-                              value={newPatientForm.patient_id}
-                              onChange={(e) => handleFormChange('patient_id', e.target.value)}
-                              required
-                            />
-                          </div>
-                          <div className={styles.formGroup}>
-                            <label className={styles.formLabel}>이름 <span className={styles.required}>*</span></label>
-                            <input
-                              type="text"
-                              className={styles.formInput}
-                              placeholder="환자 이름"
-                              value={newPatientForm.name}
-                              onChange={(e) => handleFormChange('name', e.target.value)}
-                              required
-                            />
-                          </div>
-                          <div className={styles.formGroup}>
-                            <label className={styles.formLabel}>생년월일 <span className={styles.required}>*</span></label>
-                            <input
-                              type="date"
-                              className={styles.formInput}
-                              value={newPatientForm.date_of_birth}
-                              onChange={(e) => handleFormChange('date_of_birth', e.target.value)}
-                              required
-                            />
-                          </div>
-                          <div className={styles.formGroup}>
-                            <label className={styles.formLabel}>성별 <span className={styles.required}>*</span></label>
-                            <select
-                              className={styles.formInput}
-                              value={newPatientForm.gender}
-                              onChange={(e) => handleFormChange('gender', e.target.value)}
-                              required
-                            >
-                              <option value="">선택</option>
-                              <option value="M">남성</option>
-                              <option value="F">여성</option>
-                            </select>
-                          </div>
-                          <div className={styles.formGroup}>
-                            <label className={styles.formLabel}>전화번호</label>
-                            <input
-                              type="tel"
-                              className={styles.formInput}
-                              placeholder="010-0000-0000"
-                              value={newPatientForm.phone}
-                              onChange={(e) => handleFormChange('phone', e.target.value)}
-                            />
-                          </div>
-                          <div className={styles.formGroup}>
-                            <label className={styles.formLabel}>Sample ID</label>
-                            <input
-                              type="text"
-                              className={styles.formInput}
-                              placeholder="샘플 ID (선택)"
-                              value={newPatientForm.sample_id}
-                              onChange={(e) => handleFormChange('sample_id', e.target.value)}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className={styles.formActions}>
-                        <button
-                          type="button"
-                          className={styles.cancelButton}
-                          onClick={handleFormCancel}
-                          disabled={isSubmitting}
-                        >
-                          취소
-                        </button>
-                        <button
-                          type="submit"
-                          className={styles.submitButton}
-                          disabled={isSubmitting}
-                        >
-                          {isSubmitting ? '등록 중...' : '환자 등록'}
-                        </button>
-                      </div>
-                    </form>
+                    {/* 신규 환자 등록 폼 - 컴포넌트로 분리 */}
+                    <PatientRegistrationForm
+                      onSubmit={handlePatientRegistrationSubmit}
+                      onCancel={() => setContentTab('search')}
+                    />
                   </div>
                 )}
               </div>
@@ -796,58 +806,15 @@ export default function AdministrationHomePage() {
 
             {/* 오른쪽 영역 - 금일 예약 */}
             <div className={styles.rightSection}>
-              {/* 금일 예약 */}
               <div className={styles.appointmentContainer}>
-                <div className={styles.sectionHeader}>
-                  <h3 className={styles.sectionTitle}>금일 예약 2025-12.11(목)</h3>
-                  <span className={styles.currentTime}>16:29:30</span>
-                </div>
-                <div className={styles.appointmentTable}>
-                  <table className={styles.scheduleTable}>
-                    <thead>
-                      <tr>
-                        <th>시간</th>
-                        <th>환자명</th>
-                        <th>생년월일</th>
-                        <th>담당의사</th>
-                        <th>증상/내용</th>
-                        <th>상태</th>
-                        <th>작업</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {appointments.map((appointment) => (
-                        <tr key={appointment.id}>
-                          <td>{appointment.time}</td>
-                          <td>{appointment.patientName}</td>
-                          <td>{appointment.phone}</td>
-                          <td>{appointment.doctor}</td>
-                          <td>{appointment.consultationType}</td>
-                          <td>
-                            <span className={`${styles.appointmentStatus} ${styles[appointment.status]}`}>
-                              {appointment.status}
-                            </span>
-                          </td>
-                          <td>
-                            {appointment.status === '예약완료' ? (
-                              <button className={styles.approveBtn} title="예약 승인 및 접수">승인</button>
-                            ) : appointment.status === '접수완료' ? (
-                              <button className={styles.assignBtn} title="진료실 배정">배정</button>
-                            ) : (
-                              <span className={styles.inProgressText}>진료중</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+              <div className={styles.sectionHeader}>
+                <h3 className={styles.sectionTitle}>
+                  금일 예약 {new Date().toLocaleDateString('ko-KR', {year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short'})}
+                </h3>
+                <span className={styles.currentTime}>
+                  {new Date().toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit', second: '2-digit'})}
+                </span>
               </div>
-            </div>
-
-            {/* 앱 예약 요청 관리 - 2행 전체 */}
-            <div className={styles.appointmentManagementContainer}>
-              <h3 className={styles.sectionTitle}>앱 예약 요청 관리</h3>
               <div className={styles.tableContainer}>
                 <table className={styles.scheduleTable}>
                   <thead>
@@ -857,52 +824,48 @@ export default function AdministrationHomePage() {
                       <th>환자번호</th>
                       <th>연락처</th>
                       <th>희망일시</th>
-                      <th>증상</th>
                       <th>상태</th>
-                      <th>작업</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td>2024-12-20 14:30</td>
-                      <td className={styles.patientName}>김철수</td>
-                      <td>P2024001</td>
-                      <td>010-1234-5678</td>
-                      <td>2024-12-23 10:00</td>
-                      <td>우측 상복부 불편감, 피로감</td>
-                      <td>
-                        <span className={`${styles.appointmentStatus} ${styles['예약완료']}`}>요청중</span>
-                      </td>
-                      <td>
-                        <div className={styles.actionButtons}>
-                          <button className={styles.approveBtn}>의사 배정</button>
-                          <button className={styles.rejectBtn}>거절</button>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>2024-12-21 09:15</td>
-                      <td className={styles.patientName}>이영희</td>
-                      <td>P2024045</td>
-                      <td>010-2345-6789</td>
-                      <td>2024-12-23 14:00</td>
-                      <td>복부 팽만감, 식욕 저하</td>
-                      <td>
-                        <span className={`${styles.appointmentStatus} ${styles['예약완료']}`}>요청중</span>
-                      </td>
-                      <td>
-                        <div className={styles.actionButtons}>
-                          <button className={styles.approveBtn}>의사 배정</button>
-                          <button className={styles.rejectBtn}>거절</button>
-                        </div>
-                      </td>
-                    </tr>
+                    {appointments.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{textAlign: 'center', padding: '20px'}}>
+                          금일 예약이 없습니다.
+                        </td>
+                      </tr>
+                    ) : (
+                      appointments.map((appointment) => (
+                        <tr
+                          key={appointment.id}
+                          onClick={() => {
+                            setSelectedAppointment(appointment);
+                            setIsAppointmentModalOpen(true);
+                          }}
+                          style={{cursor: 'pointer'}}
+                          className={styles.appointmentRow}
+                        >
+                          <td>{appointment.createdAt ? new Date(appointment.createdAt).toLocaleString('ko-KR') : 'N/A'}</td>
+                          <td className={styles.patientName}>{appointment.patientName}</td>
+                          <td>{appointment.patientId}</td>
+                          <td>{appointment.phone}</td>
+                          <td>{appointment.appointmentDate} {appointment.time}</td>
+                          <td>
+                            <span className={`${styles.appointmentStatus} ${styles[appointment.status]}`}>
+                              {appointment.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
+              </div>
+            </div>
             </div>
 
-            {/* 진료실별 대기 현황 (상세) - 3행 전체 */}
+            {/* 진료실별 대기 현황 (상세) - 2행 전체 */}
             <div className={styles.detailedWaitingContainer}>
               <h3 className={styles.sectionTitle}>진료실별 대기 현황</h3>
               <div className={styles.waitingDetailCards}>
@@ -910,7 +873,10 @@ export default function AdministrationHomePage() {
                   <div key={clinic.id} className={styles.waitingDetailCard}>
                     <div className={styles.cardHeader}>
                       <div className={styles.cardTitleSection}>
-                        <span className={styles.cardTitle}>{clinic.clinicName}</span>
+                        <span className={styles.cardTitle}>{clinic.roomNumber}</span>
+                        <span style={{fontSize: '0.9em', color: '#FFFFFF', marginLeft: '10px'}}>
+                          {clinic.doctorName} ({clinic.clinicName})
+                        </span>
                         <button className={styles.cardButton}>진료대기</button>
                       </div>
                     </div>
@@ -919,12 +885,24 @@ export default function AdministrationHomePage() {
                         clinic.patients.map((patient, index) => (
                           <div key={index} className={styles.waitingPatientRow}>
                             <div className={styles.patientDetail}>
+                              <span style={{fontSize: '0.9em', fontWeight: 'bold', color: '#52759C', marginRight: '8px'}}>
+                                {index + 1}번
+                              </span>
                               <span className={styles.patientNameLarge}>{patient.name}</span>
                               <span className={styles.patientPhoneLarge}>{patient.phone}</span>
                             </div>
-                            <span className={`${styles.statusBadgeLarge} ${styles[patient.status]}`}>
-                              {patient.status}
-                            </span>
+                            <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                              <span className={`${styles.statusBadgeLarge} ${styles[patient.status]}`}>
+                                {patient.status}
+                              </span>
+                              <button
+                                className={styles.cancelWaitingBtn}
+                                onClick={() => handleCancelWaiting(patient.encounterId, patient.name)}
+                                title="대기 취소"
+                              >
+                                취소
+                              </button>
+                            </div>
                           </div>
                         ))
                       ) : (
@@ -1082,6 +1060,121 @@ export default function AdministrationHomePage() {
           </div>
         </div>
       )}
+
+      {/* 현장 접수 모달 - 컴포넌트로 분리 */}
+      <CheckinModal
+        isOpen={isCheckinModalOpen}
+        patient={checkinPatient}
+        doctors={sidebarDoctors}
+        onClose={() => setIsCheckinModalOpen(false)}
+        onSubmit={handleCheckinSubmit}
+      />
+
+      {/* 예약 승인 모달 */}
+      {isAppointmentModalOpen && selectedAppointment && (
+        <div className={styles.modalOverlay} onClick={() => setIsAppointmentModalOpen(false)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2>예약 승인</h2>
+              <button className={styles.closeButton} onClick={() => setIsAppointmentModalOpen(false)}>×</button>
+            </div>
+
+            <div className={styles.modalBody}>
+              <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
+                <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>예약 정보</h3>
+                <p style={{ margin: '5px 0' }}><strong>환자명:</strong> {selectedAppointment.patientName}</p>
+                <p style={{ margin: '5px 0' }}><strong>환자번호:</strong> {selectedAppointment.patientId}</p>
+                <p style={{ margin: '5px 0' }}><strong>생년월일:</strong> {selectedAppointment.phone}</p>
+                <p style={{ margin: '5px 0' }}><strong>희망일시:</strong> {selectedAppointment.appointmentDate} {selectedAppointment.time}</p>
+                <p style={{ margin: '5px 0' }}><strong>증상/내용:</strong> {selectedAppointment.consultationType}</p>
+                <p style={{ margin: '5px 0' }}><strong>상태:</strong> {selectedAppointment.status}</p>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>담당 의사 배정 <span className={styles.required}>*</span></label>
+                <select
+                  className={styles.formInput}
+                  value={appointmentDoctor || ''}
+                  onChange={(e) => setAppointmentDoctor(Number(e.target.value))}
+                  required
+                  style={{ fontSize: '15px' }}
+                >
+                  <option value="">의사를 선택하세요</option>
+                  {sidebarDoctors.map((doctor: any) => (
+                    <option key={doctor.doctor_id} value={doctor.doctor_id}>
+                      [{doctor.department.dept_name}] {doctor.name}
+                      {doctor.room_number ? ` (${doctor.room_number}호)` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {appointmentDoctor && (
+                <div style={{ marginTop: '15px', padding: '12px', backgroundColor: '#e3f2fd', borderRadius: '8px', fontSize: '14px' }}>
+                  <strong>ℹ️ 안내:</strong> 선택한 의사의 스케줄에 예약이 배정됩니다.
+                </div>
+              )}
+
+              <div className={styles.modalActions} style={{marginTop: '20px'}}>
+                <button
+                  type="button"
+                  className={styles.submitButton}
+                  onClick={async () => {
+                    if (!appointmentDoctor) {
+                      alert('담당 의사를 선택해주세요.');
+                      return;
+                    }
+
+                    try {
+                      await updateAppointment(selectedAppointment.appointmentId!, {
+                        doctor: appointmentDoctor,
+                        status: '승인완료'
+                      });
+
+                      alert('예약이 승인되었습니다.');
+                      setIsAppointmentModalOpen(false);
+                      setSelectedAppointment(null);
+                      setAppointmentDoctor(null);
+
+                      // 예약 목록 새로고침
+                      await fetchTodayAppointments();
+                    } catch (error: any) {
+                      console.error('예약 승인 실패:', error);
+                      alert(error.response?.data?.message || '예약 승인에 실패했습니다.');
+                    }
+                  }}
+                  disabled={!appointmentDoctor}
+                  style={{ opacity: !appointmentDoctor ? 0.5 : 1 }}
+                >
+                  승인
+                </button>
+                <button
+                  type="button"
+                  className={styles.cancelButton}
+                  onClick={() => {
+                    setIsAppointmentModalOpen(false);
+                    setSelectedAppointment(null);
+                    setAppointmentDoctor(null);
+                  }}
+                >
+                  취소
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 문진표 작성 모달 */}
+      <QuestionnaireModal
+        isOpen={isQuestionnaireModalOpen}
+        patient={questionnairePatient}
+        onClose={() => {
+          setIsQuestionnaireModalOpen(false);
+          setQuestionnairePatient(null);
+        }}
+        onSubmit={handleQuestionnaireSubmit}
+      />
     </div>
   );
 }

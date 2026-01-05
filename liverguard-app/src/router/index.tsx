@@ -1,53 +1,69 @@
 // src/router/index.tsx
+import { lazy, Suspense } from "react";
 import {
   createBrowserRouter,
   createRoutesFromElements,
   Route,
 } from "react-router-dom";
 
-import HomePage from "../pages/home/HomePage";
-import DoctorLoginPage from "../pages/doctor/LoginPage";
-import DoctorHomePage from "../pages/doctor/HomePage";
-import SchedulePage from "../pages/doctor/SchedulePage";
-import TreatmentPage from "../pages/doctor/TreatmentPage";
-import CTResultPage from "../pages/doctor/CTResult";
-import RNAResultPage from "../pages/doctor/RNAResult";
-import BloodResultPage from "../pages/doctor/BloodResult";
-import AIResultPage from "../pages/doctor/AIResult";
-import StagePredictionPage from "../pages/doctor/StagePrediction";
-import RecurrencePredictionPage from "../pages/doctor/RecurrencePrediction";
-import SurvivalAnalysisPage from "../pages/doctor/SurvivalAnalysis";
-import DDIPage from "../pages/doctor/DDI";
-import DoctorPatientManagementPage from "../pages/doctor/PatientManagementPage";
-import AdministrationLoginPage from "../pages/administration/LoginPage";
-import AdministrationHomePage from "../pages/administration/HomePage";
-import AppointmentManagementPage from "../pages/administration/AppointmentManagementPage";
-import PatientManagementPage from "../pages/administration/PatientManagementPage";
-import RadiologyLoginPage from "../pages/radiology/LoginPage";
-import RadiologyHomePage from "../pages/radiology/HomePage";
-import AcquisitionPage from "../pages/radiology/AcquisitionPage";
-import PostProcessingPage from "../pages/radiology/PostProcessingPage";
-import ProtectedRoute from "../components/auth/ProtectedRoute";
+// Lazy load all page components for code splitting
+const HomePage = lazy(() => import("../pages/home/HomePage"));
+const DoctorLoginPage = lazy(() => import("../pages/doctor/LoginPage"));
+const DoctorHomePage = lazy(() => import("../pages/doctor/HomePage"));
+const SchedulePage = lazy(() => import("../pages/doctor/SchedulePage"));
+const TreatmentPage = lazy(() => import("../pages/doctor/TreatmentPage"));
+const CTResultPage = lazy(() => import("../pages/doctor/CTResult"));
+const RNAResultPage = lazy(() => import("../pages/doctor/RNAResult"));
+const BloodResultPage = lazy(() => import("../pages/doctor/BloodResult"));
+const AIResultPage = lazy(() => import("../pages/doctor/AIResult"));
+const StagePredictionPage = lazy(() => import("../pages/doctor/StagePrediction"));
+const RecurrencePredictionPage = lazy(() => import("../pages/doctor/RecurrencePrediction"));
+const SurvivalAnalysisPage = lazy(() => import("../pages/doctor/SurvivalAnalysis"));
+const DDIPage = lazy(() => import("../pages/doctor/DDI"));
+const DoctorPatientManagementPage = lazy(() => import("../pages/doctor/PatientManagementPage"));
+const AdministrationLoginPage = lazy(() => import("../pages/administration/LoginPage"));
+const AdministrationHomePage = lazy(() => import("../pages/administration/HomePage"));
+const AppointmentManagementPage = lazy(() => import("../pages/administration/AppointmentManagementPage"));
+const PatientManagementPage = lazy(() => import("../pages/administration/PatientManagementPage"));
+const RadiologyLoginPage = lazy(() => import("../pages/radiology/LoginPage"));
+const RadiologyHomePage = lazy(() => import("../pages/radiology/HomePage"));
+const AcquisitionPage = lazy(() => import("../pages/radiology/AcquisitionPage"));
+const PostProcessingPage = lazy(() => import("../pages/radiology/PostProcessingPage"));
+const ProtectedRoute = lazy(() => import("../components/auth/ProtectedRoute"));
+
+// Loading fallback component
+const LoadingFallback = () => (
+  <div style={{
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100vh',
+    fontSize: '18px',
+    color: '#666'
+  }}>
+    Loading...
+  </div>
+);
 
 const router = createBrowserRouter(
   createRoutesFromElements(
     <>
-      <Route path="/" element={<HomePage />} />
+      <Route path="/" element={<Suspense fallback={<LoadingFallback />}><HomePage /></Suspense>} />
 
       {/* doctor */}
-      <Route path="/doctor/login" element={<DoctorLoginPage />} />
-      <Route path="/doctor/home" element={<DoctorHomePage />} />
-      <Route path="/doctor/schedule" element={<SchedulePage />} />
-      <Route path="/doctor/treatment" element={<TreatmentPage />} />
-      <Route path="/doctor/ct-result" element={<CTResultPage />} />
-      <Route path="/doctor/mrna-result" element={<RNAResultPage />} />
-      <Route path="/doctor/blood-result" element={<BloodResultPage />} />
-      <Route path="/doctor/ai-result" element={<AIResultPage />} />
-      <Route path="/doctor/ai-stage-prediction" element={<StagePredictionPage />} />
-      <Route path="/doctor/ai-recurrence-prediction" element={<RecurrencePredictionPage />} />
-      <Route path="/doctor/ai-survival-analysis" element={<SurvivalAnalysisPage />} />
-      <Route path="/doctor/ddi" element={<DDIPage />} />
-      <Route path="/doctor/patient-management" element={<DoctorPatientManagementPage />} />
+      <Route path="/doctor/login" element={<Suspense fallback={<LoadingFallback />}><DoctorLoginPage /></Suspense>} />
+      <Route path="/doctor/home" element={<Suspense fallback={<LoadingFallback />}><DoctorHomePage /></Suspense>} />
+      <Route path="/doctor/schedule" element={<Suspense fallback={<LoadingFallback />}><SchedulePage /></Suspense>} />
+      <Route path="/doctor/treatment" element={<Suspense fallback={<LoadingFallback />}><TreatmentPage /></Suspense>} />
+      <Route path="/doctor/ct-result" element={<Suspense fallback={<LoadingFallback />}><CTResultPage /></Suspense>} />
+      <Route path="/doctor/mrna-result" element={<Suspense fallback={<LoadingFallback />}><RNAResultPage /></Suspense>} />
+      <Route path="/doctor/blood-result" element={<Suspense fallback={<LoadingFallback />}><BloodResultPage /></Suspense>} />
+      <Route path="/doctor/ai-result" element={<Suspense fallback={<LoadingFallback />}><AIResultPage /></Suspense>} />
+      <Route path="/doctor/ai-stage-prediction" element={<Suspense fallback={<LoadingFallback />}><StagePredictionPage /></Suspense>} />
+      <Route path="/doctor/ai-recurrence-prediction" element={<Suspense fallback={<LoadingFallback />}><RecurrencePredictionPage /></Suspense>} />
+      <Route path="/doctor/ai-survival-analysis" element={<Suspense fallback={<LoadingFallback />}><SurvivalAnalysisPage /></Suspense>} />
+      <Route path="/doctor/ddi" element={<Suspense fallback={<LoadingFallback />}><DDIPage /></Suspense>} />
+      <Route path="/doctor/patient-management" element={<Suspense fallback={<LoadingFallback />}><DoctorPatientManagementPage /></Suspense>} />
       {/* 테스트용 - 나중에 ProtectedRoute 복원 필요 */}
       {/* <Route
         path="/doctor/home"
@@ -59,10 +75,10 @@ const router = createBrowserRouter(
       /> */}
 
       {/* administration */}
-      <Route path="/administration/login" element={<AdministrationLoginPage />} />
-      <Route path="/administration/home" element={<AdministrationHomePage />} />
-      <Route path="/administration/appointments" element={<AppointmentManagementPage />} />
-      <Route path="/administration/patients" element={<PatientManagementPage />} />
+      <Route path="/administration/login" element={<Suspense fallback={<LoadingFallback />}><AdministrationLoginPage /></Suspense>} />
+      <Route path="/administration/home" element={<Suspense fallback={<LoadingFallback />}><AdministrationHomePage /></Suspense>} />
+      <Route path="/administration/appointments" element={<Suspense fallback={<LoadingFallback />}><AppointmentManagementPage /></Suspense>} />
+      <Route path="/administration/patients" element={<Suspense fallback={<LoadingFallback />}><PatientManagementPage /></Suspense>} />
       {/* 테스트용 - 나중에 ProtectedRoute 복원 필요 */}
       {/* <Route
         path="/administration/home"
@@ -74,10 +90,10 @@ const router = createBrowserRouter(
       /> */}
 
       {/* radiology */}
-      <Route path="/radiology/login" element={<RadiologyLoginPage />} />
-      <Route path="/radiology/home" element={<RadiologyHomePage />} />
-      <Route path="/radiology/acquisition" element={<AcquisitionPage />} />
-      <Route path="/radiology/post-processing" element={<PostProcessingPage />} />
+      <Route path="/radiology/login" element={<Suspense fallback={<LoadingFallback />}><RadiologyLoginPage /></Suspense>} />
+      <Route path="/radiology/home" element={<Suspense fallback={<LoadingFallback />}><RadiologyHomePage /></Suspense>} />
+      <Route path="/radiology/acquisition" element={<Suspense fallback={<LoadingFallback />}><AcquisitionPage /></Suspense>} />
+      <Route path="/radiology/post-processing" element={<Suspense fallback={<LoadingFallback />}><PostProcessingPage /></Suspense>} />
       {/* <Route
         path="/radiology/home"
         element={
