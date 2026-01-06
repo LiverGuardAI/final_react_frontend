@@ -1,38 +1,94 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DoctorLayout from '../../layouts/DoctorLayout';
+import { useDoctorWaitingQueue } from '../../hooks/useDoctorWaitingQueue';
+import { useDoctorDashboardStats } from '../../hooks/useDoctorDashboardStats';
 
 interface Patient {
-  id: number;
+  encounterId: number;
+  patientId: string;
   name: string;
   birthDate: string;
   age: number;
   gender: string;
-  lastVisit?: string;
+  status: string;
 }
 
 export default function DoctorHomePage() {
   const navigate = useNavigate();
+  const [doctorId, setDoctorId] = useState<number | null>(null);
 
-  // 샘플 환자 데이터
-  const [waitingPatients] = useState<Patient[]>([
-    { id: 1, name: '장보윤', birthDate: '2000.05.21', age: 26, gender: '여' },
-    { id: 2, name: '송영운', birthDate: '2000.05.21', age: 26, gender: '남' },
-    { id: 3, name: '정예진', birthDate: '2000.05.21', age: 26, gender: '여' },
-  ]);
+  // Custom Hooks로 데이터 관리
+  const { waitingQueueData } = useDoctorWaitingQueue(doctorId);
+  const { stats } = useDoctorDashboardStats(doctorId);
 
-  const [completedPatients] = useState<Patient[]>([]);
+  // 대기 중인 환자 목록 추출
+  const waitingPatients = useMemo(() => {
+    if (!waitingQueueData?.queue) return [];
+
+    return waitingQueueData.queue
+      .filter((item: any) => item.encounter_status === 'WAITING')
+      .map((item: any) => ({
+        encounterId: item.encounter_id,
+        patientId: item.patient_id || item.patient,
+        name: item.patient_name || '이름 없음',
+        birthDate: item.date_of_birth || 'N/A',
+        age: item.age || 0,
+        gender: item.gender === 'M' ? '남' : item.gender === 'F' ? '여' : 'N/A',
+        status: item.encounter_status || 'WAITING',
+      }));
+  }, [waitingQueueData]);
+
+  // 최근 완료된 환자 (가장 최근 1명)
+  const recentCompletedPatient = useMemo(() => {
+    if (!waitingQueueData?.queue) return null;
+
+    const completed = waitingQueueData.queue
+      .filter((item: any) => item.encounter_status === 'COMPLETED')
+      .sort((a: any, b: any) => {
+        const dateA = new Date(a.updated_at || a.created_at);
+        const dateB = new Date(b.updated_at || b.created_at);
+        return dateB.getTime() - dateA.getTime();
+      });
+
+    if (completed.length === 0) return null;
+
+    const item = completed[0];
+    return {
+      encounterId: item.encounter_id,
+      patientId: item.patient_id || item.patient,
+      name: item.patient_name || '이름 없음',
+      birthDate: item.date_of_birth || 'N/A',
+      age: item.age || 0,
+      gender: item.gender === 'M' ? '남' : item.gender === 'F' ? '여' : 'N/A',
+      chiefComplaint: item.chief_complaint || '미기재',
+      diagnosis: item.diagnosis || '미기재',
+    };
+  }, [waitingQueueData]);
 
   const patientStatus = {
-    waiting: waitingPatients.length,
-    inProgress: 0,
-    completed: completedPatients.length,
+    waiting: stats.clinic_waiting,
+    inProgress: stats.clinic_in_progress,
+    completed: stats.completed_today,
   };
 
   const totalPatients = patientStatus.waiting + patientStatus.inProgress + patientStatus.completed;
   const waitingPercentage = totalPatients > 0 ? (patientStatus.waiting / totalPatients) * 100 : 0;
   const inProgressPercentage = totalPatients > 0 ? (patientStatus.inProgress / totalPatients) * 100 : 0;
   const completedPercentage = totalPatients > 0 ? (patientStatus.completed / totalPatients) * 100 : 0;
+
+  useEffect(() => {
+    // 의사 정보 로드
+    const storedDoctor = localStorage.getItem('doctor');
+    if (storedDoctor) {
+      try {
+        const doctorInfo = JSON.parse(storedDoctor);
+        setDoctorId(doctorInfo.doctor_id || null);
+      } catch (error) {
+        console.error('의사 정보 파싱 실패:', error);
+      }
+    }
+  }, []);
 
   return (
     <DoctorLayout activeTab="home">
@@ -77,11 +133,17 @@ export default function DoctorHomePage() {
             {/* 대기 환자 정보 */}
             <div>
               <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '15px' }}>대기 환자:</h3>
-              {waitingPatients.slice(0, 2).map((patient) => (
-                <div key={patient.id} style={{ marginBottom: '10px', fontSize: '16px', color: '#666' }}>
-                  • {patient.name}
+              {waitingPatients.length === 0 ? (
+                <div style={{ fontSize: '16px', color: '#999', textAlign: 'center', padding: '20px 0' }}>
+                  대기 중인 환자가 없습니다
                 </div>
-              ))}
+              ) : (
+                waitingPatients.slice(0, 2).map((patient) => (
+                  <div key={patient.encounterId} style={{ marginBottom: '10px', fontSize: '16px', color: '#666' }}>
+                    • {patient.name}
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -189,16 +251,35 @@ export default function DoctorHomePage() {
               <span style={{ fontSize: '28px', cursor: 'pointer', fontWeight: '300', lineHeight: '1' }}>›</span>
             </div>
             <div style={{ background: '#FFF', borderRadius: '15px', padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', flex: 1, overflow: 'auto', minHeight: 0 }}>
-              <div>
-                <div style={{ fontSize: '18px', fontWeight: '700', marginBottom: '12px' }}>정예진 (여, 29세)</div>
-                <div style={{ fontSize: '15px', color: '#666', marginBottom: '8px' }}>• 주증상: 간암</div>
-                <div style={{ fontSize: '15px', color: '#666', marginBottom: '12px' }}>• 특이사항: 알레르기</div>
-                <div style={{ fontSize: '15px', color: '#666', marginBottom: '8px' }}>• CT 촬영 여부: O</div>
-                <div style={{ fontSize: '15px', color: '#666', marginBottom: '18px' }}>• 유전체 검사/혈액 검사 여부: O</div>
-                <button style={{ width: '100%', background: '#D7E8FB', border: 'none', borderRadius: '8px', padding: '12px', fontSize: '15px', fontWeight: '600', color: '#52759C', cursor: 'pointer' }}>
-                  진료 기록 보기
-                </button>
-              </div>
+              {recentCompletedPatient ? (
+                <div>
+                  <div style={{ fontSize: '18px', fontWeight: '700', marginBottom: '12px' }}>
+                    {recentCompletedPatient.name} ({recentCompletedPatient.gender}, {recentCompletedPatient.age}세)
+                  </div>
+                  <div style={{ fontSize: '15px', color: '#666', marginBottom: '8px' }}>
+                    • 주증상: {recentCompletedPatient.chiefComplaint}
+                  </div>
+                  <div style={{ fontSize: '15px', color: '#666', marginBottom: '12px' }}>
+                    • 진단: {recentCompletedPatient.diagnosis}
+                  </div>
+                  <div style={{ fontSize: '15px', color: '#666', marginBottom: '8px' }}>
+                    • 환자 ID: {recentCompletedPatient.patientId}
+                  </div>
+                  <div style={{ fontSize: '15px', color: '#666', marginBottom: '18px' }}>
+                    • 생년월일: {recentCompletedPatient.birthDate}
+                  </div>
+                  <button
+                    style={{ width: '100%', background: '#D7E8FB', border: 'none', borderRadius: '8px', padding: '12px', fontSize: '15px', fontWeight: '600', color: '#52759C', cursor: 'pointer' }}
+                    onClick={() => navigate('/doctor/patient-management')}
+                  >
+                    진료 기록 보기
+                  </button>
+                </div>
+              ) : (
+                <div style={{ fontSize: '16px', color: '#999', textAlign: 'center', padding: '40px 0' }}>
+                  최근 진료 내역이 없습니다
+                </div>
+              )}
             </div>
           </div>
         </div>

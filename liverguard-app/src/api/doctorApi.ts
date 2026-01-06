@@ -1,0 +1,222 @@
+import axios from 'axios';
+
+// API Base URL
+const API_BASE_URL = `http://${window.location.hostname}:8000/api`;
+
+// Axios 인스턴스 생성
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// 요청 인터셉터: 인증 토큰 추가
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// 응답 인터셉터: 토큰 갱신 처리
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        const refreshToken = localStorage.getItem('refresh_token');
+        const response = await axios.post(`${API_BASE_URL}/auth/refresh/`, {
+          refresh: refreshToken,
+        });
+
+        const { access } = response.data;
+        localStorage.setItem('access_token', access);
+
+        originalRequest.headers.Authorization = `Bearer ${access}`;
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        console.error('토큰 갱신 실패:', refreshError);
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        window.location.href = '/doctor/login';
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// ===========================
+// 대기열 관련 API
+// ===========================
+
+export interface QueueItem {
+  encounter_id: number;
+  patient_name: string;
+  patient_id: string;
+  patient?: string;
+  queued_at?: string;
+  created_at?: string;
+  priority?: number;
+  doctor_name?: string;
+  doctor_id?: number;
+  doctor?: number;
+  room_number?: string;
+  encounter_status?: string;
+  questionnaire_status?: string;
+  questionnaire_status_display?: string;
+  questionnaire_data?: any;
+  date_of_birth?: string;
+  gender?: string;
+  age?: number;
+  phone?: string;
+}
+
+export interface WaitingQueueResponse {
+  queue: QueueItem[];
+  total_waiting: number;
+}
+
+/**
+ * 특정 의사의 대기열 조회
+ * @param doctorId - 의사 ID
+ * @param limit - 조회할 최대 건수 (기본값: 50)
+ */
+export const getDoctorWaitingQueue = async (
+  doctorId: number,
+  limit: number = 50
+): Promise<WaitingQueueResponse> => {
+  const response = await apiClient.get('/administration/queue/', {
+    params: {
+      doctor_id: doctorId,
+      limit,
+    },
+  });
+  return response.data;
+};
+
+// ===========================
+// 통계 관련 API
+// ===========================
+
+export interface DoctorDashboardStats {
+  total_patients: number;
+  clinic_waiting: number;
+  clinic_in_progress: number;
+  completed_today: number;
+}
+
+/**
+ * 특정 의사의 대시보드 통계 조회
+ * @param doctorId - 의사 ID
+ */
+export const getDoctorDashboardStats = async (
+  doctorId: number
+): Promise<DoctorDashboardStats> => {
+  const response = await apiClient.get('/administration/dashboard/stats/', {
+    params: {
+      doctor_id: doctorId,
+    },
+  });
+  return response.data;
+};
+
+// ===========================
+// Encounter 관련 API
+// ===========================
+
+export interface EncounterUpdateData {
+  encounter_status?: 'WAITING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  questionnaire_data?: any;
+  questionnaire_status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+  chief_complaint?: string;
+  diagnosis?: string;
+  treatment_plan?: string;
+  notes?: string;
+}
+
+/**
+ * Encounter 상태 업데이트 (진료 시작, 완료 등)
+ * @param encounterId - Encounter ID
+ * @param data - 업데이트할 데이터
+ */
+export const updateEncounter = async (
+  encounterId: number,
+  data: EncounterUpdateData
+): Promise<any> => {
+  const response = await apiClient.put(`/administration/encounters/${encounterId}/`, data);
+  return response.data;
+};
+
+/**
+ * Encounter 취소
+ * @param encounterId - Encounter ID
+ */
+export const cancelEncounter = async (encounterId: number): Promise<any> => {
+  const response = await apiClient.post(`/administration/encounters/${encounterId}/cancel/`);
+  return response.data;
+};
+
+// ===========================
+// 환자 관련 API
+// ===========================
+
+export interface PatientDetail {
+  patient_id: string;
+  name: string;
+  date_of_birth: string;
+  gender: 'M' | 'F';
+  phone?: string;
+  address?: string;
+  emergency_contact?: string;
+  sample_id?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/**
+ * 환자 상세 정보 조회
+ * @param patientId - 환자 ID
+ */
+export const getPatientDetail = async (patientId: string): Promise<PatientDetail> => {
+  const response = await apiClient.get(`/administration/patients/${patientId}/`);
+  return response.data;
+};
+
+// ===========================
+// 의사 정보 관련 API
+// ===========================
+
+export interface DoctorInfo {
+  doctor_id: number;
+  name: string;
+  department: {
+    dept_id: number;
+    dept_name: string;
+  };
+  room_number?: string;
+  phone?: string;
+  email?: string;
+}
+
+/**
+ * 현재 로그인한 의사 정보 조회
+ */
+export const getCurrentDoctorInfo = async (): Promise<DoctorInfo> => {
+  const response = await apiClient.get('/doctors/me/');
+  return response.data;
+};
+
+export default apiClient;

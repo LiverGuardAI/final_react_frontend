@@ -1,14 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './DoctorLayout.module.css';
+import { useWebSocket } from '../hooks/useWebSocket';
+import { useDoctorWaitingQueue } from '../hooks/useDoctorWaitingQueue';
+import { useDoctorDashboardStats } from '../hooks/useDoctorDashboardStats';
+import { updateEncounter } from '../api/doctorApi';
+import DoctorPatientModal from '../components/doctor/DoctorPatientModal';
 
 interface Patient {
-  id: number;
+  encounterId: number;
+  patientId: string;
   name: string;
   birthDate: string;
   age: number;
   gender: string;
-  lastVisit?: string;
+  status: 'WAITING' | 'IN_PROGRESS' | 'COMPLETED';
+  queuedAt?: string;
+  phone?: string;
+  questionnaireStatus?: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
 }
 
 type TabType = 'home' | 'schedule' | 'treatment' | 'patientManagement' | 'examination' | 'testForm' | 'medication';
@@ -22,20 +31,63 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
   const navigate = useNavigate();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [sidebarTab, setSidebarTab] = useState<'waiting' | 'completed'>('waiting');
+  const [doctorId, setDoctorId] = useState<number | null>(null);
+  const [doctorName, setDoctorName] = useState<string>('의사');
+  const [departmentName, setDepartmentName] = useState<string>('진료과');
 
-  // 샘플 환자 데이터
-  const [waitingPatients] = useState<Patient[]>([
-    { id: 1, name: '장보윤', birthDate: '2000.05.21', age: 26, gender: '여' },
-    { id: 2, name: '송영운', birthDate: '2000.05.21', age: 26, gender: '남' },
-    { id: 3, name: '정예진', birthDate: '2000.05.21', age: 26, gender: '여' },
-  ]);
+  // 환자 정보 모달
+  const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
 
-  const [completedPatients] = useState<Patient[]>([]);
+  // Custom Hooks로 데이터 관리
+  const { waitingQueueData, fetchWaitingQueue } = useDoctorWaitingQueue(doctorId);
+  const { stats, fetchStats } = useDoctorDashboardStats(doctorId);
+
+  // 환자 목록을 상태별로 분류
+  const { waitingPatients, inProgressPatients, completedPatients } = useMemo(() => {
+    if (!waitingQueueData?.queue) {
+      return { waitingPatients: [], inProgressPatients: [], completedPatients: [] };
+    }
+
+    const waiting: Patient[] = [];
+    const inProgress: Patient[] = [];
+    const completed: Patient[] = [];
+
+    // 첫 번째 아이템 로깅 (디버깅용)
+    if (waitingQueueData.queue.length > 0) {
+      console.log('🔍 API Response Sample:', waitingQueueData.queue[0]);
+    }
+
+    waitingQueueData.queue.forEach((item: any) => {
+      const patient: Patient = {
+        encounterId: item.encounter_id,
+        patientId: item.patient_id || item.patient || 'N/A',
+        name: item.patient_name || '이름 없음',
+        birthDate: item.date_of_birth || 'N/A',
+        age: item.age || 0,
+        gender: item.gender === 'M' ? '남' : item.gender === 'F' ? '여' : 'N/A',
+        status: item.encounter_status || 'WAITING',
+        queuedAt: item.created_at || item.queued_at,
+        phone: item.phone || 'N/A',
+        questionnaireStatus: item.questionnaire_status || 'NOT_STARTED',
+      };
+
+      if (item.encounter_status === 'COMPLETED') {
+        completed.push(patient);
+      } else if (item.encounter_status === 'IN_PROGRESS') {
+        inProgress.push(patient);
+      } else {
+        waiting.push(patient);
+      }
+    });
+
+    return { waitingPatients: waiting, inProgressPatients: inProgress, completedPatients: completed };
+  }, [waitingQueueData]);
 
   const patientStatus = {
-    waiting: waitingPatients.length,
-    inProgress: 0,
-    completed: completedPatients.length,
+    waiting: stats.clinic_waiting,
+    inProgress: stats.clinic_in_progress,
+    completed: stats.completed_today,
   };
 
   const handleMouseEnter = (dropdown: string) => {
@@ -92,6 +144,81 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
     }
   };
 
+  // 환자 카드 클릭 핸들러 - 바로 상세 정보 모달 열기
+  const handlePatientCardClick = (patient: Patient) => {
+    setSelectedPatient(patient);
+    setIsPatientModalOpen(true);
+  };
+
+  // 진료 시작 핸들러
+  const handleStartConsultation = async (patient: Patient, event: React.MouseEvent) => {
+    event.stopPropagation(); // 카드 클릭 이벤트 전파 방지
+    try {
+      await updateEncounter(patient.encounterId, {
+        encounter_status: 'IN_PROGRESS'
+      });
+      alert(`${patient.name} 환자의 진료를 시작합니다.`);
+
+      // 대기열 및 통계 새로고침
+      await Promise.all([
+        fetchWaitingQueue(),
+        fetchStats()
+      ]);
+    } catch (error: any) {
+      console.error('진료 시작 실패:', error);
+      alert(error.response?.data?.message || '진료 시작에 실패했습니다.');
+    }
+  };
+
+  // WebSocket 실시간 알림 처리
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const hostname = window.location.hostname;
+  const WS_URL = `${protocol}//${hostname}:8000/ws/clinic/`;
+
+  useWebSocket(WS_URL, {
+    onMessage: (data) => {
+      if (data.type === 'queue_update') {
+        console.log("🔔 실시간 업데이트:", data.message);
+        // WebSocket 메시지 수신 시 대기열과 통계 새로고침
+        fetchWaitingQueue();
+        fetchStats();
+      }
+    },
+    onOpen: () => {
+      console.log("✅ WebSocket 연결 성공");
+    },
+    onClose: () => {
+      console.log("⚠️ WebSocket 연결 종료 (5초 후 자동 재연결)");
+    },
+    onError: () => {
+      console.error("❌ WebSocket 에러");
+    },
+    enabled: !!doctorId,
+  });
+
+  useEffect(() => {
+    // 의사 정보 로드
+    const storedDoctor = localStorage.getItem('doctor');
+    if (storedDoctor) {
+      try {
+        const doctorInfo = JSON.parse(storedDoctor);
+        setDoctorId(doctorInfo.doctor_id || null);
+        setDoctorName(doctorInfo.name || '의사');
+        setDepartmentName(doctorInfo.department?.dept_name || '진료과');
+      } catch (error) {
+        console.error('의사 정보 파싱 실패:', error);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (doctorId) {
+      // 초기 데이터 로드
+      fetchWaitingQueue();
+      fetchStats();
+    }
+  }, [doctorId, fetchWaitingQueue, fetchStats]);
+
   return (
     <div className={styles.container}>
       {/* 왼쪽 사이드바 */}
@@ -101,8 +228,8 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
           <div className={styles.profileSection}>
             <div className={styles.profileImage}></div>
             <div className={styles.profileInfo}>
-              <div className={styles.profileName}>정예진</div>
-              <div className={styles.departmentTag}>소화기내과</div>
+              <div className={styles.profileName}>{doctorName}</div>
+              <div className={styles.departmentTag}>{departmentName}</div>
               <div className={styles.statusInfo}>
                 상태: <span className={styles.statusBadge}>근무중</span>
               </div>
@@ -128,34 +255,47 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
 
             <div className={styles.patientListContent}>
               {sidebarTab === 'waiting' && waitingPatients.length > 0 ? (
-                waitingPatients.map((patient) => (
-                  <div key={patient.id} className={styles.patientCard}>
+                waitingPatients.map((patient, index) => (
+                  <div
+                    key={patient.encounterId}
+                    className={styles.patientCard}
+                    onClick={() => handlePatientCardClick(patient)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <div className={styles.patientHeader}>
                       <span className={styles.patientName}>{patient.name}</span>
                       <span className={styles.genderIcon}>{patient.gender === '여' ? '♀' : '♂'}</span>
                     </div>
                     <div className={styles.patientDetails}>
-                      {patient.birthDate} | {patient.age} | {patient.gender}
+                      {patient.birthDate} | {patient.age}세 | {patient.gender}
                     </div>
                     <div className={styles.patientActions}>
-                      <button className={`${styles.actionButton} ${styles.start}`}>
+                      <button
+                        className={`${styles.actionButton} ${styles.start}`}
+                        onClick={(e) => handleStartConsultation(patient, e)}
+                      >
                         진료시작
                       </button>
                     </div>
                     <div style={{ fontSize: '11px', color: '#999', textAlign: 'right', marginTop: '5px' }}>
-                      15:12
+                      {patient.queuedAt ? new Date(patient.queuedAt).toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit'}) : 'N/A'}
                     </div>
                   </div>
                 ))
               ) : sidebarTab === 'completed' && completedPatients.length > 0 ? (
                 completedPatients.map((patient) => (
-                  <div key={patient.id} className={styles.patientCard}>
+                  <div
+                    key={patient.encounterId}
+                    className={styles.patientCard}
+                    onClick={() => handlePatientCardClick(patient)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <div className={styles.patientHeader}>
                       <span className={styles.patientName}>{patient.name}</span>
                       <span className={styles.genderIcon}>{patient.gender === '여' ? '♀' : '♂'}</span>
                     </div>
                     <div className={styles.patientDetails}>
-                      {patient.birthDate} | {patient.age} | {patient.gender}
+                      {patient.birthDate} | {patient.age}세 | {patient.gender}
                     </div>
                   </div>
                 ))
@@ -315,6 +455,14 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
           {children}
         </div>
       </div>
+
+      {/* 환자 정보 모달 */}
+      <DoctorPatientModal
+        isOpen={isPatientModalOpen}
+        patient={selectedPatient}
+        questionnaireData={null} // TODO: 문진표 데이터 API에서 가져오기
+        onClose={() => setIsPatientModalOpen(false)}
+      />
     </div>
   );
 }
