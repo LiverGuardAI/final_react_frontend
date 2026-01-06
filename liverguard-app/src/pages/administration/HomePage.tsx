@@ -301,27 +301,22 @@ export default function AdministrationHomePage() {
     fetchPatients(); // 목록 갱신
   };
 
-  // 검색어 변경 시 환자 목록 갱신 (Debouncing 적용)
+  // 검색어 변경 시 환자 목록 갱신
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
     setCurrentPage(1);
     fetchPatients(value, 1);
   };
 
-    // 150ms 후에 검색 실행 (Debouncing)
-    searchTimeoutRef.current = setTimeout(() => {
-      if (value.trim()) {
-        fetchPatients(value, 1);
-      } else {
-        fetchPatients('', 1);
-      }
-    }, 150);
-  };
+  // 페이지네이션 계산
+  const totalPages = Math.ceil(patients.length / patientsPerPage);
+  const indexOfLastPatient = currentPage * patientsPerPage;
+  const indexOfFirstPatient = indexOfLastPatient - patientsPerPage;
+  const currentPatients = patients.slice(indexOfFirstPatient, indexOfLastPatient);
 
   // 페이지 변경 핸들러
   const handlePageChange = (pageNumber: number) => {
     setCurrentPage(pageNumber);
-    fetchPatients(searchQuery, pageNumber); // 페이지 변경 시 해당 페이지 데이터 로드
   };
 
   // 환자 클릭 핸들러 (상세 정보 모달 열기)
@@ -487,11 +482,11 @@ export default function AdministrationHomePage() {
   const handleQuestionnaireSubmit = async (data: QuestionnaireData) => {
     try {
       if (lastEncounterId) {
-        // 기존 Encounter 업데이트
+        // 기존 Encounter 업데이트 (현장 접수 후 문진표 작성)
         console.log('Encounter 업데이트:', lastEncounterId);
-        const questionnaireJson = JSON.stringify(data);
         await updateEncounter(lastEncounterId, {
-          chief_complaint: questionnaireJson
+          questionnaire_data: data,
+          questionnaire_status: 'COMPLETED'
         });
         alert('문진표가 제출되었습니다.');
       } else {
