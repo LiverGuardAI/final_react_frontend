@@ -23,11 +23,16 @@ interface SimpleDicomViewerProps {
   files?: File[];
 }
 
+const EMPTY_INSTANCES: any[] = [];
+const EMPTY_FILES: File[] = [];
+
 const SimpleDicomViewer: React.FC<SimpleDicomViewerProps> = ({
   seriesId,
-  instances = [],
-  files = []
+  instances,
+  files
 }) => {
+  const resolvedInstances = instances ?? EMPTY_INSTANCES;
+  const resolvedFiles = files ?? EMPTY_FILES;
   const viewerRef = useRef<HTMLDivElement>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,7 +45,7 @@ const SimpleDicomViewer: React.FC<SimpleDicomViewerProps> = ({
   const totalImagesRef = useRef(0);
 
   useEffect(() => {
-    if (!viewerRef.current || (instances.length === 0 && files.length === 0)) return;
+    if (!viewerRef.current || (resolvedInstances.length === 0 && resolvedFiles.length === 0)) return;
 
     const element = viewerRef.current;
 
@@ -55,12 +60,12 @@ const SimpleDicomViewer: React.FC<SimpleDicomViewerProps> = ({
     setCurrentIndex(0);
     hasViewportRef.current = false;
 
-    if (files.length > 0) {
-      imageIdsRef.current = files.map((file) =>
+    if (resolvedFiles.length > 0) {
+      imageIdsRef.current = resolvedFiles.map((file) =>
         cornerstoneWADOImageLoader.wadouri.fileManager.add(file)
       );
     } else {
-      const normalizedInstances = instances.map((instance, index) => {
+      const normalizedInstances = resolvedInstances.map((instance, index) => {
         if (typeof instance === 'string') {
           return { id: instance, instanceNumber: index, order: index };
         }
@@ -110,7 +115,7 @@ const SimpleDicomViewer: React.FC<SimpleDicomViewerProps> = ({
         console.error('Error disabling cornerstone:', e);
       }
     };
-  }, [seriesId, instances, files]);
+  }, [seriesId, instances, files, resolvedInstances.length, resolvedFiles.length]);
 
   const prefetchImages = (index: number) => {
     const ids = imageIdsRef.current;
