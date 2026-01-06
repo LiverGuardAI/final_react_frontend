@@ -5,7 +5,7 @@ import PatientQueueSidebar from '../../components/radiology/PatientQueueSidebar'
 import SimpleDicomViewer from '../../components/radiology/SimpleDicomViewer';
 import type { SelectedPatientData } from '../../components/radiology/PatientQueueSidebar';
 import { endFilming, getWaitlist } from '../../api/radiology_api';
-import { getInstanceInfo, getSeriesInstances, uploadMultipleDicomFiles } from '../../api/orthanc_api';
+import { uploadMultipleDicomFiles } from '../../api/orthanc_api';
 import './AcquisitionPage.css';
 
 const AcquisitionPage: React.FC = () => {
@@ -13,9 +13,11 @@ const AcquisitionPage: React.FC = () => {
   const [selectedPatientData, setSelectedPatientData] = useState<SelectedPatientData | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
   const [dicomFiles, setDicomFiles] = useState<File[]>([]);
+  const [selectedFileNames, setSelectedFileNames] = useState<Set<string>>(new Set());
   const [uploadedInstances, setUploadedInstances] = useState<any[]>([]);
   const [uploadedSeriesId, setUploadedSeriesId] = useState<string>('');
   const [isLoadingPreview, setIsLoadingPreview] = useState<boolean>(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
   const hasLocalPreview = dicomFiles.length > 0;
   const hasUploadedPreview = uploadedInstances.length > 0 && dicomFiles.length === 0;
 
@@ -52,6 +54,22 @@ const AcquisitionPage: React.FC = () => {
     fetchFilmingPatient();
   }, []);
 
+  useEffect(() => {
+    if (selectedFileNames.size === 0) {
+      return;
+    }
+    const currentNames = new Set(dicomFiles.map((file) => file.name));
+    const nextSelected = new Set<string>();
+    selectedFileNames.forEach((name) => {
+      if (currentNames.has(name)) {
+        nextSelected.add(name);
+      }
+    });
+    if (nextSelected.size !== selectedFileNames.size) {
+      setSelectedFileNames(nextSelected);
+    }
+  }, [dicomFiles, selectedFileNames]);
+
   const handlePatientSelect = (patientId: string, patientData: SelectedPatientData) => {
     setSelectedPatientId(patientId);
     setSelectedPatientData(patientData);
@@ -82,13 +100,14 @@ const AcquisitionPage: React.FC = () => {
       return;
     }
 
-    // DICOM 파일만 필터링
-    const newDicomFiles = Array.from(files).filter(file =>
-      file.name.endsWith('.dcm') || file.name.endsWith('.dicom')
-    );
+    // DICOM 또는 ZIP 파일만 필터링
+    const newDicomFiles = Array.from(files).filter(file => {
+      const lowerName = file.name.toLowerCase();
+      return lowerName.endsWith('.dcm') || lowerName.endsWith('.dicom') || lowerName.endsWith('.zip');
+    });
 
     if (newDicomFiles.length === 0) {
-      alert('DICOM 파일(.dcm, .dicom)만 업로드 가능합니다.');
+      alert('DICOM 파일(.dcm, .dicom) 또는 ZIP(.zip)만 업로드 가능합니다.');
       return;
     }
 
@@ -119,57 +138,23 @@ const AcquisitionPage: React.FC = () => {
     }
 
     setUploading(true);
+    setUploadProgress(0);
 
     try {
-      console.log(`Uploading ${dicomFiles.length} DICOM files to Orthanc...`);
-      const results = await uploadMultipleDicomFiles(dicomFiles);
+      console.log(`Uploading ${dicomFiles.length} file(s) to Orthanc...`);
+      const results = await uploadMultipleDicomFiles(dicomFiles, {
+        concurrency: 4,
+        onProgress: (progress) => {
+          setUploadProgress(progress.percent);
+        },
+      });
 
       console.log('Upload successful:', results);
       alert(`${dicomFiles.length}개의 DICOM 파일이 성공적으로 업로드되었습니다.`);
 
-      setIsLoadingPreview(true);
-      try {
-        const firstInstanceInfo = await getInstanceInfo(results[0].ID);
-        const seriesId = firstInstanceInfo?.ParentSeries || '';
-        const expectedCount = results.length;
-
-        const fetchSeriesInstancesWithRetry = async (
-          series: string,
-          targetCount: number
-        ) => {
-          let lastInstances: any[] = [];
-          for (let attempt = 0; attempt < 6; attempt += 1) {
-            const instances = await getSeriesInstances(series);
-            lastInstances = instances;
-            if (instances.length >= targetCount) {
-              break;
-            }
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
-          return lastInstances;
-        };
-
-        if (seriesId) {
-          const seriesInstances = await fetchSeriesInstancesWithRetry(
-            seriesId,
-            expectedCount
-          );
-          setUploadedInstances(seriesInstances);
-          setUploadedSeriesId(seriesId);
-        } else {
-          const instanceInfos = await Promise.all(
-            results.map((result) => getInstanceInfo(result.ID))
-          );
-          setUploadedInstances(instanceInfos);
-          setUploadedSeriesId(instanceInfos[0]?.ParentSeries || '');
-        }
-      } catch (previewError) {
-        console.error('Failed to load uploaded instances:', previewError);
-        setUploadedInstances([]);
-        setUploadedSeriesId('');
-      } finally {
-        setIsLoadingPreview(false);
-      }
+      setIsLoadingPreview(false);
+      setUploadedInstances([]);
+      setUploadedSeriesId('');
 
       // 업로드 성공 후 파일 목록 초기화
       setDicomFiles([]);
@@ -178,6 +163,7 @@ const AcquisitionPage: React.FC = () => {
       alert('DICOM 파일 업로드에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -189,6 +175,37 @@ const AcquisitionPage: React.FC = () => {
   const handleFolderUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     handleAddFiles(event.target.files, 'folder');
     event.target.value = '';
+  };
+
+  const handleToggleSelectAll = () => {
+    if (dicomFiles.length === 0) {
+      return;
+    }
+    if (selectedFileNames.size === dicomFiles.length) {
+      setSelectedFileNames(new Set());
+      return;
+    }
+    setSelectedFileNames(new Set(dicomFiles.map((file) => file.name)));
+  };
+
+  const handleToggleFileSelection = (fileName: string) => {
+    setSelectedFileNames((prev) => {
+      const next = new Set(prev);
+      if (next.has(fileName)) {
+        next.delete(fileName);
+      } else {
+        next.add(fileName);
+      }
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedFileNames.size === 0) {
+      return;
+    }
+    setDicomFiles((prevFiles) => prevFiles.filter((file) => !selectedFileNames.has(file.name)));
+    setSelectedFileNames(new Set());
   };
 
   return (
@@ -259,7 +276,7 @@ const AcquisitionPage: React.FC = () => {
                     multiple
                     onChange={handleFileUpload}
                     style={{ display: 'none' }}
-                    accept=".dcm,.dicom"
+                    accept=".dcm,.dicom,.zip"
                     disabled={uploading}
                   />
                   <label htmlFor="folder-upload-add" className="add-file-button">
@@ -274,6 +291,20 @@ const AcquisitionPage: React.FC = () => {
                     {...({ webkitdirectory: '', directory: '' } as any)}
                   />
                   <button
+                    className="add-file-button"
+                    onClick={handleToggleSelectAll}
+                    disabled={uploading || dicomFiles.length === 0}
+                  >
+                    모두 선택
+                  </button>
+                  <button
+                    className="add-file-button"
+                    onClick={handleDeleteSelected}
+                    disabled={uploading || selectedFileNames.size === 0}
+                  >
+                    선택 삭제
+                  </button>
+                  <button
                     className="save-button"
                     onClick={handleSaveFiles}
                     disabled={uploading}
@@ -287,7 +318,15 @@ const AcquisitionPage: React.FC = () => {
                   <div className="file-list-empty">업로드할 파일을 추가해주세요.</div>
                 ) : (
                   dicomFiles.map((file, index) => (
-                    <div key={index} className="file-item">
+                  <div key={index} className="file-item">
+                      <label className="file-select">
+                        <input
+                          type="checkbox"
+                          checked={selectedFileNames.has(file.name)}
+                          onChange={() => handleToggleFileSelection(file.name)}
+                          disabled={uploading}
+                        />
+                      </label>
                       <span className="file-name">{file.name}</span>
                       <span className="file-size">
                         {(file.size / 1024).toFixed(2)} KB
@@ -304,6 +343,14 @@ const AcquisitionPage: React.FC = () => {
                 )}
               </div>
             </div>
+            {uploading && (
+              <div className="upload-overlay" aria-live="polite">
+                <div className="upload-overlay-content">
+                  <div className="upload-spinner" aria-label="Uploading" />
+                  <div className="upload-message">업로드 중입니다... {uploadProgress}%</div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
