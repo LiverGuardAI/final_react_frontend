@@ -27,6 +27,38 @@
   overflow: hidden;
 }
 
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background-color: #0f1419;
+  border: 1px solid #2d3748;
+  flex-shrink: 0;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  background-color: #1a2332;
+  border: 1px solid #2d3748;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-button:hover {
+  color: #e2e8f0;
+  border-color: #4a90e2;
+}
+
+.tab-button.active {
+  color: #e2e8f0;
+  background-color: #2d4a6f;
+  border-color: #5aa3f5;
+}
+
 .top-section {
   display: grid;
   grid-template-columns: 1fr;
@@ -119,6 +151,88 @@
   gap: 4px;
   margin-top: 2px;
   flex-shrink: 0;
+}
+
+.feature-summary {
+  flex: 1;
+  padding: 8px;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  background-color: #0f1419;
+  border: 1px solid #2d3748;
+  overflow: hidden;
+}
+
+.feature-grid {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto auto 1fr;
+  gap: 6px;
+}
+
+.feature-card {
+  background-color: #1a2332;
+  border: 1px solid #2d3748;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.feature-label {
+  font-size: 10px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.feature-value {
+  font-size: 12px;
+  color: #e2e8f0;
+  word-break: break-word;
+}
+
+.feature-heatmap {
+  grid-column: span 2;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.heatmap-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(32, minmax(0, 1fr));
+  grid-template-rows: repeat(16, minmax(0, 1fr));
+  gap: 1px;
+  background-color: #0f1419;
+  border: 1px solid #2d3748;
+  padding: 4px;
+}
+
+.heatmap-cell {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.heatmap-cell:hover::after {
+  content: attr(data-value);
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(15, 20, 25, 0.95);
+  color: #e2e8f0;
+  padding: 2px 6px;
+  border: 1px solid #2d3748;
+  font-size: 10px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 5;
 }
 
 .btn-create-mask,

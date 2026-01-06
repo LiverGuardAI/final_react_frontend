@@ -35,6 +35,9 @@ const SimpleDicomViewer: React.FC<SimpleDicomViewerProps> = ({
   const [totalImages, setTotalImages] = useState(0);
   const imageIdsRef = useRef<string[]>([]);
   const hasViewportRef = useRef(false);
+  const currentIndexRef = useRef(0);
+  const isLoadingRef = useRef(false);
+  const totalImagesRef = useRef(0);
 
   useEffect(() => {
     if (!viewerRef.current || (instances.length === 0 && files.length === 0)) return;
@@ -57,25 +60,36 @@ const SimpleDicomViewer: React.FC<SimpleDicomViewerProps> = ({
         cornerstoneWADOImageLoader.wadouri.fileManager.add(file)
       );
     } else {
-      // InstanceNumber로 정렬
-      const sortedInstances = [...instances].sort((a, b) => {
-        const numA = parseInt(a.MainDicomTags?.InstanceNumber || '0', 10);
-        const numB = parseInt(b.MainDicomTags?.InstanceNumber || '0', 10);
-        return numA - numB;
+      const normalizedInstances = instances.map((instance, index) => {
+        if (typeof instance === 'string') {
+          return { id: instance, instanceNumber: index, order: index };
+        }
+
+        const instanceId = instance?.ID || instance?.id;
+        const tagNumber = instance?.MainDicomTags?.InstanceNumber;
+        const parsedNumber = Number.parseInt(tagNumber || '', 10);
+        const instanceNumber = Number.isFinite(parsedNumber) ? parsedNumber : index;
+
+        return { id: instanceId, instanceNumber, order: index };
+      });
+
+      // InstanceNumber로 정렬, 동일한 경우 원본 순서 유지
+      normalizedInstances.sort((a, b) => {
+        if (a.instanceNumber !== b.instanceNumber) {
+          return a.instanceNumber - b.instanceNumber;
+        }
+        return a.order - b.order;
       });
 
       // 이미지 ID 생성
-      imageIdsRef.current = sortedInstances.map((instance) => {
-        const instanceId = instance.ID;
-        const url = getInstanceFileUrl(instanceId);
-        return `wadouri:${url}`;
-      });
+      imageIdsRef.current = normalizedInstances
+        .map((instance) => instance.id)
+        .filter((instanceId): instanceId is string => Boolean(instanceId))
+        .map((instanceId) => `wadouri:${getInstanceFileUrl(instanceId)}`);
     }
 
     setTotalImages(imageIdsRef.current.length);
-
-    // 첫 번째 이미지 로드
-    loadImage(0);
+    setCurrentIndex(0);
 
     // Window resize handler
     const handleResize = () => {
@@ -135,7 +149,6 @@ const SimpleDicomViewer: React.FC<SimpleDicomViewerProps> = ({
         hasViewportRef.current = true;
       }
 
-      setCurrentIndex(index);
       setIsLoading(false);
       prefetchImages(index);
     } catch (err) {
@@ -146,32 +159,71 @@ const SimpleDicomViewer: React.FC<SimpleDicomViewerProps> = ({
   };
 
   const handlePrevious = () => {
-    if (currentIndex > 0) {
-      loadImage(currentIndex - 1);
-    }
+    setCurrentIndex((prev) => Math.max(prev - 1, 0));
   };
 
   const handleNext = () => {
-    if (currentIndex < totalImages - 1) {
-      loadImage(currentIndex + 1);
-    }
+    setCurrentIndex((prev) => Math.min(prev + 1, totalImages - 1));
   };
 
-  const handleWheel = (event: React.WheelEvent) => {
-    event.preventDefault();
-    if (event.deltaY < 0) {
-      handlePrevious();
-    } else {
-      handleNext();
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
+
+  useEffect(() => {
+    isLoadingRef.current = isLoading;
+  }, [isLoading]);
+
+  useEffect(() => {
+    totalImagesRef.current = totalImages;
+  }, [totalImages]);
+
+  useEffect(() => {
+    if (!imageIdsRef.current.length) {
+      return;
     }
-  };
+
+    const maxIndex = imageIdsRef.current.length - 1;
+    if (currentIndex > maxIndex) {
+      setCurrentIndex(maxIndex);
+      return;
+    }
+
+    loadImage(currentIndex);
+  }, [currentIndex, totalImages]);
+
+  useEffect(() => {
+    const element = viewerRef.current;
+    if (!element) return;
+
+    const handleWheelNative = (event: WheelEvent) => {
+      if (isLoadingRef.current || totalImagesRef.current <= 1) {
+        return;
+      }
+
+      event.preventDefault();
+
+      const delta = event.deltaY < 0 ? -1 : 1;
+      const nextIndex = currentIndexRef.current + delta;
+
+      if (nextIndex < 0 || nextIndex >= totalImagesRef.current) {
+        return;
+      }
+
+      setCurrentIndex(nextIndex);
+    };
+
+    element.addEventListener('wheel', handleWheelNative, { passive: false });
+    return () => {
+      element.removeEventListener('wheel', handleWheelNative);
+    };
+  }, []);
 
   return (
     <div className="dicom-viewer">
       <div
         ref={viewerRef}
         className="dicom-canvas"
-        onWheel={handleWheel}
       >
         {isLoading && <div className="viewer-loading">로딩 중...</div>}
         {error && <div className="viewer-error">{error}</div>}

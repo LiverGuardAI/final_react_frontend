@@ -40,9 +40,12 @@
 .viewer-loading,
 .viewer-error {
   position: absolute;
+  top: 50%;
+  left: 50%;
   color: #ffffff;
   font-size: 16px;
   text-align: center;
+  transform: translate(-50%, -50%);
 }
 
 .viewer-error {
