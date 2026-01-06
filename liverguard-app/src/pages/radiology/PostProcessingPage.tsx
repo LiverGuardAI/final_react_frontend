@@ -8,6 +8,8 @@ import {
   getSeriesInstances,
   createSegmentationMask,
   getSegmentationTaskStatus,
+  createFeatureExtraction,
+  getFeatureExtractionTaskStatus,
   getSeriesInfo,
   getInstanceInfo,
   getStudyInfo
@@ -33,6 +35,7 @@ interface Series {
       SeriesNumber?: string;
       SeriesDate?: string;
       StudyDate?: string;
+      SeriesInstanceUID?: string;
     };
     Instances?: string[];
     ParentStudy?: string;
@@ -69,6 +72,11 @@ const PostProcessingPage: React.FC = () => {
   const [showOverlay, setShowOverlay] = useState<boolean>(true);
   const [selectedSeriesInfo, setSelectedSeriesInfo] = useState<Series['data'] | null>(null);
   const [selectedStudyInfo, setSelectedStudyInfo] = useState<any | null>(null);
+  const [isExtractingFeature, setIsExtractingFeature] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<'viewer' | 'features'>('viewer');
+  const [featureTaskId, setFeatureTaskId] = useState<string | null>(null);
+  const [featureStatus, setFeatureStatus] = useState<string>('');
+  const [featureResult, setFeatureResult] = useState<any | null>(null);
   const studyCacheRef = useRef<Map<string, any>>(new Map());
 
   const formatDicomDate = (date?: string) => {
@@ -82,6 +90,46 @@ const PostProcessingPage: React.FC = () => {
   const formatPatientName = (name?: string) => {
     if (!name) return 'N/A';
     return name.replace(/\^/g, ' ').trim();
+  };
+
+  const buildHeatmapCells = (features: number[], size = 512) => {
+    const sliced = features.slice(0, size);
+    if (sliced.length === 0) {
+      return [];
+    }
+    const minVal = Math.min(...sliced);
+    const maxVal = Math.max(...sliced);
+    const range = maxVal - minVal || 1;
+    const colorFor = (t: number) => {
+      // Gradient: navy -> blue -> cyan -> yellow -> red
+      const stops = [
+        { t: 0.0, c: [10, 20, 60] },
+        { t: 0.25, c: [30, 90, 200] },
+        { t: 0.5, c: [40, 200, 200] },
+        { t: 0.75, c: [240, 200, 60] },
+        { t: 1.0, c: [220, 60, 60] },
+      ];
+      for (let i = 0; i < stops.length - 1; i += 1) {
+        const a = stops[i];
+        const b = stops[i + 1];
+        if (t >= a.t && t <= b.t) {
+          const local = (t - a.t) / (b.t - a.t);
+          const r = Math.round(a.c[0] + (b.c[0] - a.c[0]) * local);
+          const g = Math.round(a.c[1] + (b.c[1] - a.c[1]) * local);
+          const bch = Math.round(a.c[2] + (b.c[2] - a.c[2]) * local);
+          return `rgb(${r}, ${g}, ${bch})`;
+        }
+      }
+      return 'rgb(220, 60, 60)';
+    };
+    return sliced.map((value, index) => {
+      const normalized = (value - minVal) / range;
+      return {
+        key: `cell-${index}`,
+        color: colorFor(normalized),
+        value
+      };
+    });
   };
 
   const selectedSeries = selectedSeriesId
@@ -121,12 +169,20 @@ const PostProcessingPage: React.FC = () => {
       setSeriesInstances([]);
       setSelectedSeriesInfo(null);
       setSelectedStudyInfo(null);
+      setFeatureResult(null);
+      setFeatureStatus('');
+      setFeatureTaskId(null);
+      setIsExtractingFeature(false);
       return;
     }
 
     const fetchInstances = async () => {
       setIsLoadingInstances(true);
       try {
+        setFeatureResult(null);
+        setFeatureStatus('');
+        setFeatureTaskId(null);
+        setIsExtractingFeature(false);
         const [instances, seriesInfo] = await Promise.all([
           getSeriesInstances(selectedSeriesId),
           getSeriesInfo(selectedSeriesId),
@@ -230,6 +286,43 @@ const PostProcessingPage: React.FC = () => {
     return () => clearInterval(pollInterval);
   }, [currentTaskId]);
 
+  useEffect(() => {
+    if (!featureTaskId) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const taskStatus = await getFeatureExtractionTaskStatus(featureTaskId);
+
+        if (taskStatus.status === 'PROGRESS' && taskStatus.progress) {
+          setFeatureStatus(`${taskStatus.progress.step} (${taskStatus.progress.progress}%)`);
+        } else if (taskStatus.status === 'SUCCESS' && taskStatus.result) {
+          const result = taskStatus.result as any;
+          if (result.status === 'failed') {
+            setFeatureStatus(`Error: ${result.error || result.result?.error || 'AI processing failed'}`);
+            setIsExtractingFeature(false);
+            setFeatureTaskId(null);
+            clearInterval(pollInterval);
+          } else if (result.status === 'success') {
+            setFeatureResult(result.result);
+            setFeatureStatus('Feature extraction completed!');
+            setIsExtractingFeature(false);
+            setFeatureTaskId(null);
+            clearInterval(pollInterval);
+          }
+        } else if (taskStatus.status === 'FAILURE') {
+          setFeatureStatus(`Error: ${taskStatus.error || 'Task execution failed'}`);
+          setIsExtractingFeature(false);
+          setFeatureTaskId(null);
+          clearInterval(pollInterval);
+        }
+      } catch (error) {
+        console.error('Failed to poll feature extraction task status:', error);
+      }
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [featureTaskId]);
+
   const handleCreateSegMask = async () => {
     if (!selectedSeriesId) {
       alert('Please select a series first');
@@ -256,9 +349,31 @@ const PostProcessingPage: React.FC = () => {
     }
   };
 
-  const handleLoadSegMask = () => {
-    console.log('Load Seg-Mask clicked');
-    // TODO: Implement load mask logic
+  const handleExtractFeature = async () => {
+    const seriesInstanceUid = selectedSeriesInfo?.MainDicomTags?.SeriesInstanceUID;
+    if (!seriesInstanceUid) {
+      alert('SeriesInstanceUID가 없습니다. 다른 시리즈를 선택해주세요.');
+      return;
+    }
+
+    if (isExtractingFeature) {
+      alert('Feature extraction is already in progress');
+      return;
+    }
+
+    try {
+      setIsExtractingFeature(true);
+      setFeatureStatus('Starting feature extraction...');
+      setFeatureResult(null);
+      const response = await createFeatureExtraction(seriesInstanceUid);
+      setFeatureTaskId(response.task_id);
+      setFeatureStatus('Task created, processing...');
+      setActiveTab('features');
+    } catch (error) {
+      console.error('Failed to start feature extraction:', error);
+      alert('Failed to start feature extraction task');
+      setIsExtractingFeature(false);
+    }
   };
 
   return (
@@ -281,50 +396,132 @@ const PostProcessingPage: React.FC = () => {
         />
 
         <div className="main-content">
+          <div className="tab-bar">
+            <button
+              className={`tab-button ${activeTab === 'viewer' ? 'active' : ''}`}
+              onClick={() => setActiveTab('viewer')}
+            >
+              Viewer
+            </button>
+            <button
+              className={`tab-button ${activeTab === 'features' ? 'active' : ''}`}
+              onClick={() => setActiveTab('features')}
+            >
+              Feature Summary
+            </button>
+          </div>
           <div className="top-section">
-            <div className="mask-panel">
-              <h3>뷰어 {maskSeriesId && maskInstances.length > 0 && (
-                <label className="overlay-toggle">
-                  <input
-                    type="checkbox"
-                    checked={showOverlay}
-                    onChange={(e) => setShowOverlay(e.target.checked)}
-                  />
-                  <span>Overlay 표시</span>
-                </label>
-              )}</h3>
-              <div className="mask-viewer">
-                {isCreatingMask ? (
-                  <div className="loading-state">
-                    <div className="loading-spinner" aria-label="Loading" />
-                  </div>
-                ) : isLoadingInstances ? (
-                  <div className="loading-state">Loading images...</div>
-                ) : selectedSeriesId && seriesInstances.length > 0 ? (
-                  <MaskOverlayViewer
-                    seriesId={selectedSeriesId}
-                    instances={seriesInstances}
-                    maskSeriesId={maskSeriesId ?? ''}
-                    maskInstances={maskInstances}
-                    showOverlay={showOverlay && Boolean(maskSeriesId) && maskInstances.length > 0}
-                  />
-                ) : (
-                  <div className="empty-state">Series를 선택하세요</div>
-                )}
+            {activeTab === 'viewer' && (
+              <div className="mask-panel">
+                <h3>뷰어 {maskSeriesId && maskInstances.length > 0 && (
+                  <label className="overlay-toggle">
+                    <input
+                      type="checkbox"
+                      checked={showOverlay}
+                      onChange={(e) => setShowOverlay(e.target.checked)}
+                    />
+                    <span>Overlay 표시</span>
+                  </label>
+                )}</h3>
+                <div className="mask-viewer">
+                  {isCreatingMask ? (
+                    <div className="loading-state">
+                      <div className="loading-spinner" aria-label="Loading" />
+                    </div>
+                  ) : isLoadingInstances ? (
+                    <div className="loading-state">Loading images...</div>
+                  ) : selectedSeriesId && seriesInstances.length > 0 ? (
+                    <MaskOverlayViewer
+                      seriesId={selectedSeriesId}
+                      instances={seriesInstances}
+                      maskSeriesId={maskSeriesId ?? ''}
+                      maskInstances={maskInstances}
+                      showOverlay={showOverlay && Boolean(maskSeriesId) && maskInstances.length > 0}
+                    />
+                  ) : (
+                    <div className="empty-state">Series를 선택하세요</div>
+                  )}
+                </div>
+                <div className="mask-buttons">
+                  <button
+                    className="btn-create-mask"
+                    onClick={handleCreateSegMask}
+                    disabled={isCreatingMask || !selectedSeriesId}
+                  >
+                    {isCreatingMask ? 'Creating...' : 'Create Seg-Mask'}
+                  </button>
+                  <button
+                    className="btn-load-mask"
+                    onClick={handleExtractFeature}
+                    disabled={!selectedSeriesId || isExtractingFeature}
+                  >
+                    {isExtractingFeature ? 'Extracting...' : 'Extract Feature'}
+                  </button>
+                </div>
               </div>
-              <div className="mask-buttons">
-                <button
-                  className="btn-create-mask"
-                  onClick={handleCreateSegMask}
-                  disabled={isCreatingMask || !selectedSeriesId}
-                >
-                  {isCreatingMask ? 'Creating...' : 'Create Seg-Mask'}
-                </button>
-                <button className="btn-load-mask" onClick={handleLoadSegMask}>
-                  Load Seg-Mask
-                </button>
+            )}
+            {activeTab === 'features' && (
+              <div className="mask-panel">
+                <h3>Feature Summary</h3>
+                <div className="feature-summary">
+                  {isExtractingFeature ? (
+                    <div className="loading-state">
+                      <div className="loading-spinner" aria-label="Loading" />
+                    </div>
+                  ) : featureResult ? (
+                    <div className="feature-grid">
+                      <div className="feature-card">
+                        <span className="feature-label">Dimension</span>
+                        <span className="feature-value">{featureResult.feature_dim ?? 'N/A'}</span>
+                      </div>
+                      <div className="feature-card">
+                        <span className="feature-label">Patient ID</span>
+                        <span className="feature-value">{featureResult.patient_id ?? 'N/A'}</span>
+                      </div>
+                      <div className="feature-card">
+                        <span className="feature-label">Original Shape</span>
+                        <span className="feature-value">
+                          {featureResult.original_shape ? featureResult.original_shape.join(' x ') : 'N/A'}
+                        </span>
+                      </div>
+                      <div className="feature-card">
+                        <span className="feature-label">Original Spacing</span>
+                        <span className="feature-value">
+                          {featureResult.original_spacing ? featureResult.original_spacing.join(' x ') : 'N/A'}
+                        </span>
+                      </div>
+                      <div className="feature-card feature-heatmap">
+                        <span className="feature-label">Heatmap (first 512)</span>
+                        <div className="heatmap-grid">
+                          {buildHeatmapCells(featureResult.features || []).map((cell) => (
+                            <div
+                              key={cell.key}
+                              className="heatmap-cell"
+                              style={{ backgroundColor: cell.color }}
+                              data-value={cell.value.toFixed(4)}
+                              title={cell.value.toFixed(4)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="empty-state">
+                      {featureStatus || 'Extract Feature를 실행하면 결과가 표시됩니다.'}
+                    </div>
+                  )}
+                </div>
+                <div className="mask-buttons">
+                  <button
+                    className="btn-load-mask"
+                    onClick={handleExtractFeature}
+                    disabled={!selectedSeriesId || isExtractingFeature}
+                  >
+                    {isExtractingFeature ? 'Extracting...' : 'Extract Feature'}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

@@ -5,7 +5,7 @@ import PatientQueueSidebar from '../../components/radiology/PatientQueueSidebar'
 import SimpleDicomViewer from '../../components/radiology/SimpleDicomViewer';
 import type { SelectedPatientData } from '../../components/radiology/PatientQueueSidebar';
 import { endFilming, getWaitlist } from '../../api/radiology_api';
-import { getInstanceInfo, uploadMultipleDicomFiles } from '../../api/orthanc_api';
+import { getInstanceInfo, getSeriesInstances, uploadMultipleDicomFiles } from '../../api/orthanc_api';
 import './AcquisitionPage.css';
 
 const AcquisitionPage: React.FC = () => {
@@ -129,11 +129,40 @@ const AcquisitionPage: React.FC = () => {
 
       setIsLoadingPreview(true);
       try {
-        const instanceInfos = await Promise.all(
-          results.map((result) => getInstanceInfo(result.ID))
-        );
-        setUploadedInstances(instanceInfos);
-        setUploadedSeriesId(instanceInfos[0]?.ParentSeries || '');
+        const firstInstanceInfo = await getInstanceInfo(results[0].ID);
+        const seriesId = firstInstanceInfo?.ParentSeries || '';
+        const expectedCount = results.length;
+
+        const fetchSeriesInstancesWithRetry = async (
+          series: string,
+          targetCount: number
+        ) => {
+          let lastInstances: any[] = [];
+          for (let attempt = 0; attempt < 6; attempt += 1) {
+            const instances = await getSeriesInstances(series);
+            lastInstances = instances;
+            if (instances.length >= targetCount) {
+              break;
+            }
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+          return lastInstances;
+        };
+
+        if (seriesId) {
+          const seriesInstances = await fetchSeriesInstancesWithRetry(
+            seriesId,
+            expectedCount
+          );
+          setUploadedInstances(seriesInstances);
+          setUploadedSeriesId(seriesId);
+        } else {
+          const instanceInfos = await Promise.all(
+            results.map((result) => getInstanceInfo(result.ID))
+          );
+          setUploadedInstances(instanceInfos);
+          setUploadedSeriesId(instanceInfos[0]?.ParentSeries || '');
+        }
       } catch (previewError) {
         console.error('Failed to load uploaded instances:', previewError);
         setUploadedInstances([]);
