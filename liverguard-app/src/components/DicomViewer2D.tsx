@@ -755,7 +755,7 @@ export default function DicomViewer2D({ seriesId, segmentationSeriesId }: DicomV
       }
 
       // Load nearby images first (with concurrency limit)
-      const concurrencyLimit = 3;
+      const concurrencyLimit = 15;  // Increased from 3 to 15 for faster loading
       for (let i = 0; i < nearbyIndices.length; i += concurrencyLimit) {
         if (preloadCancelledRef.current || isCancelled) break;
 
@@ -763,7 +763,7 @@ export default function DicomViewer2D({ seriesId, segmentationSeriesId }: DicomV
         await Promise.all(chunk.map(idx => loadImage(idx)));
 
         // Small delay to avoid overwhelming the browser
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise(resolve => setTimeout(resolve, 5));
       }
 
       // Load remaining images
@@ -773,7 +773,7 @@ export default function DicomViewer2D({ seriesId, segmentationSeriesId }: DicomV
         const chunk = farIndices.slice(i, i + concurrencyLimit);
         await Promise.all(chunk.map(idx => loadImage(idx)));
 
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise(resolve => setTimeout(resolve, 5));
       }
 
       if (!preloadCancelledRef.current && !isCancelled) {

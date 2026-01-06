@@ -5,6 +5,7 @@ import { getSeriesInstances, getInstanceFileUrl } from '../api/orthanc_api';
 import vtkImageData from '@kitware/vtk.js/Common/DataModel/ImageData';
 import vtkActor from '@kitware/vtk.js/Rendering/Core/Actor';
 import vtkMapper from '@kitware/vtk.js/Rendering/Core/Mapper';
+// @ts-ignore - No type definition available
 import vtkImageMarchingCubes from '@kitware/vtk.js/Filters/General/ImageMarchingCubes';
 import vtkDataArray from '@kitware/vtk.js/Common/Core/DataArray';
 import vtkOpenGLRenderWindow from '@kitware/vtk.js/Rendering/OpenGL/RenderWindow';

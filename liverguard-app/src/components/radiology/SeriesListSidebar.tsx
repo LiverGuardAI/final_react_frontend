@@ -51,10 +51,12 @@ const SeriesListSidebar: React.FC<SeriesListSidebarProps> = ({
       <div className="series-list">
         {isLoading ? (
           <div className="loading-state">Loading...</div>
-        ) : seriesList.length === 0 ? (
+        ) : seriesList.filter((series) => series.data.MainDicomTags?.Modality === 'CT').length === 0 ? (
           <div className="empty-state">Series가 없습니다</div>
         ) : (
-          seriesList.map((series) => (
+          seriesList
+            .filter((series) => series.data.MainDicomTags?.Modality === 'CT')
+            .map((series) => (
             <div
               key={series.id}
               className={`series-card ${selectedSeriesId === series.id ? 'selected' : ''}`}

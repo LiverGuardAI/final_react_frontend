@@ -2,9 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import PatientHeader from '../../components/radiology/PatientHeader';
 import PatientQueueSidebar from '../../components/radiology/PatientQueueSidebar';
+import SimpleDicomViewer from '../../components/radiology/SimpleDicomViewer';
 import type { SelectedPatientData } from '../../components/radiology/PatientQueueSidebar';
 import { endFilming, getWaitlist } from '../../api/radiology_api';
-import { uploadMultipleDicomFiles } from '../../api/orthanc_api';
+import { getInstanceInfo, uploadMultipleDicomFiles } from '../../api/orthanc_api';
 import './AcquisitionPage.css';
 
 const AcquisitionPage: React.FC = () => {
@@ -12,6 +13,11 @@ const AcquisitionPage: React.FC = () => {
   const [selectedPatientData, setSelectedPatientData] = useState<SelectedPatientData | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
   const [dicomFiles, setDicomFiles] = useState<File[]>([]);
+  const [uploadedInstances, setUploadedInstances] = useState<any[]>([]);
+  const [uploadedSeriesId, setUploadedSeriesId] = useState<string>('');
+  const [isLoadingPreview, setIsLoadingPreview] = useState<boolean>(false);
+  const hasLocalPreview = dicomFiles.length > 0;
+  const hasUploadedPreview = uploadedInstances.length > 0 && dicomFiles.length === 0;
 
   // 촬영중인 환자 자동 표시
   useEffect(() => {
@@ -121,6 +127,21 @@ const AcquisitionPage: React.FC = () => {
       console.log('Upload successful:', results);
       alert(`${dicomFiles.length}개의 DICOM 파일이 성공적으로 업로드되었습니다.`);
 
+      setIsLoadingPreview(true);
+      try {
+        const instanceInfos = await Promise.all(
+          results.map((result) => getInstanceInfo(result.ID))
+        );
+        setUploadedInstances(instanceInfos);
+        setUploadedSeriesId(instanceInfos[0]?.ParentSeries || '');
+      } catch (previewError) {
+        console.error('Failed to load uploaded instances:', previewError);
+        setUploadedInstances([]);
+        setUploadedSeriesId('');
+      } finally {
+        setIsLoadingPreview(false);
+      }
+
       // 업로드 성공 후 파일 목록 초기화
       setDicomFiles([]);
     } catch (error) {
@@ -172,48 +193,36 @@ const AcquisitionPage: React.FC = () => {
         />
 
         <div className="main-content">
-          {dicomFiles.length === 0 ? (
-            <div className="upload-area">
-              {/* 파일 업로드 */}
-              <input
-                type="file"
-                id="file-upload"
-                multiple
-                onChange={handleFileUpload}
-                style={{ display: 'none' }}
-                accept=".dcm,.dicom"
-                disabled={uploading}
-              />
-              <label
-                htmlFor="file-upload"
-                className={`upload-button ${uploading ? 'uploading' : ''}`}
-              >
-                파일 업로드
-              </label>
-
-              {/* 폴더 업로드 */}
-              <input
-                type="file"
-                id="folder-upload"
-                onChange={handleFolderUpload}
-                style={{ display: 'none' }}
-                disabled={uploading}
-                {...({ webkitdirectory: '', directory: '' } as any)}
-              />
-              <label
-                htmlFor="folder-upload"
-                className={`upload-button ${uploading ? 'uploading' : ''}`}
-              >
-                폴더 업로드
-              </label>
+          <div className="acquisition-panels">
+            <div className="viewer-panel">
+              <div className="viewer-panel-header">
+                <h3>{hasLocalPreview ? '로컬 미리보기' : '업로드 미리보기'}</h3>
+              </div>
+              <div className="viewer-panel-body">
+                {hasLocalPreview ? (
+                  <SimpleDicomViewer
+                    seriesId="local-preview"
+                    files={dicomFiles}
+                  />
+                ) : isLoadingPreview ? (
+                  <div className="viewer-loading">로딩 중...</div>
+                ) : hasUploadedPreview ? (
+                  <SimpleDicomViewer
+                    seriesId={uploadedSeriesId || 'uploaded'}
+                    instances={uploadedInstances}
+                  />
+                ) : (
+                  <div className="viewer-empty">파일을 추가하면 미리보기가 표시됩니다.</div>
+                )}
+              </div>
             </div>
-          ) : (
+
             <div className="file-list-container">
               <div className="file-list-header">
                 <h3>업로드할 파일 목록 ({dicomFiles.length}개)</h3>
                 <div className="header-buttons">
                   <label htmlFor="file-upload-add" className="add-file-button">
-                    + 파일 추가
+                    파일 업로드
                   </label>
                   <input
                     type="file"
@@ -225,7 +234,7 @@ const AcquisitionPage: React.FC = () => {
                     disabled={uploading}
                   />
                   <label htmlFor="folder-upload-add" className="add-file-button">
-                    + 폴더 추가
+                    폴더 업로드
                   </label>
                   <input
                     type="file"
@@ -245,24 +254,28 @@ const AcquisitionPage: React.FC = () => {
                 </div>
               </div>
               <div className="file-list">
-                {dicomFiles.map((file, index) => (
-                  <div key={index} className="file-item">
-                    <span className="file-name">{file.name}</span>
-                    <span className="file-size">
-                      {(file.size / 1024).toFixed(2)} KB
-                    </span>
-                    <button
-                      className="remove-button"
-                      onClick={() => handleRemoveFile(index)}
-                      disabled={uploading}
-                    >
-                      삭제
-                    </button>
-                  </div>
-                ))}
+                {dicomFiles.length === 0 ? (
+                  <div className="file-list-empty">업로드할 파일을 추가해주세요.</div>
+                ) : (
+                  dicomFiles.map((file, index) => (
+                    <div key={index} className="file-item">
+                      <span className="file-name">{file.name}</span>
+                      <span className="file-size">
+                        {(file.size / 1024).toFixed(2)} KB
+                      </span>
+                      <button
+                        className="remove-button"
+                        onClick={() => handleRemoveFile(index)}
+                        disabled={uploading}
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

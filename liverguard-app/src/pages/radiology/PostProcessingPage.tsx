@@ -1,14 +1,16 @@
 // src/pages/radiology/PostProcessingPage.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import PatientHeader from '../../components/radiology/PatientHeader';
 import SeriesListSidebar from '../../components/radiology/SeriesListSidebar';
-import SimpleDicomViewer from '../../components/radiology/SimpleDicomViewer';
 import MaskOverlayViewer from '../../components/radiology/MaskOverlayViewer';
 import {
   getSeriesList,
   getSeriesInstances,
   createSegmentationMask,
-  getSegmentationTaskStatus
+  getSegmentationTaskStatus,
+  getSeriesInfo,
+  getInstanceInfo,
+  getStudyInfo
 } from '../../api/orthanc_api';
 import './PostProcessingPage.css';
 
@@ -16,13 +18,24 @@ interface Series {
   id: string;
   data: {
     ID: string;
+    PatientMainDicomTags?: {
+      PatientName?: string;
+      PatientID?: string;
+      PatientSex?: string;
+      PatientBirthDate?: string;
+    };
+    StudyMainDicomTags?: {
+      StudyDate?: string;
+    };
     MainDicomTags: {
       Modality?: string;
       SeriesDescription?: string;
       SeriesNumber?: string;
       SeriesDate?: string;
+      StudyDate?: string;
     };
     Instances?: string[];
+    ParentStudy?: string;
   };
 }
 
@@ -31,6 +44,12 @@ interface Instance {
   MainDicomTags: {
     InstanceNumber?: string;
     SOPInstanceUID?: string;
+  };
+  PatientMainDicomTags?: {
+    PatientName?: string;
+    PatientID?: string;
+    PatientSex?: string;
+    PatientBirthDate?: string;
   };
 }
 
@@ -48,6 +67,36 @@ const PostProcessingPage: React.FC = () => {
   const [maskProgress, setMaskProgress] = useState<string>('');
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
   const [showOverlay, setShowOverlay] = useState<boolean>(true);
+  const [selectedSeriesInfo, setSelectedSeriesInfo] = useState<Series['data'] | null>(null);
+  const [selectedStudyInfo, setSelectedStudyInfo] = useState<any | null>(null);
+  const studyCacheRef = useRef<Map<string, any>>(new Map());
+
+  const formatDicomDate = (date?: string) => {
+    if (!date) return 'N/A';
+    if (date.length === 8) {
+      return `${date.substring(0, 4)}-${date.substring(4, 6)}-${date.substring(6, 8)}`;
+    }
+    return date;
+  };
+
+  const formatPatientName = (name?: string) => {
+    if (!name) return 'N/A';
+    return name.replace(/\^/g, ' ').trim();
+  };
+
+  const selectedSeries = selectedSeriesId
+    ? seriesList.find((series) => series.id === selectedSeriesId)
+    : null;
+  const patientTags =
+    selectedStudyInfo?.PatientMainDicomTags ||
+    selectedSeriesInfo?.PatientMainDicomTags ||
+    selectedSeries?.data.PatientMainDicomTags;
+  const mainTags = selectedSeriesInfo?.MainDicomTags || selectedSeries?.data.MainDicomTags;
+  const studyTags =
+    selectedStudyInfo?.MainDicomTags ||
+    selectedStudyInfo?.StudyMainDicomTags ||
+    selectedSeriesInfo?.StudyMainDicomTags ||
+    selectedSeries?.data.StudyMainDicomTags;
 
   // Fetch series list from Orthanc on component mount
   useEffect(() => {
@@ -70,17 +119,61 @@ const PostProcessingPage: React.FC = () => {
   useEffect(() => {
     if (!selectedSeriesId) {
       setSeriesInstances([]);
+      setSelectedSeriesInfo(null);
+      setSelectedStudyInfo(null);
       return;
     }
 
     const fetchInstances = async () => {
       setIsLoadingInstances(true);
       try {
-        const instances = await getSeriesInstances(selectedSeriesId);
+        const [instances, seriesInfo] = await Promise.all([
+          getSeriesInstances(selectedSeriesId),
+          getSeriesInfo(selectedSeriesId),
+        ]);
         setSeriesInstances(instances);
+
+        console.log('PostProcessingPage: seriesInfo metadata', seriesInfo);
+        let mergedInfo = seriesInfo as Series['data'];
+
+        const hasPatientTags = Boolean(mergedInfo?.PatientMainDicomTags?.PatientID);
+        if (!hasPatientTags && instances.length > 0) {
+          const instanceInfo = await getInstanceInfo(instances[0].ID);
+          console.log('PostProcessingPage: instanceInfo metadata', instanceInfo);
+          mergedInfo = {
+            ...mergedInfo,
+            PatientMainDicomTags:
+              instanceInfo?.PatientMainDicomTags ||
+              instanceInfo?.MainDicomTags ||
+              mergedInfo?.PatientMainDicomTags,
+          };
+        }
+
+        setSelectedSeriesInfo(mergedInfo);
+
+        if (mergedInfo?.ParentStudy) {
+          const cached = studyCacheRef.current.get(mergedInfo.ParentStudy);
+          if (cached) {
+            setSelectedStudyInfo(cached);
+          } else {
+            try {
+              const studyInfo = await getStudyInfo(mergedInfo.ParentStudy);
+              console.log('PostProcessingPage: studyInfo metadata', studyInfo);
+              studyCacheRef.current.set(mergedInfo.ParentStudy, studyInfo);
+              setSelectedStudyInfo(studyInfo);
+            } catch (studyError) {
+              console.error('Failed to fetch study metadata:', studyError);
+              setSelectedStudyInfo(null);
+            }
+          }
+        } else {
+          setSelectedStudyInfo(null);
+        }
       } catch (error) {
         console.error('Failed to fetch series instances:', error);
         setSeriesInstances([]);
+        setSelectedSeriesInfo(null);
+        setSelectedStudyInfo(null);
       } finally {
         setIsLoadingInstances(false);
       }
@@ -171,12 +264,12 @@ const PostProcessingPage: React.FC = () => {
   return (
     <div className="post-processing-page">
       <PatientHeader
-        patientId="TCGA-BC-4073"
-        patientName="홍길동"
-        gender="M"
-        birthDate="1998-10-08"
-        examType="CT Abdomen"
-        examDate="2025-12-11 11:17 AM"
+        patientId={patientTags?.PatientID || 'N/A'}
+        patientName={formatPatientName(patientTags?.PatientName)}
+        gender={patientTags?.PatientSex || 'N/A'}
+        birthDate={formatDicomDate(patientTags?.PatientBirthDate)}
+        examType={mainTags?.SeriesDescription || mainTags?.Modality || 'N/A'}
+        examDate={formatDicomDate(mainTags?.SeriesDate || studyTags?.StudyDate)}
       />
 
       <div className="post-processing-content">
@@ -189,24 +282,8 @@ const PostProcessingPage: React.FC = () => {
 
         <div className="main-content">
           <div className="top-section">
-            <div className="selected-series-panel">
-              <h3>선택 Series</h3>
-              <div className="series-viewer">
-                {isLoadingInstances ? (
-                  <div className="loading-state">Loading images...</div>
-                ) : selectedSeriesId && seriesInstances.length > 0 ? (
-                  <SimpleDicomViewer
-                    seriesId={selectedSeriesId}
-                    instances={seriesInstances}
-                  />
-                ) : (
-                  <div className="empty-state">Series를 선택하세요</div>
-                )}
-              </div>
-            </div>
-
             <div className="mask-panel">
-              <h3>생성 Mask {maskSeriesId && (
+              <h3>뷰어 {maskSeriesId && maskInstances.length > 0 && (
                 <label className="overlay-toggle">
                   <input
                     type="checkbox"
@@ -218,17 +295,21 @@ const PostProcessingPage: React.FC = () => {
               )}</h3>
               <div className="mask-viewer">
                 {isCreatingMask ? (
-                  <div className="loading-state">{maskProgress}</div>
-                ) : maskSeriesId && maskInstances.length > 0 && selectedSeriesId ? (
+                  <div className="loading-state">
+                    <div className="loading-spinner" aria-label="Loading" />
+                  </div>
+                ) : isLoadingInstances ? (
+                  <div className="loading-state">Loading images...</div>
+                ) : selectedSeriesId && seriesInstances.length > 0 ? (
                   <MaskOverlayViewer
                     seriesId={selectedSeriesId}
                     instances={seriesInstances}
-                    maskSeriesId={maskSeriesId}
+                    maskSeriesId={maskSeriesId ?? ''}
                     maskInstances={maskInstances}
-                    showOverlay={showOverlay}
+                    showOverlay={showOverlay && Boolean(maskSeriesId) && maskInstances.length > 0}
                   />
                 ) : (
-                  <div className="empty-state">Mask가 없습니다</div>
+                  <div className="empty-state">Series를 선택하세요</div>
                 )}
               </div>
               <div className="mask-buttons">

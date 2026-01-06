@@ -122,6 +122,22 @@ export const getSeriesNiftiUrl = (seriesId: string): string => {
 };
 
 /**
+ * Series Archive(ZIP) 다운로드
+ * GET /api/orthanc/series/{series_id}/archive/
+ */
+export const getSeriesArchive = async (seriesId: string): Promise<ArrayBuffer> => {
+  try {
+    const response = await apiClient.get(`orthanc/series/${seriesId}/archive/`, {
+      responseType: 'arraybuffer'
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Failed to download series archive:', error);
+    throw error;
+  }
+};
+
+/**
  * AI Segmentation Mask 생성 요청
  * POST /api/ai/mosec/segmentation/create/
  */

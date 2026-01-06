@@ -105,7 +105,7 @@ const AppointmentManagementPage: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<string>("");
 
   // 샘플 의사 목록
-  const [doctors] = useState<Doctor[]>([
+  const [_doctors] = useState<Doctor[]>([
     { id: 1, name: "정예진", department: "소화기내과", room: "101" },
     { id: 2, name: "송영운", department: "소화기내과", room: "102" },
     { id: 3, name: "김민수", department: "소화기내과", room: "103" },

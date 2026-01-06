@@ -106,7 +106,6 @@ const DicomViewer: React.FC<DicomViewerProps> = ({
       const maskImage = await cornerstone.loadImage(maskImageId);
 
       // Get pixel data from both images
-      const basePixelData = baseImage.getPixelData();
       const maskPixelData = maskImage.getPixelData();
 
       // Create overlay canvas

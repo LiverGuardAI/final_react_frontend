@@ -18,23 +18,26 @@ cornerstoneWADOImageLoader.configure({
 const PREFETCH_DISTANCE = 3;
 
 interface SimpleDicomViewerProps {
-  seriesId: string;
-  instances: any[];
+  seriesId?: string;
+  instances?: any[];
+  files?: File[];
 }
 
 const SimpleDicomViewer: React.FC<SimpleDicomViewerProps> = ({
   seriesId,
-  instances
+  instances = [],
+  files = []
 }) => {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [totalImages, setTotalImages] = useState(0);
   const imageIdsRef = useRef<string[]>([]);
   const hasViewportRef = useRef(false);
 
   useEffect(() => {
-    if (!viewerRef.current || instances.length === 0) return;
+    if (!viewerRef.current || (instances.length === 0 && files.length === 0)) return;
 
     const element = viewerRef.current;
 
@@ -45,19 +48,31 @@ const SimpleDicomViewer: React.FC<SimpleDicomViewerProps> = ({
       console.error('Error enabling cornerstone:', e);
     }
 
-    // InstanceNumber로 정렬
-    const sortedInstances = [...instances].sort((a, b) => {
-      const numA = parseInt(a.MainDicomTags?.InstanceNumber || '0', 10);
-      const numB = parseInt(b.MainDicomTags?.InstanceNumber || '0', 10);
-      return numA - numB;
-    });
+    setError(null);
+    setCurrentIndex(0);
+    hasViewportRef.current = false;
 
-    // 이미지 ID 생성
-    imageIdsRef.current = sortedInstances.map((instance) => {
-      const instanceId = instance.ID;
-      const url = getInstanceFileUrl(instanceId);
-      return `wadouri:${url}`;
-    });
+    if (files.length > 0) {
+      imageIdsRef.current = files.map((file) =>
+        cornerstoneWADOImageLoader.wadouri.fileManager.add(file)
+      );
+    } else {
+      // InstanceNumber로 정렬
+      const sortedInstances = [...instances].sort((a, b) => {
+        const numA = parseInt(a.MainDicomTags?.InstanceNumber || '0', 10);
+        const numB = parseInt(b.MainDicomTags?.InstanceNumber || '0', 10);
+        return numA - numB;
+      });
+
+      // 이미지 ID 생성
+      imageIdsRef.current = sortedInstances.map((instance) => {
+        const instanceId = instance.ID;
+        const url = getInstanceFileUrl(instanceId);
+        return `wadouri:${url}`;
+      });
+    }
+
+    setTotalImages(imageIdsRef.current.length);
 
     // 첫 번째 이미지 로드
     loadImage(0);
@@ -81,7 +96,7 @@ const SimpleDicomViewer: React.FC<SimpleDicomViewerProps> = ({
         console.error('Error disabling cornerstone:', e);
       }
     };
-  }, [seriesId, instances]);
+  }, [seriesId, instances, files]);
 
   const prefetchImages = (index: number) => {
     const ids = imageIdsRef.current;
@@ -137,7 +152,7 @@ const SimpleDicomViewer: React.FC<SimpleDicomViewerProps> = ({
   };
 
   const handleNext = () => {
-    if (currentIndex < instances.length - 1) {
+    if (currentIndex < totalImages - 1) {
       loadImage(currentIndex + 1);
     }
   };
@@ -164,17 +179,17 @@ const SimpleDicomViewer: React.FC<SimpleDicomViewerProps> = ({
       <div className="viewer-controls">
         <button
           onClick={handlePrevious}
-          disabled={currentIndex === 0 || isLoading}
+          disabled={currentIndex === 0 || isLoading || totalImages === 0}
           className="control-btn"
         >
           ◀ 이전
         </button>
         <span className="viewer-info">
-          {currentIndex + 1} / {instances.length}
+          {totalImages === 0 ? 0 : currentIndex + 1} / {totalImages}
         </span>
         <button
           onClick={handleNext}
-          disabled={currentIndex === instances.length - 1 || isLoading}
+          disabled={currentIndex === totalImages - 1 || isLoading || totalImages === 0}
           className="control-btn"
         >
           다음 ▶
