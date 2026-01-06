@@ -7,6 +7,13 @@ export interface UploadDicomResponse {
   Status: string;
 }
 
+export interface UploadDicomBatchResponse {
+  Status: string;
+  Count: number;
+  Instances: UploadDicomResponse[];
+  Errors?: Array<{ file: string; error: string }>;
+}
+
 /**
  * DICOM 파일을 Django를 통해 Orthanc 서버에 업로드
  * POST /api/orthanc/upload/
@@ -14,7 +21,21 @@ export interface UploadDicomResponse {
  * @param file - 업로드할 DICOM 파일
  * @returns 업로드된 인스턴스 정보
  */
-export const uploadDicomFile = async (file: File): Promise<UploadDicomResponse> => {
+type UploadProgress = {
+  loaded: number;
+  total: number;
+  percent: number;
+};
+
+type UploadOptions = {
+  onProgress?: (progress: UploadProgress) => void;
+  concurrency?: number;
+};
+
+export const uploadDicomFile = async (
+  file: File,
+  onProgress?: (loaded: number) => void
+): Promise<UploadDicomResponse[]> => {
   try {
     // FormData로 파일 전송
     const formData = new FormData();
@@ -28,10 +49,23 @@ export const uploadDicomFile = async (file: File): Promise<UploadDicomResponse> 
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        onUploadProgress: (event) => {
+          if (typeof onProgress !== 'function') return;
+          const loaded = Math.min(event.loaded ?? 0, file.size);
+          onProgress(loaded);
+        },
       }
     );
 
-    return response.data;
+    const data = response.data as UploadDicomResponse | UploadDicomResponse[] | UploadDicomBatchResponse;
+
+    if (Array.isArray(data)) {
+      return data;
+    }
+    if ((data as UploadDicomBatchResponse).Instances) {
+      return (data as UploadDicomBatchResponse).Instances;
+    }
+    return [data as UploadDicomResponse];
   } catch (error) {
     console.error('Failed to upload DICOM file:', error);
     throw error;
@@ -44,9 +78,49 @@ export const uploadDicomFile = async (file: File): Promise<UploadDicomResponse> 
  * @param files - 업로드할 DICOM 파일 배열
  * @returns 업로드된 인스턴스 정보 배열
  */
-export const uploadMultipleDicomFiles = async (files: File[]): Promise<UploadDicomResponse[]> => {
-  const uploadPromises = files.map(file => uploadDicomFile(file));
-  return Promise.all(uploadPromises);
+export const uploadMultipleDicomFiles = async (
+  files: File[],
+  options: UploadOptions = {}
+): Promise<UploadDicomResponse[]> => {
+  const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
+  const loadedByFile = new Array(files.length).fill(0);
+  const concurrency = Math.max(1, options.concurrency ?? 4);
+
+  const reportProgress = () => {
+    if (!options.onProgress) return;
+    const loaded = loadedByFile.reduce((sum, value) => sum + value, 0);
+    const percent = totalBytes ? Math.round((loaded / totalBytes) * 100) : 0;
+    options.onProgress({ loaded, total: totalBytes, percent });
+  };
+
+  const uploadSingle = async (file: File, index: number) => {
+    const result = await uploadDicomFile(file, (loaded) => {
+      loadedByFile[index] = loaded;
+      reportProgress();
+    });
+    loadedByFile[index] = file.size;
+    reportProgress();
+    return result;
+  };
+
+  let cursor = 0;
+  const results: UploadDicomResponse[][] = new Array(files.length);
+
+  const worker = async () => {
+    while (cursor < files.length) {
+      const current = cursor;
+      cursor += 1;
+      results[current] = await uploadSingle(files[current], current);
+    }
+  };
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, files.length) },
+    () => worker()
+  );
+
+  await Promise.all(workers);
+  return results.flat();
 };
 
 /**
