@@ -675,3 +675,72 @@
   background: #FFF9E6;
   color: #F57C00;
 }
+
+/* 편집 모드 스타일 */
+.infoInput {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #D0D0D0;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #333333;
+  background: #FFFFFF;
+  transition: all 0.2s;
+}
+
+.infoInput:focus {
+  outline: none;
+  border-color: #52759C;
+  box-shadow: 0 0 0 3px rgba(82, 117, 156, 0.1);
+}
+
+.editBtn {
+  padding: 10px 25px;
+  background: #8BC34A;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-right: 10px;
+}
+
+.editBtn:hover {
+  background: #7CB342;
+}
+
+.saveBtn {
+  padding: 10px 25px;
+  background: #4CAF50;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-right: 10px;
+}
+
+.saveBtn:hover {
+  background: #43A047;
+}
+
+.cancelEditBtn {
+  padding: 10px 25px;
+  background: #9E9E9E;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-right: 10px;
+}
+
+.cancelEditBtn:hover {
+  background: #757575;
+}

@@ -30,6 +30,7 @@ import PatientSearchPanel from '../../components/administration/PatientSearchPan
 import PatientRegistrationForm from '../../components/administration/PatientRegistrationForm';
 import PatientDetailModal from '../../components/administration/PatientDetailModal';
 import QuestionnaireModal, { type QuestionnaireData } from '../../components/administration/QuestionnaireModal';
+import PatientActionModal from '../../components/administration/PatientActionModal';
 
 interface Patient {
   id: string;  // patient_id is a string like "P251230002"
@@ -119,6 +120,11 @@ export default function AdministrationHomePage() {
   const [isQuestionnaireModalOpen, setIsQuestionnaireModalOpen] = useState(false);
   const [questionnairePatient, setQuestionnairePatient] = useState<Patient | null>(null);
   const [lastEncounterId, setLastEncounterId] = useState<number | null>(null);
+  const [questionnaireInitialData, setQuestionnaireInitialData] = useState<QuestionnaireData | null>(null);
+
+  // 환자 작업 선택 모달
+  const [isPatientActionModalOpen, setIsPatientActionModalOpen] = useState(false);
+  const [selectedWaitingPatient, setSelectedWaitingPatient] = useState<any>(null);
 
   // 실시간 대기열 데이터 (Hooks에서 가져온 데이터를 로컬 상태로 유지)
   const [waitingQueueData, setWaitingQueueData] = useState<any>(null);
@@ -478,6 +484,33 @@ export default function AdministrationHomePage() {
     }
   };
 
+  // 문진표 작업 핸들러 (PatientActionModal에서 호출)
+  const handleOpenQuestionnaireFromAction = () => {
+    if (!selectedWaitingPatient) return;
+
+    setLastEncounterId(selectedWaitingPatient.encounter_id);
+    setQuestionnairePatient({
+      id: selectedWaitingPatient.patient || selectedWaitingPatient.patient_id,
+      name: selectedWaitingPatient.patient_name || '이름 없음',
+      birthDate: selectedWaitingPatient.date_of_birth || 'N/A',
+      age: selectedWaitingPatient.age || 0,
+      gender: selectedWaitingPatient.gender === 'M' ? '남' : selectedWaitingPatient.gender === 'F' ? '여' : 'N/A',
+      phone: selectedWaitingPatient.phone || 'N/A',
+      emergencyContact: '',
+      address: '',
+      registrationDate: selectedWaitingPatient.created_at ? selectedWaitingPatient.created_at.split('T')[0] : 'N/A'
+    });
+
+    // 기존 문진표 데이터가 있으면 불러오기
+    if (selectedWaitingPatient.questionnaire_data) {
+      setQuestionnaireInitialData(selectedWaitingPatient.questionnaire_data);
+    } else {
+      setQuestionnaireInitialData(null);
+    }
+
+    setIsQuestionnaireModalOpen(true);
+  };
+
   // 문진표 제출 핸들러
   const handleQuestionnaireSubmit = async (data: QuestionnaireData) => {
     try {
@@ -508,6 +541,33 @@ export default function AdministrationHomePage() {
     } catch (error: any) {
       console.error('문진표 제출 실패:', error);
       alert(error.response?.data?.message || '문진표 제출 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 문진표 삭제 핸들러
+  const handleQuestionnaireDelete = async () => {
+    try {
+      if (lastEncounterId) {
+        console.log('문진표 삭제 (Encounter 업데이트):', lastEncounterId);
+        await updateEncounter(lastEncounterId, {
+          questionnaire_data: null,
+          questionnaire_status: 'NOT_STARTED'
+        });
+        alert('문진표가 삭제되었습니다.');
+
+        // 대기열 새로고침
+        Promise.all([
+          fetchWaitingQueue(),
+          fetchDashboardStats()
+        ]).catch(err => console.error('대기열 새로고침 실패:', err));
+
+        setIsQuestionnaireModalOpen(false);
+        setQuestionnairePatient(null);
+        setLastEncounterId(null);
+      }
+    } catch (error: any) {
+      console.error('문진표 삭제 실패:', error);
+      alert(error.response?.data?.message || '문진표 삭제 중 오류가 발생했습니다.');
     }
   };
 
@@ -542,8 +602,33 @@ export default function AdministrationHomePage() {
                   const doctorId = queueItem.doctor_id || queueItem.doctor;
                   const doctor = sidebarDoctors.find(d => d.doctor_id === doctorId);
 
+                  // 문진표 상태에 따른 스타일 및 텍스트
+                  const questionnaireStatus = queueItem.questionnaire_status || 'NOT_STARTED';
+                  const questionnaireDisplay = queueItem.questionnaire_status_display || '미작성';
+                  let questionnaireBadgeStyle = {};
+
+                  if (questionnaireStatus === 'COMPLETED') {
+                    questionnaireBadgeStyle = { backgroundColor: '#4CAF50', color: 'white' };
+                  } else if (questionnaireStatus === 'IN_PROGRESS') {
+                    questionnaireBadgeStyle = { backgroundColor: '#FF9800', color: 'white' };
+                  } else {
+                    questionnaireBadgeStyle = { backgroundColor: '#9E9E9E', color: 'white' };
+                  }
+
+                  const handlePatientClick = () => {
+                    // 환자 작업 선택 모달 열기
+                    setSelectedWaitingPatient(queueItem);
+                    setIsPatientActionModalOpen(true);
+                  };
+
                   return (
-                    <div key={index} className={styles.totalWaitingPatientCard}>
+                    <div
+                      key={index}
+                      className={styles.totalWaitingPatientCard}
+                      onClick={handlePatientClick}
+                      style={{ cursor: 'pointer' }}
+                      title="클릭하여 문진표 작성/확인"
+                    >
                       <div className={styles.patientMainInfo}>
                         <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
                           <span style={{fontSize: '0.75em', fontWeight: 'bold', color: '#52759C', minWidth: '24px'}}>
@@ -553,9 +638,23 @@ export default function AdministrationHomePage() {
                             {queueItem.patient_name || '이름 없음'}
                           </span>
                         </div>
-                        <span className={`${styles.statusTag} ${queueItem.encounter_status === 'IN_PROGRESS' ? styles.진료중 : styles.대기중}`} style={{fontSize: '0.75em'}}>
-                          {queueItem.encounter_status === 'IN_PROGRESS' ? '진료중' : '대기중'}
-                        </span>
+                        <div style={{display: 'flex', gap: '4px'}}>
+                          <span
+                            className={styles.questionnaireBadge}
+                            style={{
+                              fontSize: '0.7em',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontWeight: '500',
+                              ...questionnaireBadgeStyle
+                            }}
+                          >
+                            {questionnaireDisplay}
+                          </span>
+                          <span className={`${styles.statusTag} ${queueItem.encounter_status === 'IN_PROGRESS' ? styles.진료중 : styles.대기중}`} style={{fontSize: '0.75em'}}>
+                            {queueItem.encounter_status === 'IN_PROGRESS' ? '진료중' : '대기중'}
+                          </span>
+                        </div>
                       </div>
                       <div className={styles.patientDetailInfo}>
                         <div style={{fontSize: '0.75em', color: '#555'}}>
@@ -1160,15 +1259,39 @@ export default function AdministrationHomePage() {
         </div>
       )}
 
+      {/* 환자 작업 선택 모달 */}
+      <PatientActionModal
+        isOpen={isPatientActionModalOpen}
+        patient={selectedWaitingPatient ? {
+          id: selectedWaitingPatient.patient || selectedWaitingPatient.patient_id,
+          name: selectedWaitingPatient.patient_name || '이름 없음',
+          patientId: selectedWaitingPatient.patient || selectedWaitingPatient.patient_id,
+          birthDate: selectedWaitingPatient.date_of_birth || undefined,
+          gender: selectedWaitingPatient.gender === 'M' ? '남' : selectedWaitingPatient.gender === 'F' ? '여' : undefined,
+          phone: selectedWaitingPatient.phone || undefined,
+          registrationTime: selectedWaitingPatient.created_at,
+          encounterId: selectedWaitingPatient.encounter_id,
+          questionnaireStatus: selectedWaitingPatient.questionnaire_status
+        } : null}
+        onClose={() => {
+          setIsPatientActionModalOpen(false);
+          setSelectedWaitingPatient(null);
+        }}
+        onQuestionnaireAction={handleOpenQuestionnaireFromAction}
+      />
+
       {/* 문진표 작성 모달 */}
       <QuestionnaireModal
         isOpen={isQuestionnaireModalOpen}
         patient={questionnairePatient}
+        initialData={questionnaireInitialData}
         onClose={() => {
           setIsQuestionnaireModalOpen(false);
           setQuestionnairePatient(null);
+          setQuestionnaireInitialData(null);
         }}
         onSubmit={handleQuestionnaireSubmit}
+        onDelete={questionnaireInitialData ? handleQuestionnaireDelete : undefined}
       />
     </div>
   );

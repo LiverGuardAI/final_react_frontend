@@ -9,8 +9,10 @@ interface QuestionnaireModalProps {
     birthDate: string;
     gender: string;
   } | null;
+  initialData?: QuestionnaireData | null;
   onClose: () => void;
   onSubmit: (data: QuestionnaireData) => Promise<void>;
+  onDelete?: () => Promise<void>;
 }
 
 export interface QuestionnaireData {
@@ -51,10 +53,13 @@ export interface QuestionnaireData {
 const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
   isOpen,
   patient,
+  initialData,
   onClose,
   onSubmit,
+  onDelete,
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState<QuestionnaireData>({
     patient_id: '',
     chief_complaint: '',
@@ -92,9 +97,15 @@ const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
 
   React.useEffect(() => {
     if (patient && isOpen) {
-      setFormData(prev => ({ ...prev, patient_id: patient.id }));
+      if (initialData) {
+        // 기존 데이터가 있으면 불러오기
+        setFormData({ ...initialData, patient_id: patient.id });
+      } else {
+        // 새로 작성
+        setFormData(prev => ({ ...prev, patient_id: patient.id }));
+      }
     }
-  }, [patient, isOpen]);
+  }, [patient, isOpen, initialData]);
 
   const handleSubmit = async () => {
     if (!patient) return;
@@ -107,6 +118,24 @@ const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
       console.error('문진표 제출 실패:', error);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!onDelete) return;
+
+    const confirmed = window.confirm('문진표를 삭제하시겠습니까?\n삭제된 문진표는 복구할 수 없습니다.');
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      await onDelete();
+      onClose();
+    } catch (error) {
+      console.error('문진표 삭제 실패:', error);
+      alert('문진표 삭제에 실패했습니다.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -363,18 +392,33 @@ const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
               type="button"
               className={styles.submitButton}
               onClick={handleSubmit}
-              disabled={isSubmitting || !formData.chief_complaint}
-              style={{ opacity: (isSubmitting || !formData.chief_complaint) ? 0.5 : 1 }}
+              disabled={isSubmitting || isDeleting || !formData.chief_complaint}
+              style={{ opacity: (isSubmitting || isDeleting || !formData.chief_complaint) ? 0.5 : 1 }}
             >
-              {isSubmitting ? '제출 중...' : '제출'}
+              {isSubmitting ? '제출 중...' : initialData ? '수정' : '제출'}
             </button>
+            {initialData && onDelete && (
+              <button
+                type="button"
+                className={styles.cancelButton}
+                onClick={handleDelete}
+                disabled={isSubmitting || isDeleting}
+                style={{
+                  opacity: (isSubmitting || isDeleting) ? 0.5 : 1,
+                  background: '#FFCDD2',
+                  color: '#C62828'
+                }}
+              >
+                {isDeleting ? '삭제 중...' : '삭제'}
+              </button>
+            )}
             <button
               type="button"
               className={styles.cancelButton}
               onClick={onClose}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isDeleting}
             >
-              나중에 작성
+              {initialData ? '닫기' : '나중에 작성'}
             </button>
           </div>
         </div>

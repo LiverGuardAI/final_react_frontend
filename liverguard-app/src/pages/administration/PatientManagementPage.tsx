@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import styles from "./PatientManagementPage.module.css";
 import { getPatients, getEncounters, getAppointments, createQuestionnaire } from "../../api/administration_api";
+import { updatePatient, type PatientUpdateData } from "../../api/administrationApi";
 import QuestionnaireModal, { type QuestionnaireData } from "../../components/administration/QuestionnaireModal";
+import { useWebSocket } from "../../hooks/useWebSocket";
 
 interface Patient {
   id: string;
@@ -24,6 +26,8 @@ interface MedicalHistory {
   diagnosis: string;
   treatment: string;
   prescription?: string;
+  questionnaireData?: any;
+  questionnaireStatus?: string;
 }
 
 interface Appointment {
@@ -41,16 +45,24 @@ const PatientManagementPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<"전체" | "활성" | "휴면" | "탈퇴">("전체");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  const [activeTab, setActiveTab] = useState<"info" | "history" | "appointments" | "questionnaire">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "history" | "appointments">("info");
 
   // 진료 기록 및 예약 데이터
   const [medicalHistory, setMedicalHistory] = useState<MedicalHistory[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [questionnaires, setQuestionnaires] = useState<any[]>([]);
 
   // 문진표 모달
   const [isQuestionnaireModalOpen, setIsQuestionnaireModalOpen] = useState(false);
   const [questionnairePatient, setQuestionnairePatient] = useState<Patient | null>(null);
+
+  // 편집 모드
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    date_of_birth: '',
+    gender: '' as '' | 'M' | 'F',
+    phone: '',
+  });
 
   // 환자 목록 로드
   const fetchPatientList = async (search?: string) => {
@@ -58,21 +70,47 @@ const PatientManagementPage: React.FC = () => {
     try {
       const response = await getPatients(search);
 
-      // API 응답을 UI 형식으로 변환
-      const formattedPatients: Patient[] = response.results.map((p: any) => ({
-        id: p.patient_id,
-        patientId: p.patient_id,
-        name: p.name,
-        birthDate: p.date_of_birth || 'N/A',
-        gender: p.gender === 'M' ? '남' : p.gender === 'F' ? '여' : 'N/A',
-        phone: p.phone || 'N/A',
-        registrationDate: p.created_at ? p.created_at.split('T')[0] : 'N/A',
-        lastVisitDate: 'N/A', // 나중에 계산
-        totalVisits: 0, // 나중에 계산
-        status: mapStatus(p.current_status),
-      }));
+      // 각 환자의 진료 기록을 병렬로 조회 (통계 계산용)
+      const patientsWithStats = await Promise.all(
+        response.results.map(async (p: any) => {
+          try {
+            const encountersData = await getEncounters(p.patient_id);
+            const encounters = encountersData.results || [];
+            const completedEncounters = encounters.filter((e: any) => e.encounter_status === 'COMPLETED');
 
-      setPatients(formattedPatients);
+            return {
+              id: p.patient_id,
+              patientId: p.patient_id,
+              name: p.name,
+              birthDate: p.date_of_birth || 'N/A',
+              gender: p.gender === 'M' ? '남' : p.gender === 'F' ? '여' : 'N/A',
+              phone: p.phone || 'N/A',
+              registrationDate: p.created_at ? p.created_at.split('T')[0] : 'N/A',
+              lastVisitDate: completedEncounters.length > 0
+                ? completedEncounters[0].encounter_date
+                : 'N/A',
+              totalVisits: completedEncounters.length,
+              status: mapStatus(p.current_status),
+            };
+          } catch (error) {
+            // 개별 환자 조회 실패해도 계속 진행
+            return {
+              id: p.patient_id,
+              patientId: p.patient_id,
+              name: p.name,
+              birthDate: p.date_of_birth || 'N/A',
+              gender: p.gender === 'M' ? '남' : p.gender === 'F' ? '여' : 'N/A',
+              phone: p.phone || 'N/A',
+              registrationDate: p.created_at ? p.created_at.split('T')[0] : 'N/A',
+              lastVisitDate: 'N/A',
+              totalVisits: 0,
+              status: mapStatus(p.current_status),
+            };
+          }
+        })
+      );
+
+      setPatients(patientsWithStats);
     } catch (error) {
       console.error('환자 목록 조회 실패:', error);
     } finally {
@@ -101,6 +139,21 @@ const PatientManagementPage: React.FC = () => {
     return age;
   };
 
+  // 웹소켓 연결 (실시간 업데이트)
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const hostname = window.location.hostname;
+  const WS_URL = `${protocol}//${hostname}:8000/ws/clinic/`;
+
+  useWebSocket(WS_URL, {
+    onMessage: (data: any) => {
+      if (data.type === 'queue_update' || data.type === 'patient_update') {
+        console.log("🔔 환자 정보 업데이트:", data.message);
+        // 환자 목록 새로고침
+        fetchPatientList(searchTerm);
+      }
+    },
+  });
+
   useEffect(() => {
     fetchPatientList();
   }, []);
@@ -117,10 +170,29 @@ const PatientManagementPage: React.FC = () => {
   const handleViewDetails = async (patient: Patient) => {
     setSelectedPatient(patient);
     setActiveTab("info");
+    setIsEditing(false);
 
-    // 진료 기록 조회
+    // 편집 폼 초기화
+    setEditForm({
+      name: patient.name,
+      date_of_birth: patient.birthDate,
+      gender: patient.gender === '남' ? 'M' : patient.gender === '여' ? 'F' : '',
+      phone: patient.phone,
+    });
+
+    // 데이터가 이미 로드되어 있으면 API 호출 생략
+    if (medicalHistory.length > 0 && selectedPatient?.id === patient.id) {
+      return;
+    }
+
+    // 병렬로 API 호출하여 속도 개선
     try {
-      const encountersData = await getEncounters(patient.patientId);
+      const [encountersData, appointmentsData] = await Promise.all([
+        getEncounters(patient.patientId),
+        getAppointments({ patient_id: patient.patientId })
+      ]);
+
+      // 진료 기록 포맷팅 (문진표 데이터 포함)
       const formattedHistory: MedicalHistory[] = encountersData.results.map((e: any) => ({
         id: e.encounter_id,
         date: e.encounter_date,
@@ -129,6 +201,8 @@ const PatientManagementPage: React.FC = () => {
         diagnosis: e.clinical_notes || '진료 중',
         treatment: e.encounter_status === 'COMPLETED' ? '완료' : '진행 중',
         prescription: undefined,
+        questionnaireData: e.questionnaire_data,
+        questionnaireStatus: e.questionnaire_status_display,
       }));
       setMedicalHistory(formattedHistory);
 
@@ -139,29 +213,7 @@ const PatientManagementPage: React.FC = () => {
         lastVisitDate: formattedHistory.length > 0 ? formattedHistory[0].date : 'N/A'
       } : p));
 
-      // 문진표 파싱
-      const questionnaireList = encountersData.results
-        .filter((e: any) => {
-          try {
-            JSON.parse(e.chief_complaint);
-            return true;
-          } catch {
-            return false;
-          }
-        })
-        .map((e: any) => ({
-          id: e.encounter_id,
-          date: e.encounter_date,
-          data: JSON.parse(e.chief_complaint),
-        }));
-      setQuestionnaires(questionnaireList);
-    } catch (error) {
-      console.error('진료 기록 조회 실패:', error);
-    }
-
-    // 예약 내역 조회
-    try {
-      const appointmentsData = await getAppointments({ patient_id: patient.patientId });
+      // 예약 내역 포맷팅
       const formattedAppointments: Appointment[] = appointmentsData.results.map((a: any) => ({
         id: a.appointment_id,
         date: a.appointment_date,
@@ -173,18 +225,54 @@ const PatientManagementPage: React.FC = () => {
       }));
       setAppointments(formattedAppointments);
     } catch (error) {
-      console.error('예약 내역 조회 실패:', error);
+      console.error('환자 정보 조회 실패:', error);
     }
   };
 
   const handleCloseModal = () => {
     setSelectedPatient(null);
     setActiveTab("info");
+    setIsEditing(false);
   };
 
-  const handleOpenQuestionnaire = (patient: Patient) => {
-    setQuestionnairePatient(patient);
-    setIsQuestionnaireModalOpen(true);
+  const handleEditToggle = () => {
+    setIsEditing(!isEditing);
+  };
+
+  const handleSavePatient = async () => {
+    if (!selectedPatient) return;
+
+    try {
+      const updateData: PatientUpdateData = {
+        name: editForm.name,
+        date_of_birth: editForm.date_of_birth,
+        gender: editForm.gender as 'M' | 'F',
+        phone: editForm.phone || undefined,
+      };
+
+      await updatePatient(selectedPatient.patientId, updateData);
+
+      // 로컬 상태 업데이트
+      const updatedPatient = {
+        ...selectedPatient,
+        name: editForm.name,
+        birthDate: editForm.date_of_birth,
+        gender: editForm.gender === 'M' ? '남' : '여',
+        phone: editForm.phone,
+      };
+      setSelectedPatient(updatedPatient);
+
+      // 환자 목록도 업데이트
+      setPatients(prev => prev.map(p =>
+        p.id === selectedPatient.id ? updatedPatient : p
+      ));
+
+      setIsEditing(false);
+      alert('환자 정보가 수정되었습니다.');
+    } catch (error: any) {
+      console.error('환자 정보 수정 실패:', error);
+      alert(error.response?.data?.message || '환자 정보 수정에 실패했습니다.');
+    }
   };
 
   const handleQuestionnaireSubmit = async (data: QuestionnaireData) => {
@@ -303,21 +391,12 @@ const PatientManagementPage: React.FC = () => {
                       </span>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                        <button
-                          className={styles.questionnaireBtn}
-                          onClick={() => handleOpenQuestionnaire(patient)}
-                          title="문진표 작성"
-                        >
-                          문진표
-                        </button>
-                        <button
-                          className={styles.detailBtn}
-                          onClick={() => handleViewDetails(patient)}
-                        >
-                          상세보기
-                        </button>
-                      </div>
+                      <button
+                        className={styles.detailBtn}
+                        onClick={() => handleViewDetails(patient)}
+                      >
+                        상세보기
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -348,12 +427,6 @@ const PatientManagementPage: React.FC = () => {
                 기본 정보
               </button>
               <button
-                className={`${styles.tabButton} ${activeTab === "questionnaire" ? styles.active : ""}`}
-                onClick={() => setActiveTab("questionnaire")}
-              >
-                문진표
-              </button>
-              <button
                 className={`${styles.tabButton} ${activeTab === "history" ? styles.active : ""}`}
                 onClick={() => setActiveTab("history")}
               >
@@ -370,90 +443,117 @@ const PatientManagementPage: React.FC = () => {
             <div className={styles.modalBody}>
               {activeTab === "info" && (
                 <div className={styles.infoSection}>
-                  <div className={styles.infoGrid}>
-                    <div className={styles.infoRow}>
-                      <span className={styles.infoLabel}>환자번호:</span>
-                      <span className={styles.infoValue}>{selectedPatient.patientId}</span>
-                    </div>
-                    <div className={styles.infoRow}>
-                      <span className={styles.infoLabel}>이름:</span>
-                      <span className={styles.infoValue}>{selectedPatient.name}</span>
-                    </div>
-                    <div className={styles.infoRow}>
-                      <span className={styles.infoLabel}>생년월일:</span>
-                      <span className={styles.infoValue}>
-                        {selectedPatient.birthDate} ({calculateAge(selectedPatient.birthDate)}세)
-                      </span>
-                    </div>
-                    <div className={styles.infoRow}>
-                      <span className={styles.infoLabel}>성별:</span>
-                      <span className={styles.infoValue}>{selectedPatient.gender}</span>
-                    </div>
-                    <div className={styles.infoRow}>
-                      <span className={styles.infoLabel}>연락처:</span>
-                      <span className={styles.infoValue}>{selectedPatient.phone}</span>
-                    </div>
-                    <div className={styles.infoRow}>
-                      <span className={styles.infoLabel}>등록일:</span>
-                      <span className={styles.infoValue}>{selectedPatient.registrationDate}</span>
-                    </div>
-                    <div className={styles.infoRow}>
-                      <span className={styles.infoLabel}>최근 방문일:</span>
-                      <span className={styles.infoValue}>{selectedPatient.lastVisitDate}</span>
-                    </div>
-                    <div className={styles.infoRow}>
-                      <span className={styles.infoLabel}>총 방문 횟수:</span>
-                      <span className={styles.infoValue}>{selectedPatient.totalVisits}회</span>
-                    </div>
-                    <div className={styles.infoRow}>
-                      <span className={styles.infoLabel}>상태:</span>
-                      <span className={styles.infoValue}>
-                        <span className={`${styles.statusBadge} ${styles[selectedPatient.status]}`}>
-                          {selectedPatient.status}
+                  {!isEditing ? (
+                    <div className={styles.infoGrid}>
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>환자번호:</span>
+                        <span className={styles.infoValue}>{selectedPatient.patientId}</span>
+                      </div>
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>이름:</span>
+                        <span className={styles.infoValue}>{selectedPatient.name}</span>
+                      </div>
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>생년월일:</span>
+                        <span className={styles.infoValue}>
+                          {selectedPatient.birthDate} ({calculateAge(selectedPatient.birthDate)}세)
                         </span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "questionnaire" && (
-                <div className={styles.questionnaireSection}>
-                  {questionnaires.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
-                      작성된 문진표가 없습니다.
-                      <div style={{ marginTop: '20px' }}>
-                        <button
-                          className={styles.detailBtn}
-                          onClick={() => handleOpenQuestionnaire(selectedPatient)}
-                        >
-                          문진표 작성하기
-                        </button>
+                      </div>
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>성별:</span>
+                        <span className={styles.infoValue}>{selectedPatient.gender}</span>
+                      </div>
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>연락처:</span>
+                        <span className={styles.infoValue}>{selectedPatient.phone}</span>
+                      </div>
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>등록일:</span>
+                        <span className={styles.infoValue}>{selectedPatient.registrationDate}</span>
+                      </div>
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>최근 방문일:</span>
+                        <span className={styles.infoValue}>{selectedPatient.lastVisitDate}</span>
+                      </div>
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>총 방문 횟수:</span>
+                        <span className={styles.infoValue}>{selectedPatient.totalVisits}회</span>
+                      </div>
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>상태:</span>
+                        <span className={styles.infoValue}>
+                          <span className={`${styles.statusBadge} ${styles[selectedPatient.status]}`}>
+                            {selectedPatient.status}
+                          </span>
+                        </span>
                       </div>
                     </div>
                   ) : (
-                    questionnaires.map((q) => (
-                      <div key={q.id} className={styles.questionnaireCard}>
-                        <div className={styles.questionnaireHeader}>
-                          <h4 className={styles.questionnaireTitle}>간 질환 문진표</h4>
-                          <span className={styles.questionnaireDate}>작성일: {q.date}</span>
-                        </div>
-                        <div className={styles.questionSection}>
-                          <div className={styles.sectionTitle}>주 호소 (Chief Complaint)</div>
-                          <div className={styles.questionContent}>
-                            <p className={styles.questionText}>{q.data.chief_complaint || 'N/A'}</p>
-                            <div className={styles.infoRow}>
-                              <span className={styles.infoLabel}>증상 지속 기간:</span>
-                              <span className={styles.infoValue}>{q.data.symptom_duration || 'N/A'}</span>
-                            </div>
-                            <div className={styles.infoRow}>
-                              <span className={styles.infoLabel}>통증 정도 (0-10):</span>
-                              <span className={styles.infoValue}>{q.data.pain_level}/10</span>
-                            </div>
-                          </div>
-                        </div>
+                    <div className={styles.infoGrid}>
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>환자번호:</span>
+                        <span className={styles.infoValue}>{selectedPatient.patientId}</span>
                       </div>
-                    ))
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>이름:</span>
+                        <input
+                          type="text"
+                          className={styles.infoInput}
+                          value={editForm.name}
+                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                        />
+                      </div>
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>생년월일:</span>
+                        <input
+                          type="date"
+                          className={styles.infoInput}
+                          value={editForm.date_of_birth}
+                          onChange={(e) => setEditForm({ ...editForm, date_of_birth: e.target.value })}
+                        />
+                      </div>
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>성별:</span>
+                        <select
+                          className={styles.infoInput}
+                          value={editForm.gender}
+                          onChange={(e) => setEditForm({ ...editForm, gender: e.target.value as 'M' | 'F' })}
+                        >
+                          <option value="">선택</option>
+                          <option value="M">남</option>
+                          <option value="F">여</option>
+                        </select>
+                      </div>
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>연락처:</span>
+                        <input
+                          type="tel"
+                          className={styles.infoInput}
+                          value={editForm.phone}
+                          onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                        />
+                      </div>
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>등록일:</span>
+                        <span className={styles.infoValue}>{selectedPatient.registrationDate}</span>
+                      </div>
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>최근 방문일:</span>
+                        <span className={styles.infoValue}>{selectedPatient.lastVisitDate}</span>
+                      </div>
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>총 방문 횟수:</span>
+                        <span className={styles.infoValue}>{selectedPatient.totalVisits}회</span>
+                      </div>
+                      <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>상태:</span>
+                        <span className={styles.infoValue}>
+                          <span className={`${styles.statusBadge} ${styles[selectedPatient.status]}`}>
+                            {selectedPatient.status}
+                          </span>
+                        </span>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
@@ -472,6 +572,20 @@ const PatientManagementPage: React.FC = () => {
                           <span className={styles.historyDoctor}>
                             {record.doctor} ({record.department})
                           </span>
+                          {record.questionnaireStatus && (
+                            <span
+                              style={{
+                                fontSize: '0.85em',
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                backgroundColor: record.questionnaireStatus === '완료' ? '#4CAF50' : '#9E9E9E',
+                                color: 'white',
+                                marginLeft: '8px'
+                              }}
+                            >
+                              문진표: {record.questionnaireStatus}
+                            </span>
+                          )}
                         </div>
                         <div className={styles.historyBody}>
                           <div className={styles.historyRow}>
@@ -482,6 +596,41 @@ const PatientManagementPage: React.FC = () => {
                             <span className={styles.historyLabel}>치료:</span>
                             <span className={styles.historyValue}>{record.treatment}</span>
                           </div>
+
+                          {/* 문진표 데이터가 있으면 표시 */}
+                          {record.questionnaireData && (
+                            <details style={{ marginTop: '15px', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                              <summary style={{ cursor: 'pointer', fontWeight: '600', color: '#495057' }}>
+                                문진표 보기
+                              </summary>
+                              <div style={{ marginTop: '10px', paddingLeft: '10px' }}>
+                                <div className={styles.historyRow}>
+                                  <span className={styles.historyLabel}>주 증상:</span>
+                                  <span className={styles.historyValue}>{record.questionnaireData.chief_complaint || 'N/A'}</span>
+                                </div>
+                                <div className={styles.historyRow}>
+                                  <span className={styles.historyLabel}>증상 기간:</span>
+                                  <span className={styles.historyValue}>{record.questionnaireData.symptom_duration || 'N/A'}</span>
+                                </div>
+                                <div className={styles.historyRow}>
+                                  <span className={styles.historyLabel}>통증 정도:</span>
+                                  <span className={styles.historyValue}>{record.questionnaireData.pain_level || 0}/10</span>
+                                </div>
+                                {record.questionnaireData.medications && (
+                                  <div className={styles.historyRow}>
+                                    <span className={styles.historyLabel}>복용약물:</span>
+                                    <span className={styles.historyValue}>{record.questionnaireData.medications}</span>
+                                  </div>
+                                )}
+                                {record.questionnaireData.allergies && (
+                                  <div className={styles.historyRow}>
+                                    <span className={styles.historyLabel}>알레르기:</span>
+                                    <span className={styles.historyValue}>{record.questionnaireData.allergies}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </details>
+                          )}
                         </div>
                       </div>
                     ))
@@ -520,6 +669,21 @@ const PatientManagementPage: React.FC = () => {
             </div>
 
             <div className={styles.modalFooter}>
+              {activeTab === "info" && !isEditing && (
+                <button className={styles.editBtn} onClick={handleEditToggle}>
+                  수정
+                </button>
+              )}
+              {activeTab === "info" && isEditing && (
+                <>
+                  <button className={styles.saveBtn} onClick={handleSavePatient}>
+                    저장
+                  </button>
+                  <button className={styles.cancelEditBtn} onClick={handleEditToggle}>
+                    취소
+                  </button>
+                </>
+              )}
               <button className={styles.modalCloseBtn} onClick={handleCloseModal}>
                 닫기
               </button>
