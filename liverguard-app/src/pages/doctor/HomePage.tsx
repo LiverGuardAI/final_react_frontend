@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import DoctorLayout from '../../layouts/DoctorLayout';
 import { useDoctorWaitingQueue } from '../../hooks/useDoctorWaitingQueue';
 import { useDoctorDashboardStats } from '../../hooks/useDoctorDashboardStats';
 
@@ -91,7 +90,6 @@ export default function DoctorHomePage() {
   }, []);
 
   return (
-    <DoctorLayout activeTab="home">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: 'auto auto 1fr', gap: '20px', padding: '20px', height: '100%', boxSizing: 'border-box', zoom: '0.7' }}>
         {/* 첫 번째 행 왼쪽: 오늘의 진료 현황 */}
         <div style={{ gridColumn: '1', gridRow: '1', display: 'flex', flexDirection: 'column' }}>
@@ -300,6 +298,5 @@ export default function DoctorHomePage() {
           </div>
         </div>
       </div>
-    </DoctorLayout>
   );
 }

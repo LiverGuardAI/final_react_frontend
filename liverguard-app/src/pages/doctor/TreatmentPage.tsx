@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import DoctorLayout from '../../layouts/DoctorLayout';
 import styles from './TreatmentPage.module.css';
 import { useTreatment } from '../../contexts/TreatmentContext';
 import {
@@ -131,31 +130,26 @@ export default function TreatmentPage() {
 
   if (!selectedEncounterId) {
     return (
-      <DoctorLayout activeTab="treatment">
-        <div className={styles.emptyState}>
-          <div className={styles.emptyStateIcon}>🩺</div>
-          <h2>진료할 환자를 선택하세요.</h2>
-          <p>좌측 사이드바에서 환자를 선택하고 '진료시작' 버튼을 눌러주세요.</p>
-        </div>
-      </DoctorLayout>
+      <div className={styles.emptyState}>
+        <div className={styles.emptyStateIcon}>🩺</div>
+        <h2>진료할 환자를 선택하세요.</h2>
+        <p>좌측 사이드바에서 환자를 선택하고 '진료시작' 버튼을 눌러주세요.</p>
+      </div>
     );
   }
 
   if (loading || !currentEncounter) {
     return (
-      <DoctorLayout activeTab="treatment">
-        <div className={styles.loadingState}>
-          <div className={styles.spinner}></div>
-          <p>환자 정보를 불러오는 중...</p>
-        </div>
-      </DoctorLayout>
+      <div className={styles.loadingState}>
+        <div className={styles.spinner}></div>
+        <p>환자 정보를 불러오는 중...</p>
+      </div>
     );
   }
 
   const patient = currentEncounter.patient;
 
   return (
-    <DoctorLayout activeTab="treatment">
       <div className={styles.treatmentContainer}>
         {/* 환자 정보 헤더 */}
         <div className={styles.patientHeader}>
@@ -546,6 +540,5 @@ export default function TreatmentPage() {
           </div>
         </div>
       </div>
-    </DoctorLayout>
   );
 }

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import DoctorLayout from '../../layouts/DoctorLayout';
 import styles from './SchedulePage.module.css';
 
 interface WeekEvent {
@@ -129,7 +128,6 @@ export default function SchedulePage() {
   ];
 
   return (
-    <DoctorLayout activeTab="schedule">
       <div className={styles.scheduleContainer}>
       <div className={styles.mainLayout}>
         {/* 왼쪽: 달력 */}
@@ -317,6 +315,5 @@ export default function SchedulePage() {
         </div>
       </div>
     </div>
-    </DoctorLayout>
   );
 }
