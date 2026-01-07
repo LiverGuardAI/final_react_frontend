@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from "../../context/AuthContext";
-import { useWebSocket } from "../../hooks/useWebSocket";
 import { useWaitingQueue } from "../../hooks/useWaitingQueue";
 import { useDashboardStats } from "../../hooks/useDashboardStats";
 import { useDoctors } from "../../hooks/useDoctors";
@@ -215,32 +214,8 @@ export default function AdministrationHomePage() {
     }
   }, []);
 
-  // WebSocket 실시간 알림 처리 (Custom Hook 사용)
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const hostname = window.location.hostname;
-  const WS_URL = `${protocol}//${hostname}:8000/ws/clinic/`;
-
-  useWebSocket(WS_URL, {
-    onMessage: (data) => {
-      if (data.type === 'queue_update') {
-        console.log("🔔 실시간 업데이트:", data.message);
-        // WebSocket 메시지에 이미 업데이트된 데이터가 포함되어 있으므로
-        // 대기열과 통계만 새로고침 (의사, 예약은 변경 없음)
-        fetchWaitingQueue();
-        fetchDashboardStats();
-      }
-    },
-    onOpen: () => {
-      console.log("✅ WebSocket 연결 성공");
-    },
-    onClose: () => {
-      console.log("⚠️ WebSocket 연결 종료 (5초 후 자동 재연결)");
-    },
-    onError: () => {
-      console.error("❌ WebSocket 에러 (10초 폴링으로 백업)");
-    },
-    enabled: true,
-  });
+  // WebSocket은 useWaitingQueue와 useDashboardStats 내부에서 이미 연결되므로
+  // 여기서는 중복 연결하지 않음
 
   const handleTabClick = (tab: TabType) => {
     setActiveTab(tab);
