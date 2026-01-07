@@ -113,6 +113,7 @@ export interface FeatureExtractionTaskStatus {
       feature_dim?: number;
       features?: number[];
       patient_id?: string;
+      seriesinstanceuid?: string;
       original_shape?: number[];
       original_spacing?: number[];
       error?: string;

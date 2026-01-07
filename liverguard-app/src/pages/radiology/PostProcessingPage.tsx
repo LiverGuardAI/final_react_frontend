@@ -305,7 +305,11 @@ const PostProcessingPage: React.FC = () => {
             setFeatureTaskId(null);
             clearInterval(pollInterval);
           } else if (result.status === 'success') {
-            setFeatureResult(result.result);
+            const mergedResult = {
+              ...result.result,
+              seriesinstanceuid: result.result?.seriesinstanceuid ?? result.seriesinstanceuid,
+            };
+            setFeatureResult(mergedResult);
             setFeatureStatus('Feature extraction completed!');
             setIsExtractingFeature(false);
             setFeatureTaskId(null);
@@ -415,7 +419,7 @@ const PostProcessingPage: React.FC = () => {
           <div className="top-section">
             {activeTab === 'viewer' && (
               <div className="mask-panel">
-                <h3>뷰어 {maskSeriesId && maskInstances.length > 0 && (
+                <h3>Viewer {maskSeriesId && maskInstances.length > 0 && (
                   <label className="overlay-toggle">
                     <input
                       type="checkbox"
@@ -477,8 +481,8 @@ const PostProcessingPage: React.FC = () => {
                         <span className="feature-value">{featureResult.feature_dim ?? 'N/A'}</span>
                       </div>
                       <div className="feature-card">
-                        <span className="feature-label">Patient ID</span>
-                        <span className="feature-value">{featureResult.patient_id ?? 'N/A'}</span>
+                        <span className="feature-label">SeriesInstanceUID</span>
+                        <span className="feature-value">{featureResult.seriesinstanceuid ?? 'N/A'}</span>
                       </div>
                       <div className="feature-card">
                         <span className="feature-label">Original Shape</span>
