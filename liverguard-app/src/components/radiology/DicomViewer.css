@@ -35,6 +35,7 @@
   position: absolute;
   pointer-events: none;
   /* NO width/height here - JavaScript handles exact sizing */
+  z-index: 2;
 }
 
 .viewer-loading,
