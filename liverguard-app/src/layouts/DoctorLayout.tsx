@@ -6,6 +6,7 @@ import { useDoctorWaitingQueue } from '../hooks/useDoctorWaitingQueue';
 import { useDoctorDashboardStats } from '../hooks/useDoctorDashboardStats';
 import { updateEncounter } from '../api/doctorApi';
 import DoctorPatientModal from '../components/doctor/DoctorPatientModal';
+import { useTreatment } from '../contexts/TreatmentContext';
 
 interface Patient {
   encounterId: number;
@@ -18,6 +19,7 @@ interface Patient {
   queuedAt?: string;
   phone?: string;
   questionnaireStatus?: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+  questionnaireData?: any;
 }
 
 type TabType = 'home' | 'schedule' | 'treatment' | 'patientManagement' | 'examination' | 'testForm' | 'medication';
@@ -29,6 +31,7 @@ interface DoctorLayoutProps {
 
 export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps) {
   const navigate = useNavigate();
+  const { setSelectedEncounterId } = useTreatment();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [sidebarTab, setSidebarTab] = useState<'waiting' | 'completed'>('waiting');
   const [doctorId, setDoctorId] = useState<number | null>(null);
@@ -70,6 +73,7 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
         queuedAt: item.created_at || item.queued_at,
         phone: item.phone || 'N/A',
         questionnaireStatus: item.questionnaire_status || 'NOT_STARTED',
+        questionnaireData: item.questionnaire_data || null,
       };
 
       if (item.encounter_status === 'COMPLETED') {
@@ -157,13 +161,16 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
       await updateEncounter(patient.encounterId, {
         encounter_status: 'IN_PROGRESS'
       });
-      alert(`${patient.name} 환자의 진료를 시작합니다.`);
 
       // 대기열 및 통계 새로고침
       await Promise.all([
         fetchWaitingQueue(),
         fetchStats()
       ]);
+
+      // 선택된 encounter ID 설정 및 진료 페이지로 이동
+      setSelectedEncounterId(patient.encounterId);
+      navigate('/doctor/treatment');
     } catch (error: any) {
       console.error('진료 시작 실패:', error);
       alert(error.response?.data?.message || '진료 시작에 실패했습니다.');
@@ -254,34 +261,74 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
             </div>
 
             <div className={styles.patientListContent}>
-              {sidebarTab === 'waiting' && waitingPatients.length > 0 ? (
-                waitingPatients.map((patient, index) => (
-                  <div
-                    key={patient.encounterId}
-                    className={styles.patientCard}
-                    onClick={() => handlePatientCardClick(patient)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <div className={styles.patientHeader}>
-                      <span className={styles.patientName}>{patient.name}</span>
-                      <span className={styles.genderIcon}>{patient.gender === '여' ? '♀' : '♂'}</span>
+              {sidebarTab === 'waiting' ? (
+                <>
+                  {/* 진료중인 환자 (상단 우선 표시) */}
+                  {inProgressPatients.map((patient) => (
+                    <div
+                      key={patient.encounterId}
+                      className={`${styles.patientCard} ${styles.inProgress}`}
+                      onClick={() => handlePatientCardClick(patient)}
+                      style={{ cursor: 'pointer', borderLeft: '4px solid #6C5CE7' }}
+                    >
+                      <div className={styles.patientHeader}>
+                        <span className={styles.patientName}>{patient.name}</span>
+                        <span className={styles.genderIcon}>{patient.gender === '여' ? '♀' : '♂'}</span>
+                      </div>
+                      <div className={styles.patientDetails}>
+                        {patient.birthDate} | {patient.age}세 | {patient.gender}
+                      </div>
+                      <div className={styles.patientActions}>
+                        <span style={{
+                          background: '#6C5CE7',
+                          color: 'white',
+                          padding: '4px 12px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: 'bold'
+                        }}>
+                          진료중
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#999', textAlign: 'right', marginTop: '5px' }}>
+                        {patient.queuedAt ? new Date(patient.queuedAt).toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit'}) : 'N/A'}
+                      </div>
                     </div>
-                    <div className={styles.patientDetails}>
-                      {patient.birthDate} | {patient.age}세 | {patient.gender}
+                  ))}
+
+                  {/* 대기중인 환자 */}
+                  {waitingPatients.map((patient, index) => (
+                    <div
+                      key={patient.encounterId}
+                      className={styles.patientCard}
+                      onClick={() => handlePatientCardClick(patient)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div className={styles.patientHeader}>
+                        <span className={styles.patientName}>{patient.name}</span>
+                        <span className={styles.genderIcon}>{patient.gender === '여' ? '♀' : '♂'}</span>
+                      </div>
+                      <div className={styles.patientDetails}>
+                        {patient.birthDate} | {patient.age}세 | {patient.gender}
+                      </div>
+                      <div className={styles.patientActions}>
+                        <button
+                          className={`${styles.actionButton} ${styles.start}`}
+                          onClick={(e) => handleStartConsultation(patient, e)}
+                        >
+                          진료시작
+                        </button>
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#999', textAlign: 'right', marginTop: '5px' }}>
+                        {patient.queuedAt ? new Date(patient.queuedAt).toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit'}) : 'N/A'}
+                      </div>
                     </div>
-                    <div className={styles.patientActions}>
-                      <button
-                        className={`${styles.actionButton} ${styles.start}`}
-                        onClick={(e) => handleStartConsultation(patient, e)}
-                      >
-                        진료시작
-                      </button>
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#999', textAlign: 'right', marginTop: '5px' }}>
-                      {patient.queuedAt ? new Date(patient.queuedAt).toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit'}) : 'N/A'}
-                    </div>
-                  </div>
-                ))
+                  ))}
+
+                  {inProgressPatients.length === 0 && waitingPatients.length === 0 && (
+                    <div className={styles.emptyState}>대기 중인 환자가 없습니다</div>
+                  )}
+                </>
               ) : sidebarTab === 'completed' && completedPatients.length > 0 ? (
                 completedPatients.map((patient) => (
                   <div
@@ -460,7 +507,7 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
       <DoctorPatientModal
         isOpen={isPatientModalOpen}
         patient={selectedPatient}
-        questionnaireData={null} // TODO: 문진표 데이터 API에서 가져오기
+        questionnaireData={selectedPatient?.questionnaireData}
         onClose={() => setIsPatientModalOpen(false)}
       />
     </div>

@@ -597,7 +597,84 @@ export default function AdministrationHomePage() {
                   대기 중인 환자가 없습니다.
                 </div>
               ) : (
-                waitingQueueData.queue.map((queueItem: any, index: number) => {
+                <>
+                  {/* 진료중인 환자 먼저 표시 */}
+                  {waitingQueueData.queue
+                    .filter((item: any) => item.encounter_status === 'IN_PROGRESS')
+                    .map((queueItem: any, index: number) => {
+                      const doctorId = queueItem.doctor_id || queueItem.doctor;
+                      const doctor = sidebarDoctors.find(d => d.doctor_id === doctorId);
+                      const questionnaireStatus = queueItem.questionnaire_status || 'NOT_STARTED';
+                      const questionnaireDisplay = queueItem.questionnaire_status_display || '미작성';
+                      let questionnaireBadgeStyle = {};
+
+                      if (questionnaireStatus === 'COMPLETED') {
+                        questionnaireBadgeStyle = { backgroundColor: '#4CAF50', color: 'white' };
+                      } else if (questionnaireStatus === 'IN_PROGRESS') {
+                        questionnaireBadgeStyle = { backgroundColor: '#FF9800', color: 'white' };
+                      } else {
+                        questionnaireBadgeStyle = { backgroundColor: '#9E9E9E', color: 'white' };
+                      }
+
+                      const handlePatientClick = () => {
+                        setSelectedWaitingPatient(queueItem);
+                        setIsPatientActionModalOpen(true);
+                      };
+
+                      return (
+                        <div
+                          key={`inprogress-${index}`}
+                          className={styles.totalWaitingPatientCard}
+                          onClick={handlePatientClick}
+                          style={{ cursor: 'pointer', borderLeft: '4px solid #6C5CE7', backgroundColor: '#F5F3FF' }}
+                          title="클릭하여 문진표 작성/확인"
+                        >
+                          <div className={styles.patientMainInfo}>
+                            <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                              <span style={{fontSize: '0.75em', fontWeight: 'bold', color: '#6C5CE7', minWidth: '30px'}}>
+                                진료중
+                              </span>
+                              <span style={{fontSize: '1em', fontWeight: 'bold', color: '#000'}}>
+                                {queueItem.patient_name || '이름 없음'}
+                              </span>
+                            </div>
+                            <div style={{display: 'flex', gap: '4px'}}>
+                              <span
+                                className={styles.questionnaireBadge}
+                                style={{
+                                  fontSize: '0.7em',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  fontWeight: '500',
+                                  ...questionnaireBadgeStyle
+                                }}
+                              >
+                                {questionnaireDisplay}
+                              </span>
+                              <span className={`${styles.statusTag} ${styles.진료중}`} style={{fontSize: '0.75em'}}>
+                                진료중
+                              </span>
+                            </div>
+                          </div>
+                          <div className={styles.patientDetailInfo}>
+                            <div style={{fontSize: '0.75em', color: '#555'}}>
+                              환자ID: {queueItem.patient || 'N/A'}
+                            </div>
+                            <div style={{fontSize: '0.75em', color: '#555'}}>
+                              접수시간: {queueItem.created_at ? new Date(queueItem.created_at).toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit'}) : 'N/A'}
+                            </div>
+                            <div style={{fontSize: '0.75em', color: '#555'}}>
+                              배정의사: {doctor ? `${doctor.name} (${doctor.room_number || '미배정'}호)` : queueItem.doctor_name || '의사 정보 없음'}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                  {/* 대기중인 환자 표시 */}
+                  {waitingQueueData.queue
+                    .filter((item: any) => item.encounter_status !== 'IN_PROGRESS' && item.encounter_status !== 'COMPLETED')
+                    .map((queueItem: any, index: number) => {
                   // 해당 환자의 의사 정보 찾기
                   const doctorId = queueItem.doctor_id || queueItem.doctor;
                   const doctor = sidebarDoctors.find(d => d.doctor_id === doctorId);
@@ -669,7 +746,8 @@ export default function AdministrationHomePage() {
                       </div>
                     </div>
                   );
-                })
+                  })}
+                </>
               )}
             </div>
           </div>

@@ -10,6 +10,63 @@
   gap: 20px;
 }
 
+/* Empty State (환자 선택 전) */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  text-align: center;
+}
+
+.emptyStateIcon {
+  font-size: 80px;
+  margin-bottom: 20px;
+}
+
+.emptyState h2 {
+  font-size: 28px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.emptyState p {
+  font-size: 16px;
+  color: #666;
+}
+
+/* Loading State */
+.loadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  text-align: center;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #6C5CE7;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loadingState p {
+  font-size: 16px;
+  color: #666;
+}
+
 /* 환자 정보 헤더 */
 .patientHeader {
   background: #FFF;
@@ -72,227 +129,355 @@
   color: #7B1FA2;
 }
 
-/* 메인 레이아웃 */
+/* 메인 레이아웃 (50:50) */
 .mainLayout {
   display: grid;
-  grid-template-columns: 350px 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 20px;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
-/* 왼쪽 섹션 */
+/* 왼쪽 섹션 (진료 기록 & 검사 결과) */
 .leftSection {
   display: flex;
   flex-direction: column;
-  gap: 20px;
   min-height: 0;
+  background: #FFF;
+  border-radius: 15px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+/* 왼쪽 탭 헤더 */
+.leftTabHeader {
+  display: flex;
+  border-bottom: 2px solid #E0E0E0;
+  background: #FAFAFA;
+  flex-shrink: 0;
+}
+
+.leftTabButton {
+  flex: 1;
+  padding: 16px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.leftTabButton:hover {
+  background: #F5F5F5;
+  color: #333;
+}
+
+.leftTabButton.active {
+  color: #6C5CE7;
+  background: #FFF;
+  border-bottom: 3px solid #6C5CE7;
+}
+
+/* 왼쪽 탭 컨텐츠 (스크롤 가능) */
+.leftTabContent {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .recordCard {
-  background: #FFF;
-  border-radius: 15px;
+  background: #FAFAFA;
+  border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
+  border: 1px solid #E0E0E0;
 }
 
 .recordCard h3 {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
-  margin-bottom: 15px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  margin: 0 0 16px 0;
+  color: #333;
 }
 
 .recordList {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .recordItem {
-  padding: 12px;
-  background: #F5F7FA;
+  background: #FFF;
+  padding: 16px;
   border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
+  border: 1px solid #E0E0E0;
 }
 
 .recordDate {
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 6px;
+  font-weight: 700;
+  font-size: 15px;
+  color: #333;
+  margin-bottom: 8px;
 }
 
 .recordDetail {
-  font-size: 15px;
+  font-size: 14px;
   color: #666;
-  margin-bottom: 4px;
-}
-
-.recordDetail:last-of-type {
-  margin-bottom: 0;
+  margin: 4px 0;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .detailButton {
-  margin-top: 8px;
-  padding: 8px 14px;
-  background: #52759C;
-  color: #FFF;
+  margin-top: 10px;
+  padding: 6px 14px;
+  background: #6C5CE7;
+  color: white;
   border: none;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
+  transition: background 0.2s;
+}
+
+.detailButton:hover {
+  background: #5B4BC6;
+}
+
+.emptyRecord {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+  font-size: 14px;
 }
 
 /* 검사 결과 */
 .testResultTitle {
-  font-size: 16px;
   font-weight: 600;
+  font-size: 15px;
+  color: #333;
   margin-bottom: 10px;
 }
 
 .testResultGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  font-size: 15px;
-  margin-bottom: 15px;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.testResultGrid div {
+  background: #FFF;
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #666;
+  border: 1px solid #E0E0E0;
 }
 
 .viewButton {
-  padding: 8px 14px;
-  color: #FFF;
+  width: 100%;
+  padding: 10px;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
+  transition: all 0.2s;
 }
 
 .viewButton.lab {
-  background: #388E3C;
+  background: #E8F5E9;
+  color: #388E3C;
+}
+
+.viewButton.lab:hover {
+  background: #C8E6C9;
 }
 
 .viewButton.ct {
-  background: #7B1FA2;
+  background: #F3E5F5;
+  color: #7B1FA2;
 }
 
-/* 오른쪽 작성 영역 */
+.viewButton.ct:hover {
+  background: #E1BEE7;
+}
+
+/* 문진표 컨텐츠 */
+.questionnaireContent {
+  background: #FAFAFA;
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid #E0E0E0;
+}
+
+.questionnaireContent h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 16px 0;
+  color: #333;
+}
+
+.questionnaireData {
+  background: #FFF;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #E0E0E0;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.questionnaireData pre {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #333;
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* 오른쪽 섹션 (진료 작성) */
 .rightSection {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
 }
 
 .writeCard {
   background: #FFF;
   border-radius: 15px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
-/* 탭 */
+/* 탭 헤더 */
 .tabHeader {
-  border-bottom: 1px solid #E0E0E0;
-  padding: 0 20px;
+  border-bottom: 2px solid #E0E0E0;
+  background: #FAFAFA;
+  flex-shrink: 0;
 }
 
 .tabButtons {
   display: flex;
-  gap: 0;
 }
 
 .tabButton {
   flex: 1;
-  background: #FFF;
-  border: none;
-  padding: 18px;
-  font-size: 20px;
+  padding: 16px 20px;
+  font-size: 16px;
   font-weight: 600;
+  border: none;
+  background: transparent;
   color: #666;
   cursor: pointer;
-  border-bottom: none;
   transition: all 0.2s;
 }
 
-.tabButton.active {
-  background: #D7E8FB;
-  color: #000;
-  border-bottom: none;
+.tabButton:hover {
+  background: #F5F5F5;
+  color: #333;
 }
 
-/* 탭 컨텐츠 */
+.tabButton.active {
+  color: #6C5CE7;
+  background: #FFF;
+  border-bottom: 3px solid #6C5CE7;
+}
+
+/* 탭 컨텐츠 (스크롤 가능) */
 .tabContent {
-  padding: 30px;
   flex: 1;
-  overflow: auto;
-  min-height: 0;
+  overflow-y: auto;
+  padding: 24px;
 }
 
 .formSection {
   display: flex;
   flex-direction: column;
-  gap: 25px;
+  gap: 20px;
 }
 
 .formGroup {
   display: flex;
   flex-direction: column;
+  gap: 8px;
 }
 
 .formLabel {
-  font-size: 16px;
   font-weight: 600;
-  display: block;
-  margin-bottom: 8px;
+  font-size: 15px;
+  color: #333;
 }
 
 .formLabelRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
 }
 
 .formInput {
-  width: 100%;
-  padding: 12px;
-  font-size: 15px;
+  padding: 12px 16px;
   border: 1px solid #DDD;
   border-radius: 8px;
+  font-size: 15px;
+  transition: border-color 0.2s;
+}
+
+.formInput:focus {
+  outline: none;
+  border-color: #6C5CE7;
 }
 
 .formTextarea {
-  width: 100%;
-  min-height: 150px;
-  padding: 12px;
-  font-size: 15px;
+  padding: 12px 16px;
   border: 1px solid #DDD;
   border-radius: 8px;
+  font-size: 15px;
+  min-height: 120px;
   resize: vertical;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.formTextarea:focus {
+  outline: none;
+  border-color: #6C5CE7;
 }
 
 .aiButton {
-  padding: 8px 14px;
-  background: #52759C;
-  color: #FFF;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
+  transition: transform 0.2s;
 }
 
-/* 검사 오더 */
+.aiButton:hover {
+  transform: scale(1.05);
+}
+
 .orderCheckboxes {
   display: flex;
-  gap: 15px;
+  gap: 16px;
   flex-wrap: wrap;
 }
 
@@ -301,152 +486,194 @@
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  padding: 10px 15px;
-  background: #F5F7FA;
-  border-radius: 8px;
+  font-size: 15px;
 }
 
 .checkboxLabel input[type="checkbox"] {
   width: 18px;
   height: 18px;
+  cursor: pointer;
 }
 
-.checkboxLabel span {
-  font-size: 16px;
-}
-
-/* 처방 약물 */
-.prescriptionRow {
+/* HCC 진단 상세 정보 */
+.hccDetailsSection {
+  background: #F5F3FF;
+  border: 2px solid #6C5CE7;
+  border-radius: 12px;
+  padding: 20px;
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sectionSubtitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #6C5CE7;
+  margin: 0 0 8px 0;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+/* 버튼 그룹 */
+.buttonGroup {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.tempSaveButton {
+  padding: 12px 24px;
+  background: #E0E0E0;
+  color: #333;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.tempSaveButton:hover {
+  background: #D0D0D0;
+}
+
+.submitButton {
+  padding: 12px 32px;
+  background: #6C5CE7;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.submitButton:hover {
+  background: #5B4BC6;
+}
+
+/* 처방전 관련 스타일 */
+.prescriptionRow {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr auto;
+  gap: 8px;
   align-items: center;
 }
 
 .prescriptionRow input {
-  padding: 12px;
-  font-size: 15px;
+  padding: 10px 12px;
   border: 1px solid #DDD;
-  border-radius: 8px;
-}
-
-.prescriptionRow input[type="text"]:first-child {
-  flex: 2;
-}
-
-.prescriptionRow input[type="text"]:nth-child(2),
-.prescriptionRow input[type="text"]:nth-child(3) {
-  flex: 1;
-}
-
-.prescriptionRow input[type="number"] {
-  width: 80px;
-}
-
-.deleteButton {
-  padding: 12px;
-  background: #FF5252;
-  color: #FFF;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
+  border-radius: 6px;
+  font-size: 14px;
 }
 
 .prescriptionItem {
+  background: #F5F5F5;
   padding: 12px;
-  background: #E8F5E9;
   border-radius: 8px;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
+.prescriptionInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .prescriptionInfo div:first-child {
-  font-size: 16px;
   font-weight: 600;
-  margin-bottom: 4px;
+  color: #333;
 }
 
 .prescriptionInfo div:last-child {
-  font-size: 15px;
+  font-size: 13px;
   color: #666;
+}
+
+.deleteButton {
+  background: #F44336;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.deleteButton:hover {
+  background: #D32F2F;
 }
 
 .editButton {
-  padding: 8px 14px;
-  background: #FFF;
-  border: 1px solid #DDD;
+  background: #6C5CE7;
+  color: white;
+  border: none;
   border-radius: 6px;
-  cursor: pointer;
+  padding: 6px 14px;
   font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.editButton:hover {
+  background: #5B4BC6;
 }
 
 .addButton {
-  margin-top: 12px;
   padding: 10px 16px;
-  background: #52759C;
-  color: #FFF;
-  border: none;
+  background: #FFF;
+  color: #6C5CE7;
+  border: 2px dashed #6C5CE7;
   border-radius: 8px;
   font-size: 14px;
-  cursor: pointer;
-  width: auto;
-  align-self: flex-start;
-}
-
-/* HCC 진단 상세 정보 */
-.hccDetailsSection {
-  padding: 20px;
-  background: #F8F9FA;
-  border-radius: 12px;
-  border-left: 4px solid #388E3C;
-}
-
-.sectionSubtitle {
-  font-size: 20px;
-  font-weight: 700;
-  margin: 0 0 20px 0;
-  color: #388E3C;
-}
-
-.formRow {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
-  margin-bottom: 15px;
-}
-
-.formRow:last-child {
-  margin-bottom: 0;
-}
-
-/* 버튼 그룹 */
-.buttonGroup {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #E0E0E0;
-}
-
-.tempSaveButton {
-  padding: 12px 24px;
-  font-size: 16px;
   font-weight: 600;
-  color: #666;
-  background: #F5F7FA;
-  border: none;
-  border-radius: 8px;
   cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 8px;
 }
 
-.submitButton {
-  padding: 12px 24px;
-  font-size: 16px;
-  font-weight: 600;
-  color: #FFF;
-  background: #52759C;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
+.addButton:hover {
+  background: #F5F3FF;
+}
+
+/* 스크롤바 스타일 */
+.leftTabContent::-webkit-scrollbar,
+.tabContent::-webkit-scrollbar,
+.recordList::-webkit-scrollbar,
+.questionnaireData::-webkit-scrollbar {
+  width: 8px;
+}
+
+.leftTabContent::-webkit-scrollbar-track,
+.tabContent::-webkit-scrollbar-track,
+.recordList::-webkit-scrollbar-track,
+.questionnaireData::-webkit-scrollbar-track {
+  background: #F5F5F5;
+  border-radius: 4px;
+}
+
+.leftTabContent::-webkit-scrollbar-thumb,
+.tabContent::-webkit-scrollbar-thumb,
+.recordList::-webkit-scrollbar-thumb,
+.questionnaireData::-webkit-scrollbar-thumb {
+  background: #C0C0C0;
+  border-radius: 4px;
+}
+
+.leftTabContent::-webkit-scrollbar-thumb:hover,
+.tabContent::-webkit-scrollbar-thumb:hover,
+.recordList::-webkit-scrollbar-thumb:hover,
+.questionnaireData::-webkit-scrollbar-thumb:hover {
+  background: #A0A0A0;
 }
