@@ -94,6 +94,9 @@ const PostProcessingPage: React.FC = () => {
   const [measurementResetToken, setMeasurementResetToken] = useState<number>(0);
   const [zoomCommand, setZoomCommand] = useState<{ type: 'in' | 'out' | 'reset'; token: number } | null>(null);
   const studyCacheRef = useRef<Map<string, any>>(new Map());
+  const seriesInfoCacheRef = useRef<Map<string, Series['data']>>(new Map());
+  const seriesInstancesCacheRef = useRef<Map<string, Instance[]>>(new Map());
+  const maskSeriesMapRef = useRef<Map<string, { maskSeriesId: string; maskInstances: Instance[] }>>(new Map());
 
   const formatDicomDate = (date?: string) => {
     if (!date) return 'N/A';
@@ -185,6 +188,8 @@ const PostProcessingPage: React.FC = () => {
       setSeriesInstances([]);
       setSelectedSeriesInfo(null);
       setSelectedStudyInfo(null);
+      setMaskSeriesId(null);
+      setMaskInstances([]);
       setFeatureResult(null);
       setFeatureStatus('');
       setFeatureTaskId(null);
@@ -199,6 +204,39 @@ const PostProcessingPage: React.FC = () => {
         setFeatureStatus('');
         setFeatureTaskId(null);
         setIsExtractingFeature(false);
+        const cachedInstances = seriesInstancesCacheRef.current.get(selectedSeriesId);
+        const cachedInfo = seriesInfoCacheRef.current.get(selectedSeriesId);
+        if (cachedInstances && cachedInfo) {
+          setSeriesInstances(cachedInstances);
+          setSelectedSeriesInfo(cachedInfo);
+          if (cachedInfo?.ParentStudy) {
+            const cachedStudy = studyCacheRef.current.get(cachedInfo.ParentStudy);
+            if (cachedStudy) {
+              setSelectedStudyInfo(cachedStudy);
+            } else {
+              try {
+                const studyInfo = await getStudyInfo(cachedInfo.ParentStudy);
+                studyCacheRef.current.set(cachedInfo.ParentStudy, studyInfo);
+                setSelectedStudyInfo(studyInfo);
+              } catch (studyError) {
+                console.error('Failed to fetch study metadata:', studyError);
+                setSelectedStudyInfo(null);
+              }
+            }
+          } else {
+            setSelectedStudyInfo(null);
+          }
+          const cachedMask = maskSeriesMapRef.current.get(selectedSeriesId);
+          if (cachedMask) {
+            setMaskSeriesId(cachedMask.maskSeriesId);
+            setMaskInstances(cachedMask.maskInstances);
+          } else {
+            setMaskSeriesId(null);
+            setMaskInstances([]);
+          }
+          setIsLoadingInstances(false);
+          return;
+        }
         const [instances, seriesInfo] = await Promise.all([
           getSeriesInstances(selectedSeriesId),
           getSeriesInfo(selectedSeriesId),
@@ -222,6 +260,8 @@ const PostProcessingPage: React.FC = () => {
         }
 
         setSelectedSeriesInfo(mergedInfo);
+        seriesInstancesCacheRef.current.set(selectedSeriesId, instances);
+        seriesInfoCacheRef.current.set(selectedSeriesId, mergedInfo);
 
         if (mergedInfo?.ParentStudy) {
           const cached = studyCacheRef.current.get(mergedInfo.ParentStudy);
@@ -241,11 +281,22 @@ const PostProcessingPage: React.FC = () => {
         } else {
           setSelectedStudyInfo(null);
         }
+
+        const cachedMask = maskSeriesMapRef.current.get(selectedSeriesId);
+        if (cachedMask) {
+          setMaskSeriesId(cachedMask.maskSeriesId);
+          setMaskInstances(cachedMask.maskInstances);
+        } else {
+          setMaskSeriesId(null);
+          setMaskInstances([]);
+        }
       } catch (error) {
         console.error('Failed to fetch series instances:', error);
         setSeriesInstances([]);
         setSelectedSeriesInfo(null);
         setSelectedStudyInfo(null);
+        setMaskSeriesId(null);
+        setMaskInstances([]);
       } finally {
         setIsLoadingInstances(false);
       }
@@ -284,6 +335,12 @@ const PostProcessingPage: React.FC = () => {
             // Fetch mask instances
             const instances = await getSeriesInstances(resultMaskSeriesId);
             setMaskInstances(instances);
+            if (selectedSeriesId) {
+              maskSeriesMapRef.current.set(selectedSeriesId, {
+                maskSeriesId: resultMaskSeriesId,
+                maskInstances: instances,
+              });
+            }
 
             clearInterval(pollInterval);
           }
@@ -439,49 +496,52 @@ const PostProcessingPage: React.FC = () => {
           <div className="top-section">
             {activeTab === 'viewer' && (
               <div className="mask-panel">
-                <h3>Viewer {maskSeriesId && maskInstances.length > 0 && (
-                  <div className="overlay-controls">
-                    <label className="overlay-toggle">
-                      <input
-                        type="checkbox"
-                        checked={showOverlay}
-                        onChange={(e) => setShowOverlay(e.target.checked)}
-                      />
-                      <span>Overlay 표시</span>
-                    </label>
-                    <select
-                      className="overlay-select"
-                      value={maskFilter}
-                      onChange={(e) => setMaskFilter(e.target.value as 'all' | 'liver' | 'tumor')}
-                      disabled={!showOverlay}
-                    >
-                      <option value="all">전체</option>
-                      <option value="liver">Liver만</option>
-                      <option value="tumor">Tumor만</option>
-                    </select>
-                    <label className="overlay-opacity">
-                      <span>투명도</span>
-                      <input
-                        type="range"
-                        min={0.1}
-                        max={1}
-                        step={0.05}
-                        value={maskOpacity}
-                        onChange={(e) => setMaskOpacity(Number(e.target.value))}
+                <h3>
+                  <span>Viewer</span>
+                  {isCreatingMask && (
+                    <span className="viewer-status">
+                      <span className="loading-spinner small" aria-label="Loading" />
+                      마스크 생성 중...
+                    </span>
+                  )}
+                  {maskSeriesId && maskInstances.length > 0 && (
+                    <div className="overlay-controls">
+                      <label className="overlay-toggle">
+                        <input
+                          type="checkbox"
+                          checked={showOverlay}
+                          onChange={(e) => setShowOverlay(e.target.checked)}
+                        />
+                        <span>Overlay 표시</span>
+                      </label>
+                      <select
+                        className="overlay-select"
+                        value={maskFilter}
+                        onChange={(e) => setMaskFilter(e.target.value as 'all' | 'liver' | 'tumor')}
                         disabled={!showOverlay}
-                      />
-                    </label>
-                  </div>
-                )}</h3>
+                      >
+                        <option value="all">전체</option>
+                        <option value="liver">Liver만</option>
+                        <option value="tumor">Tumor만</option>
+                      </select>
+                      <label className="overlay-opacity">
+                        <span>투명도</span>
+                        <input
+                          type="range"
+                          min={0.1}
+                          max={1}
+                          step={0.05}
+                          value={maskOpacity}
+                          onChange={(e) => setMaskOpacity(Number(e.target.value))}
+                          disabled={!showOverlay}
+                        />
+                      </label>
+                    </div>
+                  )}
+                </h3>
                 <div className="viewer-with-tools">
                   <div className="mask-viewer">
-                  {isCreatingMask ? (
-                    <div className="loading-state">
-                      <div className="loading-spinner" aria-label="Loading" />
-                    </div>
-                  ) : isLoadingInstances ? (
-                    <div className="loading-state">Loading images...</div>
-                  ) : selectedSeriesId && seriesInstances.length > 0 ? (
+                  {selectedSeriesId && seriesInstances.length > 0 ? (
                     <MaskOverlayViewer
                       seriesId={selectedSeriesId}
                       instances={seriesInstances}
@@ -516,6 +576,8 @@ const PostProcessingPage: React.FC = () => {
                         }
                       }}
                     />
+                  ) : isLoadingInstances ? (
+                    <div className="loading-state">Loading images...</div>
                   ) : (
                     <div className="empty-state">Series를 선택하세요</div>
                   )}

@@ -13,9 +13,13 @@ cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
 // Configure WADO Image Loader
 cornerstoneWADOImageLoader.configure({
   useWebWorkers: true,
+  decodeConfig: {
+    convertFloatPixelDataToInt: false,
+  },
 });
 
 const PREFETCH_DISTANCE = 3;
+const PREFETCH_CONCURRENCY = 12;
 // Fixed color mapping for specific mask values
 // This ensures consistent colors across all slices
 const FIXED_MASK_COLORS: { [key: number]: { r: number; g: number; b: number; a: number } } = {
@@ -119,6 +123,7 @@ const MaskOverlayViewer = ({
   } | null>(null);
   const measurementBoxRef = useRef<typeof measurementBox>(null);
   const isDraggingRef = useRef(false);
+  const prefetchTokenRef = useRef(0);
 
   // Keep showOverlayRef in sync with showOverlay state
   useEffect(() => {
@@ -164,6 +169,60 @@ const MaskOverlayViewer = ({
     renderMaskOverlay();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [measurementResetToken]);
+
+  const isImageCached = useCallback((imageId?: string) => {
+    if (!imageId) return false;
+    const cache = (cornerstone as any).imageCache;
+    if (!cache || typeof cache.getImageLoadObject !== 'function') {
+      return false;
+    }
+    return Boolean(cache.getImageLoadObject(imageId));
+  }, []);
+
+  const prefetchAllImages = useCallback((startIndex: number) => {
+    const total = baseImageIdsRef.current.length;
+    if (!total) return;
+    const token = ++prefetchTokenRef.current;
+
+    const loadCached = (imageId?: string) => {
+      if (!imageId || isImageCached(imageId)) {
+        return Promise.resolve();
+      }
+      return cornerstone.loadAndCacheImage(imageId).catch(() => undefined);
+    };
+
+    const nearbyIndices: number[] = [];
+    const farIndices: number[] = [];
+    for (let i = 0; i < total; i += 1) {
+      if (i === startIndex) continue;
+      if (Math.abs(i - startIndex) <= 10) {
+        nearbyIndices.push(i);
+      } else {
+        farIndices.push(i);
+      }
+    }
+
+    const loadIndex = async (index: number) => {
+      await Promise.all([
+        loadCached(baseImageIdsRef.current[index]),
+        loadCached(maskImageIdsRef.current[index]),
+      ]);
+    };
+
+    const runQueue = async (queue: number[]) => {
+      for (let i = 0; i < queue.length; i += PREFETCH_CONCURRENCY) {
+        if (token !== prefetchTokenRef.current) return;
+        const chunk = queue.slice(i, i + PREFETCH_CONCURRENCY);
+        await Promise.all(chunk.map(loadIndex));
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+    };
+
+    void (async () => {
+      await runQueue(nearbyIndices);
+      await runQueue(farIndices);
+    })();
+  }, [isImageCached]);
 
   // Render mask overlay on separate canvas layer
   const renderMaskOverlay = useCallback(() => {
@@ -358,6 +417,7 @@ const MaskOverlayViewer = ({
   }, [currentIndex, measurementBoxes, maskFilter, maskOpacity]);
 
   useEffect(() => {
+    prefetchTokenRef.current += 1;
     if (!viewerRef.current || instances.length === 0) return;
 
     const element = viewerRef.current;
@@ -398,7 +458,7 @@ const MaskOverlayViewer = ({
     }
 
     // 첫 번째 이미지 로드
-    loadImage(0);
+    loadImage(0).catch(() => undefined);
 
     // IMAGE_RENDERED event handler - called whenever image is rendered
     const handleImageRendered = () => {
@@ -434,7 +494,7 @@ const MaskOverlayViewer = ({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seriesId, instances, maskSeriesId, maskInstances]);
+  }, [seriesId, instances, maskSeriesId, maskInstances, prefetchAllImages]);
 
   // showOverlay 변경 시 오버레이 다시 렌더링
   useEffect(() => {
@@ -508,12 +568,16 @@ const MaskOverlayViewer = ({
   const loadImage = async (index: number) => {
     if (!viewerRef.current || !baseImageIdsRef.current[index]) return;
 
-    setIsLoading(true);
+    const baseImageId = baseImageIdsRef.current[index];
+    const cached = isImageCached(baseImageId);
+    if (!cached) {
+      setIsLoading(true);
+    }
     setError(null);
 
     try {
       // Load base image
-      const image = await cornerstone.loadAndCacheImage(baseImageIdsRef.current[index]);
+      const image = await cornerstone.loadAndCacheImage(baseImageId);
       const element = viewerRef.current;
 
       // Load corresponding mask image if available
@@ -563,25 +627,34 @@ const MaskOverlayViewer = ({
       }, 50);
 
       setCurrentIndex(index);
-      setIsLoading(false);
+      if (!cached) {
+        setIsLoading(false);
+      }
 
-      // Prefetch adjacent slices for smoother scrolling
+      prefetchAllImages(index);
+
+      // Prefetch adjacent slices for smoother scrolling (small priority boost)
       for (let offset = 1; offset <= PREFETCH_DISTANCE; offset++) {
         const nextIndex = index + offset;
         const prevIndex = index - offset;
 
-        if (baseImageIdsRef.current[nextIndex]) {
-          cornerstone.loadAndCacheImage(baseImageIdsRef.current[nextIndex]).catch(() => undefined);
+        const nextBase = baseImageIdsRef.current[nextIndex];
+        const prevBase = baseImageIdsRef.current[prevIndex];
+        const nextMask = maskImageIdsRef.current[nextIndex];
+        const prevMask = maskImageIdsRef.current[prevIndex];
+
+        if (nextBase && !isImageCached(nextBase)) {
+          cornerstone.loadAndCacheImage(nextBase).catch(() => undefined);
         }
-        if (baseImageIdsRef.current[prevIndex]) {
-          cornerstone.loadAndCacheImage(baseImageIdsRef.current[prevIndex]).catch(() => undefined);
+        if (prevBase && !isImageCached(prevBase)) {
+          cornerstone.loadAndCacheImage(prevBase).catch(() => undefined);
         }
 
-        if (maskImageIdsRef.current[nextIndex]) {
-          cornerstone.loadAndCacheImage(maskImageIdsRef.current[nextIndex]).catch(() => undefined);
+        if (nextMask && !isImageCached(nextMask)) {
+          cornerstone.loadAndCacheImage(nextMask).catch(() => undefined);
         }
-        if (maskImageIdsRef.current[prevIndex]) {
-          cornerstone.loadAndCacheImage(maskImageIdsRef.current[prevIndex]).catch(() => undefined);
+        if (prevMask && !isImageCached(prevMask)) {
+          cornerstone.loadAndCacheImage(prevMask).catch(() => undefined);
         }
       }
     } catch (err) {
@@ -623,7 +696,6 @@ const MaskOverlayViewer = ({
         onMouseUp={handleMeasurementMouseUp}
         onMouseLeave={handleMeasurementMouseUp}
       >
-        {isLoading && <div className="viewer-loading">로딩 중...</div>}
         {error && <div className="viewer-error">{error}</div>}
       </div>
       <div className="viewer-controls">
