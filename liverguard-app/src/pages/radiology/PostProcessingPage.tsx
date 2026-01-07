@@ -72,6 +72,8 @@ const PostProcessingPage: React.FC = () => {
   const [maskProgress, setMaskProgress] = useState<string>('');
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
   const [showOverlay, setShowOverlay] = useState<boolean>(true);
+  const [maskFilter, setMaskFilter] = useState<'all' | 'liver' | 'tumor'>('all');
+  const [maskOpacity, setMaskOpacity] = useState<number>(0.7);
   const [selectedSeriesInfo, setSelectedSeriesInfo] = useState<Series['data'] | null>(null);
   const [selectedStudyInfo, setSelectedStudyInfo] = useState<any | null>(null);
   const [isExtractingFeature, setIsExtractingFeature] = useState<boolean>(false);
@@ -79,6 +81,18 @@ const PostProcessingPage: React.FC = () => {
   const [featureTaskId, setFeatureTaskId] = useState<string | null>(null);
   const [featureStatus, setFeatureStatus] = useState<string>('');
   const [featureResult, setFeatureResult] = useState<any | null>(null);
+  const [measurementEnabled, setMeasurementEnabled] = useState<boolean>(false);
+  const [measurementDimensions, setMeasurementDimensions] = useState<{ widthMm: number; heightMm: number } | null>(null);
+  const [measurementBoxes, setMeasurementBoxes] = useState<Array<{
+    id: string;
+    widthMm: number;
+    heightMm: number;
+    sliceIndex: number;
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+  }>>([]);
+  const [measurementResetToken, setMeasurementResetToken] = useState<number>(0);
+  const [zoomCommand, setZoomCommand] = useState<{ type: 'in' | 'out' | 'reset'; token: number } | null>(null);
   const studyCacheRef = useRef<Map<string, any>>(new Map());
 
   const formatDicomDate = (date?: string) => {
@@ -289,6 +303,12 @@ const PostProcessingPage: React.FC = () => {
   }, [currentTaskId]);
 
   useEffect(() => {
+    if (activeTab !== 'viewer') {
+      setMeasurementEnabled(false);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
     if (!featureTaskId) return;
 
     const pollInterval = setInterval(async () => {
@@ -420,16 +440,41 @@ const PostProcessingPage: React.FC = () => {
             {activeTab === 'viewer' && (
               <div className="mask-panel">
                 <h3>Viewer {maskSeriesId && maskInstances.length > 0 && (
-                  <label className="overlay-toggle">
-                    <input
-                      type="checkbox"
-                      checked={showOverlay}
-                      onChange={(e) => setShowOverlay(e.target.checked)}
-                    />
-                    <span>Overlay 표시</span>
-                  </label>
+                  <div className="overlay-controls">
+                    <label className="overlay-toggle">
+                      <input
+                        type="checkbox"
+                        checked={showOverlay}
+                        onChange={(e) => setShowOverlay(e.target.checked)}
+                      />
+                      <span>Overlay 표시</span>
+                    </label>
+                    <select
+                      className="overlay-select"
+                      value={maskFilter}
+                      onChange={(e) => setMaskFilter(e.target.value as 'all' | 'liver' | 'tumor')}
+                      disabled={!showOverlay}
+                    >
+                      <option value="all">전체</option>
+                      <option value="liver">Liver만</option>
+                      <option value="tumor">Tumor만</option>
+                    </select>
+                    <label className="overlay-opacity">
+                      <span>투명도</span>
+                      <input
+                        type="range"
+                        min={0.1}
+                        max={1}
+                        step={0.05}
+                        value={maskOpacity}
+                        onChange={(e) => setMaskOpacity(Number(e.target.value))}
+                        disabled={!showOverlay}
+                      />
+                    </label>
+                  </div>
                 )}</h3>
-                <div className="mask-viewer">
+                <div className="viewer-with-tools">
+                  <div className="mask-viewer">
                   {isCreatingMask ? (
                     <div className="loading-state">
                       <div className="loading-spinner" aria-label="Loading" />
@@ -443,10 +488,150 @@ const PostProcessingPage: React.FC = () => {
                       maskSeriesId={maskSeriesId ?? ''}
                       maskInstances={maskInstances}
                       showOverlay={showOverlay && Boolean(maskSeriesId) && maskInstances.length > 0}
+                      maskFilter={maskFilter}
+                      maskOpacity={maskOpacity}
+                      measurementEnabled={measurementEnabled}
+                      measurementResetToken={measurementResetToken}
+                      zoomCommand={zoomCommand}
+                      measurementBoxes={measurementBoxes as any}
+                      onMeasurementBoxesChange={(boxes) => {
+                        setMeasurementBoxes(
+                          boxes.map((box) => ({
+                            id: box.id,
+                            widthMm: box.widthMm,
+                            heightMm: box.heightMm,
+                            sliceIndex: box.sliceIndex,
+                            start: box.start,
+                            end: box.end,
+                          }))
+                        );
+                        if (boxes.length > 0) {
+                          const last = boxes[boxes.length - 1];
+                          setMeasurementDimensions({
+                            widthMm: last.widthMm,
+                            heightMm: last.heightMm,
+                          });
+                        } else {
+                          setMeasurementDimensions(null);
+                        }
+                      }}
                     />
                   ) : (
                     <div className="empty-state">Series를 선택하세요</div>
                   )}
+                  </div>
+                  <div className="viewer-tools">
+                    <h4>종양 크기 측정</h4>
+                    <p className="tool-hint">드래그로 가로/세로 길이를 측정하세요.</p>
+                    <div className="tool-actions">
+                      <button
+                        className={`tool-btn ${measurementEnabled ? 'active' : ''}`}
+                        onClick={() => setMeasurementEnabled((prev) => !prev)}
+                        disabled={!selectedSeriesId}
+                      >
+                        {measurementEnabled ? '측정 종료' : '측정 시작'}
+                      </button>
+                      <button
+                        className="tool-btn secondary"
+                        onClick={() => {
+                          setMeasurementResetToken((prev) => prev + 1);
+                          setMeasurementDimensions(null);
+                          setMeasurementBoxes([]);
+                        }}
+                        disabled={!selectedSeriesId}
+                      >
+                        초기화
+                      </button>
+                    </div>
+                    <div className="tool-actions">
+                      <button
+                        className="tool-btn secondary"
+                        onClick={() => setZoomCommand({ type: 'out', token: Date.now() })}
+                        disabled={!selectedSeriesId}
+                      >
+                        축소
+                      </button>
+                      <button
+                        className="tool-btn secondary"
+                        onClick={() => setZoomCommand({ type: 'reset', token: Date.now() })}
+                        disabled={!selectedSeriesId}
+                      >
+                        리셋
+                      </button>
+                      <button
+                        className="tool-btn secondary"
+                        onClick={() => setZoomCommand({ type: 'in', token: Date.now() })}
+                        disabled={!selectedSeriesId}
+                      >
+                        확대
+                      </button>
+                    </div>
+                    <div className="tool-result">
+                      <span>가로 / 세로</span>
+                      <strong>
+                        {measurementDimensions
+                          ? `${measurementDimensions.widthMm.toFixed(1)} x ${measurementDimensions.heightMm.toFixed(1)} mm`
+                          : '—'}
+                      </strong>
+                    </div>
+                    <div className="tool-box-list">
+                      <div className="tool-box-header">측정 박스</div>
+                      {measurementBoxes.length === 0 ? (
+                        <div className="tool-box-empty">측정된 박스가 없습니다.</div>
+                      ) : (
+                        measurementBoxes.map((box, index) => (
+                          <div key={box.id} className="tool-box-item">
+                            <div className="tool-box-info">
+                              <span>
+                                {index + 1}. Slice {box.sliceIndex + 1} · {box.widthMm.toFixed(1)} x {box.heightMm.toFixed(1)} mm
+                              </span>
+                              <span className="tool-box-coords">
+                                ({box.start.x.toFixed(0)}, {box.start.y.toFixed(0)}) → ({box.end.x.toFixed(0)}, {box.end.y.toFixed(0)})
+                              </span>
+                            </div>
+                            <button
+                              className="tool-box-delete"
+                              onClick={() => {
+                                const next = measurementBoxes.filter((item) => item.id !== box.id);
+                                setMeasurementBoxes(next);
+                                if (next.length === 0) {
+                                  setMeasurementDimensions(null);
+                                } else {
+                                  const last = next[next.length - 1];
+                                  setMeasurementDimensions({ widthMm: last.widthMm, heightMm: last.heightMm });
+                                }
+                              }}
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <div className="report-form">
+                      <label>
+                        소견
+                        <textarea rows={4} placeholder="예: 분절 6에 2.4cm 종양, 경계 명확" />
+                      </label>
+                      <button
+                        className="tool-btn secondary"
+                        disabled={!maskSeriesId}
+                        onClick={() => {
+                          alert('자동 보고서 생성은 준비 중입니다.');
+                        }}
+                      >
+                        자동 보고서 생성
+                      </button>
+                      <button
+                        className="tool-btn"
+                        onClick={() => {
+                          alert('보고서 저장은 준비 중입니다.');
+                        }}
+                      >
+                        저장
+                      </button>
+                    </div>
+                  </div>
                 </div>
                 <div className="mask-buttons">
                   <button
