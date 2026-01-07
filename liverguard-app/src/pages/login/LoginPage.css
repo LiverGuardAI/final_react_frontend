@@ -1,0 +1,141 @@
+:root {
+  --login-bg: #ffffff;
+  --login-panel: #ffffff;
+  --login-panel-solid: #ffffff;
+  --login-border: #e2e8f0;
+  --login-accent: #1d4ed8;
+  --login-accent-strong: #2563eb;
+  --login-text: #0f172a;
+  --login-muted: #64748b;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--login-bg);
+  color: var(--login-text);
+  font-family: "Neue Haas Grotesk Display", "Noto Sans KR", "Pretendard", "Segoe UI", sans-serif;
+  padding: 40px 16px;
+  gap: 24px;
+}
+
+.brand-title {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--login-text);
+  position: relative;
+  display: inline-flex;
+  align-items: flex-end;
+}
+
+.logo-i {
+  position: relative;
+  display: inline-block;
+  color: var(--login-text);
+  padding: 0 1px;
+}
+
+.logo-i::after {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 49%;
+  transform: translateX(-50%);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #2db400;
+}
+
+.login-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-card {
+  width: min(420px, 100%);
+  border-radius: 10px;
+  border: 1px solid var(--login-border);
+  background: var(--login-panel);
+  padding: 32px 28px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+.card-header h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.card-header p {
+  margin: 6px 0 18px;
+  color: var(--login-muted);
+  font-size: 13px;
+}
+
+.login-error {
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+  font-size: 12px;
+  color: var(--login-muted);
+}
+
+.field input,
+.field select {
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: var(--login-text);
+  padding: 0 12px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: var(--login-accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.login-submit {
+  width: 100%;
+  height: 44px;
+  border-radius: 12px;
+  border: none;
+  background: var(--login-accent-strong);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.login-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.login-submit:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.2);
+}
