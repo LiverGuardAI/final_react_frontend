@@ -7,8 +7,7 @@ import {
 } from "react-router-dom";
 
 // Lazy load all page components for code splitting
-const HomePage = lazy(() => import("../pages/home/HomePage"));
-const DoctorLoginPage = lazy(() => import("../pages/doctor/LoginPage"));
+const UnifiedLoginPage = lazy(() => import("../pages/login/LoginPage"));
 const DoctorHomePage = lazy(() => import("../pages/doctor/HomePage"));
 const SchedulePage = lazy(() => import("../pages/doctor/SchedulePage"));
 const TreatmentPage = lazy(() => import("../pages/doctor/TreatmentPage"));
@@ -21,11 +20,9 @@ const RecurrencePredictionPage = lazy(() => import("../pages/doctor/RecurrencePr
 const SurvivalAnalysisPage = lazy(() => import("../pages/doctor/SurvivalAnalysis"));
 const DDIPage = lazy(() => import("../pages/doctor/DDI"));
 const DoctorPatientManagementPage = lazy(() => import("../pages/doctor/PatientManagementPage"));
-const AdministrationLoginPage = lazy(() => import("../pages/administration/LoginPage"));
 const AdministrationHomePage = lazy(() => import("../pages/administration/HomePage"));
 const AppointmentManagementPage = lazy(() => import("../pages/administration/AppointmentManagementPage"));
 const PatientManagementPage = lazy(() => import("../pages/administration/PatientManagementPage"));
-const RadiologyLoginPage = lazy(() => import("../pages/radiology/LoginPage"));
 const RadiologyHomePage = lazy(() => import("../pages/radiology/HomePage"));
 const AcquisitionPage = lazy(() => import("../pages/radiology/AcquisitionPage"));
 const PostProcessingPage = lazy(() => import("../pages/radiology/PostProcessingPage"));
@@ -48,10 +45,10 @@ const LoadingFallback = () => (
 const router = createBrowserRouter(
   createRoutesFromElements(
     <>
-      <Route path="/" element={<Suspense fallback={<LoadingFallback />}><HomePage /></Suspense>} />
+      <Route path="/" element={<Suspense fallback={<LoadingFallback />}><UnifiedLoginPage /></Suspense>} />
 
       {/* doctor */}
-      <Route path="/doctor/login" element={<Suspense fallback={<LoadingFallback />}><DoctorLoginPage /></Suspense>} />
+      <Route path="/doctor/login" element={<Suspense fallback={<LoadingFallback />}><UnifiedLoginPage initialRole="doctor" /></Suspense>} />
       <Route path="/doctor/home" element={<Suspense fallback={<LoadingFallback />}><DoctorHomePage /></Suspense>} />
       <Route path="/doctor/schedule" element={<Suspense fallback={<LoadingFallback />}><SchedulePage /></Suspense>} />
       <Route path="/doctor/treatment" element={<Suspense fallback={<LoadingFallback />}><TreatmentPage /></Suspense>} />
@@ -75,7 +72,7 @@ const router = createBrowserRouter(
       /> */}
 
       {/* administration */}
-      <Route path="/administration/login" element={<Suspense fallback={<LoadingFallback />}><AdministrationLoginPage /></Suspense>} />
+      <Route path="/administration/login" element={<Suspense fallback={<LoadingFallback />}><UnifiedLoginPage initialRole="administration" /></Suspense>} />
       <Route path="/administration/home" element={<Suspense fallback={<LoadingFallback />}><AdministrationHomePage /></Suspense>} />
       <Route path="/administration/appointments" element={<Suspense fallback={<LoadingFallback />}><AppointmentManagementPage /></Suspense>} />
       <Route path="/administration/patients" element={<Suspense fallback={<LoadingFallback />}><PatientManagementPage /></Suspense>} />
@@ -90,7 +87,7 @@ const router = createBrowserRouter(
       /> */}
 
       {/* radiology */}
-      <Route path="/radiology/login" element={<Suspense fallback={<LoadingFallback />}><RadiologyLoginPage /></Suspense>} />
+      <Route path="/radiology/login" element={<Suspense fallback={<LoadingFallback />}><UnifiedLoginPage initialRole="radiology" /></Suspense>} />
       <Route path="/radiology/home" element={<Suspense fallback={<LoadingFallback />}><RadiologyHomePage /></Suspense>} />
       <Route path="/radiology/acquisition" element={<Suspense fallback={<LoadingFallback />}><AcquisitionPage /></Suspense>} />
       <Route path="/radiology/post-processing" element={<Suspense fallback={<LoadingFallback />}><PostProcessingPage /></Suspense>} />
