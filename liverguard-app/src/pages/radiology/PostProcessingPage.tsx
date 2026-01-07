@@ -6,14 +6,16 @@ import MaskOverlayViewer from '../../components/radiology/MaskOverlayViewer';
 import {
   getSeriesList,
   getSeriesInstances,
-  createSegmentationMask,
-  getSegmentationTaskStatus,
-  createFeatureExtraction,
-  getFeatureExtractionTaskStatus,
   getSeriesInfo,
   getInstanceInfo,
   getStudyInfo
 } from '../../api/orthanc_api';
+import {
+  createSegmentationMask,
+  getSegmentationTaskStatus,
+  createFeatureExtraction,
+  getFeatureExtractionTaskStatus
+} from '../../api/ai_api';
 import './PostProcessingPage.css';
 
 interface Series {
