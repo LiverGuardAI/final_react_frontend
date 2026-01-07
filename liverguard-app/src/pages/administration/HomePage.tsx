@@ -171,13 +171,23 @@ export default function AdministrationHomePage() {
         q.doctor_id === doctor.doctor_id || q.doctor === doctor.doctor_id
       ) || [];
 
-      // 환자 정보 매핑
-      const formattedPatients = myPatients.map((p: any) => ({
-        encounterId: p.encounter_id,
-        name: p.patient_name || '이름 없음',
-        phone: '010-****-****', // 개인정보 마스킹
-        status: (p.encounter_status === 'IN_PROGRESS' ? '진료중' : '대기중') as '진료중' | '대기중'
-      }));
+      // 환자 정보 매핑 및 정렬 (진료중 환자가 맨 위로)
+      const formattedPatients = myPatients
+        .map((p: any) => ({
+          encounterId: p.encounter_id,
+          name: p.patient_name || '이름 없음',
+          phone: '010-****-****', // 개인정보 마스킹
+          status: (p.encounter_status === 'IN_PROGRESS' ? '진료중' : '대기중') as '진료중' | '대기중',
+          encounter_status: p.encounter_status, // 정렬용
+          checkin_time: p.checkin_time // 대기시간 계산용
+        }))
+        .sort((a: any, b: any) => {
+          // 1순위: 진료중(IN_PROGRESS)이 먼저
+          if (a.encounter_status === 'IN_PROGRESS' && b.encounter_status !== 'IN_PROGRESS') return -1;
+          if (a.encounter_status !== 'IN_PROGRESS' && b.encounter_status === 'IN_PROGRESS') return 1;
+          // 2순위: 대기 시간 순 (checkin_time 오름차순)
+          return 0;
+        });
 
       return {
         id: doctor.doctor_id,

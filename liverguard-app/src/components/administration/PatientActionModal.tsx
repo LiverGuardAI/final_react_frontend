@@ -13,6 +13,8 @@ interface PatientActionModalProps {
     registrationTime?: string;
     encounterId?: number;
     questionnaireStatus?: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+    encounter_status?: 'WAITING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+    encounter_start?: string; // 진료 시작 시간
   } | null;
   onClose: () => void;
   onQuestionnaireAction: () => void;
@@ -28,13 +30,18 @@ const PatientActionModal: React.FC<PatientActionModalProps> = ({
 }) => {
   if (!isOpen || !patient) return null;
 
-  // 대기 시간 계산
-  const calculateWaitingTime = (registrationTime?: string) => {
-    if (!registrationTime) return 'N/A';
+  // 대기 시간 계산 (진료중이면 진료 시작 시간 기준, 대기중이면 접수 시간 기준)
+  const calculateWaitingTime = (registrationTime?: string, encounterStart?: string, encounterStatus?: string) => {
+    // 진료중인 경우 encounter_start 기준으로 계산
+    const baseTime = encounterStatus === 'IN_PROGRESS' && encounterStart
+      ? encounterStart
+      : registrationTime;
 
-    const regTime = new Date(registrationTime);
+    if (!baseTime) return 'N/A';
+
+    const startTime = new Date(baseTime);
     const now = new Date();
-    const diffMs = now.getTime() - regTime.getTime();
+    const diffMs = now.getTime() - startTime.getTime();
     const diffMins = Math.floor(diffMs / 60000);
 
     const hours = Math.floor(diffMins / 60);
@@ -57,7 +64,14 @@ const PatientActionModal: React.FC<PatientActionModalProps> = ({
     }
   };
 
-  const waitingTime = calculateWaitingTime(patient.registrationTime);
+  const waitingTime = calculateWaitingTime(
+    patient.registrationTime,
+    patient.encounter_start,
+    patient.encounter_status
+  );
+
+  // 진료중 여부 확인
+  const isInProgress = patient.encounter_status === 'IN_PROGRESS';
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
@@ -91,13 +105,21 @@ const PatientActionModal: React.FC<PatientActionModalProps> = ({
           {/* 대기 시간 표시 */}
           {patient.registrationTime && (
             <div className={styles.waitingTimeBox}>
-              <div className={styles.waitingLabel}>대기 시간</div>
+              <div className={styles.waitingLabel}>
+                {isInProgress ? '진료 시간' : '대기 시간'}
+              </div>
               <div className={styles.waitingTime}>{waitingTime}</div>
               <div className={styles.waitingDetail}>
-                접수시간: {new Date(patient.registrationTime).toLocaleTimeString('ko-KR', {
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
+                {isInProgress && patient.encounter_start
+                  ? `진료 시작: ${new Date(patient.encounter_start).toLocaleTimeString('ko-KR', {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}`
+                  : `접수시간: ${new Date(patient.registrationTime).toLocaleTimeString('ko-KR', {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}`
+                }
               </div>
             </div>
           )}
