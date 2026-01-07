@@ -62,7 +62,7 @@ const SimpleDicomViewer: React.FC<SimpleDicomViewerProps> = ({
 
     if (resolvedFiles.length > 0) {
       imageIdsRef.current = resolvedFiles.map((file) =>
-        cornerstoneWADOImageLoader.wadouri.fileManager.add(file)
+        (cornerstoneWADOImageLoader as any).wadouri.fileManager.add(file)
       );
     } else {
       const normalizedInstances = resolvedInstances.map((instance, index) => {

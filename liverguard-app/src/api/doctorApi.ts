@@ -69,6 +69,7 @@ export interface QueueItem {
   patient?: string;
   queued_at?: string;
   created_at?: string;
+  updated_at?: string;
   priority?: number;
   doctor_name?: string;
   doctor_id?: number;
@@ -82,6 +83,8 @@ export interface QueueItem {
   gender?: string;
   age?: number;
   phone?: string;
+  chief_complaint?: string;
+  diagnosis?: string;
 }
 
 export interface WaitingQueueResponse {
