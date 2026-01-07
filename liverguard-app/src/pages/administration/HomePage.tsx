@@ -82,7 +82,8 @@ interface Doctor {
 }
 
 type TabType = 'home' | 'schedule' | 'appointments' | 'patients';
-type ContentTabType = 'search' | 'newPatient';
+type ContentTabType = 'search' | 'newPatient' | 'appointments';
+type ReceptionTabType = 'reception' | 'additional' | 'payment';
 
 export default function AdministrationHomePage() {
   const navigate = useNavigate();
@@ -91,6 +92,7 @@ export default function AdministrationHomePage() {
   const [departmentName, setDepartmentName] = useState<string>('부서');
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [contentTab, setContentTab] = useState<ContentTabType>('search');
+  const [receptionTab, setReceptionTab] = useState<ReceptionTabType>('reception');
   const [searchQuery, setSearchQuery] = useState('');
 
   // 신규 환자 등록은 PatientRegistrationForm 컴포넌트에서 처리
@@ -146,8 +148,23 @@ export default function AdministrationHomePage() {
     // 1. 근무 중인 의사가 없으면 빈 배열
     if (sidebarDoctors.length === 0) return [];
 
+    const parseRoomNumber = (room?: string) => {
+      if (!room) return Number.POSITIVE_INFINITY;
+      const numeric = Number.parseInt(room.replace(/\D/g, ''), 10);
+      return Number.isFinite(numeric) ? numeric : Number.POSITIVE_INFINITY;
+    };
+
+    const sortedDoctors = [...sidebarDoctors].sort((a, b) => {
+      const aRoom = parseRoomNumber(a.room_number);
+      const bRoom = parseRoomNumber(b.room_number);
+      if (aRoom !== bRoom) {
+        return aRoom - bRoom;
+      }
+      return a.name.localeCompare(b.name);
+    });
+
     // 2. 각 의사별로 대기열(Queue)에서 환자를 찾아서 매칭
-    return sidebarDoctors.map((doctor) => {
+    return sortedDoctors.map((doctor) => {
       // 현재 이 의사에게 배정된 환자 찾기
       const myPatients = waitingQueueData?.queue?.filter((q: any) =>
         // 주의: API 응답의 doctor_id 필드명 확인 필요 (보통 doctor_id 또는 doctor)
@@ -824,6 +841,12 @@ export default function AdministrationHomePage() {
                   >
                     신규 환자
                   </button>
+                  <button
+                    className={`${styles.contentTab} ${contentTab === 'appointments' ? styles.active : ''}`}
+                    onClick={() => setContentTab('appointments')}
+                  >
+                    금일 예약
+                  </button>
                 </div>
 
                 {contentTab === 'search' ? (
@@ -939,7 +962,7 @@ export default function AdministrationHomePage() {
                       )}
                     </div>
                   </div>
-                ) : (
+                ) : contentTab === 'newPatient' ? (
                   <div className={styles.contentBody}>
                     {/* 신규 환자 등록 폼 - 컴포넌트로 분리 */}
                     <PatientRegistrationForm
@@ -947,67 +970,103 @@ export default function AdministrationHomePage() {
                       onCancel={() => setContentTab('search')}
                     />
                   </div>
+                ) : (
+                  <div className={styles.contentBody}>
+                    <div className={`${styles.appointmentContainer} ${styles.tabAppointmentContainer}`}>
+                      <div className={styles.sectionHeader}>
+                        <h3 className={styles.sectionTitle}>
+                          금일 예약 {new Date().toLocaleDateString('ko-KR', {year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short'})}
+                        </h3>
+                        <span className={styles.currentTime}>
+                          {new Date().toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit', second: '2-digit'})}
+                        </span>
+                      </div>
+                      <div className={styles.tableContainer}>
+                        <table className={styles.scheduleTable}>
+                          <thead>
+                            <tr>
+                              <th>요청일시</th>
+                              <th>환자명</th>
+                              <th>환자번호</th>
+                              <th>연락처</th>
+                              <th>희망일시</th>
+                              <th>상태</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {appointments.length === 0 ? (
+                              <tr>
+                                <td colSpan={6} style={{textAlign: 'center', padding: '20px'}}>
+                                  금일 예약이 없습니다.
+                                </td>
+                              </tr>
+                            ) : (
+                              appointments.map((appointment) => (
+                                <tr
+                                  key={appointment.id}
+                                  onClick={() => {
+                                    setSelectedAppointment(appointment);
+                                    setIsAppointmentModalOpen(true);
+                                  }}
+                                  style={{cursor: 'pointer'}}
+                                  className={styles.appointmentRow}
+                                >
+                                  <td>{appointment.createdAt ? new Date(appointment.createdAt).toLocaleString('ko-KR') : 'N/A'}</td>
+                                  <td className={styles.patientName}>{appointment.patientName}</td>
+                                  <td>{appointment.patientId}</td>
+                                  <td>{appointment.phone}</td>
+                                  <td>{appointment.appointmentDate} {appointment.time}</td>
+                                  <td>
+                                    <span className={`${styles.appointmentStatus} ${styles[appointment.status]}`}>
+                                      {appointment.status}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
 
-            {/* 오른쪽 영역 - 금일 예약 */}
+            {/* 오른쪽 영역 - 접수 목록 */}
             <div className={styles.rightSection}>
               <div className={styles.appointmentContainer}>
-              <div className={styles.sectionHeader}>
-                <h3 className={styles.sectionTitle}>
-                  금일 예약 {new Date().toLocaleDateString('ko-KR', {year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short'})}
-                </h3>
-                <span className={styles.currentTime}>
-                  {new Date().toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit', second: '2-digit'})}
-                </span>
-              </div>
-              <div className={styles.tableContainer}>
-                <table className={styles.scheduleTable}>
-                  <thead>
-                    <tr>
-                      <th>요청일시</th>
-                      <th>환자명</th>
-                      <th>환자번호</th>
-                      <th>연락처</th>
-                      <th>희망일시</th>
-                      <th>상태</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {appointments.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} style={{textAlign: 'center', padding: '20px'}}>
-                          금일 예약이 없습니다.
-                        </td>
-                      </tr>
-                    ) : (
-                      appointments.map((appointment) => (
-                        <tr
-                          key={appointment.id}
-                          onClick={() => {
-                            setSelectedAppointment(appointment);
-                            setIsAppointmentModalOpen(true);
-                          }}
-                          style={{cursor: 'pointer'}}
-                          className={styles.appointmentRow}
-                        >
-                          <td>{appointment.createdAt ? new Date(appointment.createdAt).toLocaleString('ko-KR') : 'N/A'}</td>
-                          <td className={styles.patientName}>{appointment.patientName}</td>
-                          <td>{appointment.patientId}</td>
-                          <td>{appointment.phone}</td>
-                          <td>{appointment.appointmentDate} {appointment.time}</td>
-                          <td>
-                            <span className={`${styles.appointmentStatus} ${styles[appointment.status]}`}>
-                              {appointment.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                <div className={styles.rightTabs}>
+                  <button
+                    className={`${styles.rightTab} ${receptionTab === 'reception' ? styles.rightTabActive : ''}`}
+                    onClick={() => setReceptionTab('reception')}
+                  >
+                    접수목록
+                  </button>
+                  <button
+                    className={`${styles.rightTab} ${receptionTab === 'additional' ? styles.rightTabActive : ''}`}
+                    onClick={() => setReceptionTab('additional')}
+                  >
+                    추가진료
+                  </button>
+                  <button
+                    className={`${styles.rightTab} ${receptionTab === 'payment' ? styles.rightTabActive : ''}`}
+                    onClick={() => setReceptionTab('payment')}
+                  >
+                    수납대기
+                  </button>
+                </div>
+                <div className={styles.tableContainer}>
+                  {receptionTab === 'reception' && (
+                    <div className={styles.emptyState}>접수 목록이 없습니다.</div>
+                  )}
+                  {receptionTab === 'additional' && (
+                    <div className={styles.emptyState}>추가진료 목록이 없습니다.</div>
+                  )}
+                  {receptionTab === 'payment' && (
+                    <div className={styles.emptyState}>수납대기 목록이 없습니다.</div>
+                  )}
+                </div>
               </div>
             </div>
             </div>
@@ -1031,14 +1090,12 @@ export default function AdministrationHomePage() {
                       {clinic.patients.length > 0 ? (
                         clinic.patients.map((patient, index) => (
                           <div key={index} className={styles.waitingPatientRow}>
-                            <div className={styles.patientDetail}>
-                              <span style={{fontSize: '0.9em', fontWeight: 'bold', color: '#52759C', marginRight: '8px'}}>
-                                {index + 1}번
-                              </span>
+                            <div className={styles.patientDetailRow}>
+                              <span className={styles.patientIndex}>{index + 1}</span>
                               <span className={styles.patientNameLarge}>{patient.name}</span>
                               <span className={styles.patientPhoneLarge}>{patient.phone}</span>
                             </div>
-                            <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                            <div className={styles.patientActions}>
                               <span className={`${styles.statusBadgeLarge} ${styles[patient.status]}`}>
                                 {patient.status}
                               </span>
