@@ -120,6 +120,14 @@ const AcquisitionPage: React.FC = () => {
         alert(`${newDicomFiles.length - uniqueNewFiles.length}개의 중복 파일은 제외되었습니다.`);
       }
 
+      if (uniqueNewFiles.length > 0) {
+        setSelectedFileNames(prevSelected => {
+          const next = new Set(prevSelected);
+          uniqueNewFiles.forEach((file) => next.add(file.name));
+          return next;
+        });
+      }
+
       return [...prevFiles, ...uniqueNewFiles];
     });
 
@@ -137,12 +145,18 @@ const AcquisitionPage: React.FC = () => {
       return;
     }
 
+    const filesToUpload = dicomFiles.filter((file) => selectedFileNames.has(file.name));
+    if (filesToUpload.length === 0) {
+      alert('선택된 파일이 없습니다.');
+      return;
+    }
+
     setUploading(true);
     setUploadProgress(0);
 
     try {
-      console.log(`Uploading ${dicomFiles.length} file(s) to Orthanc...`);
-      const results = await uploadMultipleDicomFiles(dicomFiles, {
+      console.log(`Uploading ${filesToUpload.length} file(s) to Orthanc...`);
+      const results = await uploadMultipleDicomFiles(filesToUpload, {
         concurrency: 4,
         onProgress: (progress) => {
           setUploadProgress(progress.percent);
@@ -150,14 +164,19 @@ const AcquisitionPage: React.FC = () => {
       });
 
       console.log('Upload successful:', results);
-      alert(`${dicomFiles.length}개의 DICOM 파일이 성공적으로 업로드되었습니다.`);
+      alert(`${filesToUpload.length}개의 DICOM 파일이 성공적으로 업로드되었습니다.`);
 
       setIsLoadingPreview(false);
       setUploadedInstances([]);
       setUploadedSeriesId('');
 
-      // 업로드 성공 후 파일 목록 초기화
-      setDicomFiles([]);
+      // 업로드 성공 후 선택된 파일만 목록에서 제거
+      setDicomFiles((prevFiles) => prevFiles.filter((file) => !selectedFileNames.has(file.name)));
+      setSelectedFileNames((prevSelected) => {
+        const next = new Set(prevSelected);
+        filesToUpload.forEach((file) => next.delete(file.name));
+        return next;
+      });
     } catch (error) {
       console.error('Upload failed:', error);
       alert('DICOM 파일 업로드에 실패했습니다. 다시 시도해주세요.');
