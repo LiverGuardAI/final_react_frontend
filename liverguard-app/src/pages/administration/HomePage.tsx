@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from "../../context/AuthContext";
+import { useWebSocket } from "../../hooks/useWebSocket";
 import { useWaitingQueue } from "../../hooks/useWaitingQueue";
 import { useDashboardStats } from "../../hooks/useDashboardStats";
 import { useDoctors } from "../../hooks/useDoctors";

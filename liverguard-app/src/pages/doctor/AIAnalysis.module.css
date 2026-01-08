@@ -1,0 +1,66 @@
+/* src/pages/doctor/AIAnalysis.module.css */
+.container {
+  padding: 24px;
+  background-color: #f8fafc;
+  min-height: 100vh;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 24px;
+  color: #1e293b;
+}
+
+.selectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.selectWrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.selectLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.selectInput {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px; 
+  min-width: 180px;
+  background-color: white;
+  color: #1e293b;
+  cursor: pointer;
+}
+
+.selectInput:focus {
+  outline: none;
+  border-color: #6366f1;
+}
+
+.selectInput:disabled {
+  background-color: #f1f5f9;
+  cursor: not-allowed;
+}
+
+.infoSection {
+  background-color: #f1f5f9;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
