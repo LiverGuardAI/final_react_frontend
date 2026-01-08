@@ -81,6 +81,7 @@ const PostProcessingPage: React.FC = () => {
   const [featureTaskId, setFeatureTaskId] = useState<string | null>(null);
   const [featureStatus, setFeatureStatus] = useState<string>('');
   const [featureResult, setFeatureResult] = useState<any | null>(null);
+  const [featureTargetSeriesId, setFeatureTargetSeriesId] = useState<string | null>(null);
   const [measurementEnabled, setMeasurementEnabled] = useState<boolean>(false);
   const [measurementDimensions, setMeasurementDimensions] = useState<{ widthMm: number; heightMm: number } | null>(null);
   const [measurementBoxes, setMeasurementBoxes] = useState<Array<{
@@ -97,6 +98,7 @@ const PostProcessingPage: React.FC = () => {
   const seriesInfoCacheRef = useRef<Map<string, Series['data']>>(new Map());
   const seriesInstancesCacheRef = useRef<Map<string, Instance[]>>(new Map());
   const maskSeriesMapRef = useRef<Map<string, { maskSeriesId: string; maskInstances: Instance[] }>>(new Map());
+  const featureResultMapRef = useRef<Map<string, { result: any; status: string }>>(new Map());
 
   const formatDicomDate = (date?: string) => {
     if (!date) return 'N/A';
@@ -200,8 +202,14 @@ const PostProcessingPage: React.FC = () => {
     const fetchInstances = async () => {
       setIsLoadingInstances(true);
       try {
-        setFeatureResult(null);
-        setFeatureStatus('');
+        const cachedFeature = featureResultMapRef.current.get(selectedSeriesId);
+        if (cachedFeature) {
+          setFeatureResult(cachedFeature.result);
+          setFeatureStatus(cachedFeature.status);
+        } else {
+          setFeatureResult(null);
+          setFeatureStatus('');
+        }
         setFeatureTaskId(null);
         setIsExtractingFeature(false);
         const cachedInstances = seriesInstancesCacheRef.current.get(selectedSeriesId);
@@ -390,6 +398,12 @@ const PostProcessingPage: React.FC = () => {
             setFeatureStatus('Feature extraction completed!');
             setIsExtractingFeature(false);
             setFeatureTaskId(null);
+            if (featureTargetSeriesId) {
+              featureResultMapRef.current.set(featureTargetSeriesId, {
+                result: mergedResult,
+                status: 'Feature extraction completed!',
+              });
+            }
             clearInterval(pollInterval);
           }
         } else if (taskStatus.status === 'FAILURE') {
@@ -406,55 +420,50 @@ const PostProcessingPage: React.FC = () => {
     return () => clearInterval(pollInterval);
   }, [featureTaskId]);
 
-  const handleCreateSegMask = async () => {
+  const handleRunAi = async () => {
     if (!selectedSeriesId) {
       alert('Please select a series first');
       return;
     }
 
-    if (isCreatingMask) {
-      alert('Segmentation is already in progress');
-      return;
-    }
-
-    try {
-      setIsCreatingMask(true);
-      setMaskProgress('Starting segmentation...');
-
-      const response = await createSegmentationMask(selectedSeriesId);
-      setCurrentTaskId(response.task_id);
-      setMaskProgress('Task created, processing...');
-    } catch (error) {
-      console.error('Failed to create segmentation mask:', error);
-      alert('Failed to start segmentation task');
-      setIsCreatingMask(false);
-      setMaskProgress('');
-    }
-  };
-
-  const handleExtractFeature = async () => {
     const seriesInstanceUid = selectedSeriesInfo?.MainDicomTags?.SeriesInstanceUID;
     if (!seriesInstanceUid) {
       alert('SeriesInstanceUID가 없습니다. 다른 시리즈를 선택해주세요.');
       return;
     }
 
-    if (isExtractingFeature) {
-      alert('Feature extraction is already in progress');
+    if (isCreatingMask || isExtractingFeature) {
+      alert('AI run is already in progress');
       return;
     }
 
-    try {
-      setIsExtractingFeature(true);
-      setFeatureStatus('Starting feature extraction...');
-      setFeatureResult(null);
-      const response = await createFeatureExtraction(seriesInstanceUid);
-      setFeatureTaskId(response.task_id);
+    setIsCreatingMask(true);
+    setMaskProgress('Starting segmentation...');
+    setIsExtractingFeature(true);
+    setFeatureStatus('Starting feature extraction...');
+    setFeatureResult(null);
+    setFeatureTargetSeriesId(selectedSeriesId);
+
+    const [segResult, featureResult] = await Promise.allSettled([
+      createSegmentationMask(selectedSeriesId),
+      createFeatureExtraction(seriesInstanceUid),
+    ]);
+
+    if (segResult.status === 'fulfilled') {
+      setCurrentTaskId(segResult.value.task_id);
+      setMaskProgress('Task created, processing...');
+    } else {
+      console.error('Failed to create segmentation mask:', segResult.reason);
+      setMaskProgress('Failed to start segmentation task');
+      setIsCreatingMask(false);
+    }
+
+    if (featureResult.status === 'fulfilled') {
+      setFeatureTaskId(featureResult.value.task_id);
       setFeatureStatus('Task created, processing...');
-      setActiveTab('features');
-    } catch (error) {
-      console.error('Failed to start feature extraction:', error);
-      alert('Failed to start feature extraction task');
+    } else {
+      console.error('Failed to start feature extraction:', featureResult.reason);
+      setFeatureStatus('Failed to start feature extraction task');
       setIsExtractingFeature(false);
     }
   };
@@ -498,12 +507,6 @@ const PostProcessingPage: React.FC = () => {
               <div className="mask-panel">
                 <h3>
                   <span>Viewer</span>
-                  {isCreatingMask && (
-                    <span className="viewer-status">
-                      <span className="loading-spinner small" aria-label="Loading" />
-                      마스크 생성 중...
-                    </span>
-                  )}
                   {maskSeriesId && maskInstances.length > 0 && (
                     <div className="overlay-controls">
                       <label className="overlay-toggle">
@@ -580,6 +583,14 @@ const PostProcessingPage: React.FC = () => {
                     <div className="loading-state">Loading images...</div>
                   ) : (
                     <div className="empty-state">Series를 선택하세요</div>
+                  )}
+                  {isCreatingMask && (
+                    <div className="viewer-status-overlay">
+                      <div className="viewer-status-badge">
+                        <span className="loading-spinner small" aria-label="Loading" />
+                        Segmentation running...
+                      </div>
+                    </div>
                   )}
                   </div>
                   <div className="viewer-tools">
@@ -698,17 +709,10 @@ const PostProcessingPage: React.FC = () => {
                 <div className="mask-buttons">
                   <button
                     className="btn-create-mask"
-                    onClick={handleCreateSegMask}
-                    disabled={isCreatingMask || !selectedSeriesId}
+                    onClick={handleRunAi}
+                    disabled={!selectedSeriesId || isCreatingMask || isExtractingFeature}
                   >
-                    {isCreatingMask ? 'Creating...' : 'Create Seg-Mask'}
-                  </button>
-                  <button
-                    className="btn-load-mask"
-                    onClick={handleExtractFeature}
-                    disabled={!selectedSeriesId || isExtractingFeature}
-                  >
-                    {isExtractingFeature ? 'Extracting...' : 'Extract Feature'}
+                    {isCreatingMask || isExtractingFeature ? 'Running...' : 'AI Run'}
                   </button>
                 </div>
               </div>
@@ -763,15 +767,6 @@ const PostProcessingPage: React.FC = () => {
                       {featureStatus || 'Extract Feature를 실행하면 결과가 표시됩니다.'}
                     </div>
                   )}
-                </div>
-                <div className="mask-buttons">
-                  <button
-                    className="btn-load-mask"
-                    onClick={handleExtractFeature}
-                    disabled={!selectedSeriesId || isExtractingFeature}
-                  >
-                    {isExtractingFeature ? 'Extracting...' : 'Extract Feature'}
-                  </button>
                 </div>
               </div>
             )}

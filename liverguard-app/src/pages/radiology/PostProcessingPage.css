@@ -473,6 +473,27 @@
   color: #94a3b8;
 }
 
+.viewer-status-overlay {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+}
+
+.viewer-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background-color: rgba(26, 35, 50, 0.92);
+  border: 1px solid #4a90e2;
+  color: #e2e8f0;
+  font-size: 11px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
 .bottom-toolbar {
   display: flex;
   gap: 4px;
