@@ -674,7 +674,7 @@ export default function AdministrationHomePage() {
                               접수시간: {queueItem.created_at ? new Date(queueItem.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
                             </div>
                             <div style={{ fontSize: '0.75em', color: '#555' }}>
-                              배정의사: {doctor ? `${doctor.name} (${doctor.room_number || '미배정'}호)` : queueItem.doctor_name || '의사 정보 없음'}
+                              배정: {doctor ? `${doctor.name} (${doctor.room_number || '미배정'}호)` : queueItem.doctor_name || '정보 없음'}
                             </div>
                           </div>
                         </div>
