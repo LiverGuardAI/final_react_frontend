@@ -17,6 +17,7 @@
     "cornerstone-core": "^2.6.1",
     "cornerstone-wado-image-loader": "^4.13.2",
     "dicom-parser": "^1.8.21",
+    "dcmjs": "^0.38.3",
     "itk-wasm": "^1.0.0-b.196",
     "jszip": "^3.10.1",
     "nifti-reader-js": "^0.8.0",
