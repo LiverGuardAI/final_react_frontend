@@ -104,6 +104,7 @@ export const createEncounter = async (encounterData: {
   doctor: number;
   staff?: number;
   priority?: number;
+  workflow_state?: string;
 }) => {
   const res = await apiClient.post("administration/encounters/", encounterData);
   return res.data;
@@ -116,7 +117,7 @@ export const cancelEncounter = async (encounterId: number) => {
   return res.data;
 };
 
-export const updateEncounter = async (encounterId: number, data: { chief_complaint?: string; [key: string]: any }) => {
+export const updateEncounter = async (encounterId: number, data: { chief_complaint?: string;[key: string]: any }) => {
   const res = await apiClient.patch(`administration/encounters/${encounterId}/`, data);
   return res.data;
 };
