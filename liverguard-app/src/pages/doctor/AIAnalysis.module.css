@@ -21,7 +21,7 @@
   background: white;
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .selectWrapper {
@@ -34,6 +34,7 @@
   font-size: 14px;
   font-weight: 600;
   color: #64748b;
+  white-space: nowrap;
 }
 
 .selectInput {
@@ -41,16 +42,11 @@
   padding: 0 12px;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  font-size: 14px; 
+  font-size: 14px;
   min-width: 180px;
   background-color: white;
   color: #1e293b;
   cursor: pointer;
-}
-
-.selectInput:focus {
-  outline: none;
-  border-color: #6366f1;
 }
 
 .selectInput:disabled {
@@ -61,6 +57,57 @@
 .infoSection {
   background-color: #f1f5f9;
   border-radius: 12px;
-  padding: 16px;
+  padding: 20px;
   margin-bottom: 24px;
+}
+
+.infoTitle {
+  font-weight: 700;
+  margin-bottom: 15px;
+  color: #1e3a8a;
+  border-bottom: 1px solid #dbeafe;
+  padding-bottom: 10px;
+}
+
+.infoGrid {
+  display: flex;
+  /* 가로 배치 */
+  flex-direction: row;
+  gap: 160px;
+}
+
+.infoItem {
+  display: flex;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.infoLabel {
+  font-weight: 600;
+  color: #64748b;
+}
+
+/* 분석 실행 버튼 */
+.predictBtn {
+  padding: 10px 24px;
+  background: #2c6fbb;
+  color: #FFF;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.predictBtn:hover {
+  background: #405F7F;
+  transform: translateY(-1px);
+}
+
+.predictBtn:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+  transform: none;
 }

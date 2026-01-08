@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import * as api from '../../api/predictionApi';
+import * as adminApi from '../../api/administration_api';
 import styles from './AIAnalysis.module.css';
 
 /**
@@ -12,6 +13,7 @@ const SurvivalAnalysis: React.FC = () => {
   const navigate = useNavigate();
 
   // 상태 관리
+  const [patientList, setPatientList] = useState<any[]>([]);
   const [selectedPatient, setSelectedPatient] = useState(urlPatientId || '');
   const [radioList, setRadioList] = useState<api.RadioFeature[]>([]);
   const [clinicalList, setClinicalList] = useState<api.ClinicalFeature[]>([]);
@@ -22,16 +24,32 @@ const SurvivalAnalysis: React.FC = () => {
   const [selectedGenomicId, setSelectedGenomicId] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // 환자 데이터 로드 (실제 API 연동)
+  // 날짜 포맷팅 함수 (YYYY-MM-DD)
+  const formatDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '-';
+    return dateStr.split('T')[0];
+  };
+
+  // 1. 전체 환자 목록 로드
+  useEffect(() => {
+    adminApi.getPatients().then(data => {
+      setPatientList(data.results || data);
+    });
+  }, []);
+  // 2. 선택된 환자의 특징 데이터 로드
   useEffect(() => {
     const loadFeatures = async () => {
       if (selectedPatient) {
         setLoading(true);
         try {
-          const data = await api.fetchAllFeatures(selectedPatient);
-          setRadioList(data.radio);
-          setClinicalList(data.clinical);
-          setGenomicList(data.genomic);
+          const [radio, clinical, genomic] = await Promise.all([
+            api.fetchRadioFeatures(selectedPatient),
+            api.fetchClinicalFeatures(selectedPatient),
+            api.fetchGenomicFeatures(selectedPatient)
+          ]);
+          setRadioList(radio);
+          setClinicalList(clinical);
+          setGenomicList(genomic);
         } catch (err) { console.error(err); }
         finally { setLoading(false); }
       }
@@ -45,6 +63,7 @@ const SurvivalAnalysis: React.FC = () => {
       alert('데이터(CT, 혈액, 유전체)를 모두 선택해주세요.');
       return;
     }
+    console.log('생존 예측 요청:', { selectedRadioId, selectedClinicalId, selectedGenomicId });
   };
 
   return (
@@ -60,11 +79,15 @@ const SurvivalAnalysis: React.FC = () => {
             className={styles.selectInput}
             value={selectedPatient}
             onChange={(e) => {
-              setSelectedPatient(e.target.value);
-              navigate(`/doctor/ai-survival-analysis/${e.target.value}`);
+              const pid = e.target.value;
+              setSelectedPatient(pid);
+              navigate(`/doctor/ai-survival-analysis/${pid}`);
             }}
           >
-            <option value={selectedPatient}>{selectedPatient}</option>
+            <option value="">- 환자를 선택하세요 -</option> 
+            {patientList.map(p => (
+              <option key={p.patient_id} value={p.patient_id}>{p.name} ({p.patient_id})</option>
+            ))}
           </select>
         </div>
 
@@ -75,11 +98,10 @@ const SurvivalAnalysis: React.FC = () => {
             className={styles.selectInput}
             value={selectedRadioId}
             onChange={(e) => setSelectedRadioId(e.target.value)}
-            disabled={!selectedPatient || loading}
+            disabled={!selectedPatient}
           >
-            <option value="">데이터 선택</option>
             {radioList.map(r => (
-              <option key={r.radio_vector_id} value={r.radio_vector_id}>{r.study_date} ({r.model_name})</option>
+              <option key={r.radio_vector_id} value={r.radio_vector_id}>{formatDate(r.study_date)} ({r.model_name})</option>
             ))}
           </select>
         </div>
@@ -91,11 +113,10 @@ const SurvivalAnalysis: React.FC = () => {
             className={styles.selectInput}
             value={selectedClinicalId}
             onChange={(e) => setSelectedClinicalId(e.target.value)}
-            disabled={!selectedPatient || loading}
+            disabled={!selectedPatient}
           >
-            <option value="">데이터 선택</option>
             {clinicalList.map(c => (
-              <option key={c.clinical_vector_id} value={c.clinical_vector_id}>{c.lab_date}</option>
+              <option key={c.clinical_vector_id} value={c.clinical_vector_id}>{formatDate(c.lab_date)}</option>
             ))}
           </select>
         </div>
@@ -107,9 +128,8 @@ const SurvivalAnalysis: React.FC = () => {
             className={styles.selectInput}
             value={selectedGenomicId}
             onChange={(e) => setSelectedGenomicId(e.target.value)}
-            disabled={!selectedPatient || loading}
+            disabled={!selectedPatient}
           >
-            <option value="">데이터 선택</option>
             {genomicList.map(g => (
               <option key={g.genomic_id} value={g.genomic_id}>{g.sample_date} ({g.sample_id})</option>
             ))}
@@ -122,34 +142,27 @@ const SurvivalAnalysis: React.FC = () => {
         <div className={styles.infoTitle}>선택된 데이터 정보</div>
         <div className={styles.infoGrid}>
           <div className={styles.infoItem}>
-            <span className={styles.infoLabel}>CT 촬영 날짜 :</span>
-            <span>{radioList.find(r => r.radio_vector_id === selectedRadioId)?.study_date || ' -'}</span>
+            <span className={styles.infoLabel}>CT 촬영 날짜:</span>
+            <span>{formatDate(radioList.find(r => r.radio_vector_id === selectedRadioId)?.study_date)}</span>
           </div>
           <div className={styles.infoItem}>
-            <span className={styles.infoLabel}>혈액 검사 날짜 :</span>
-            <span>{clinicalList.find(c => c.clinical_vector_id === selectedClinicalId)?.lab_date || ' -'}</span>
+            <span className={styles.infoLabel}>혈액 검사 날짜:</span>
+            <span>{formatDate(clinicalList.find(c => c.clinical_vector_id === selectedClinicalId)?.lab_date)}</span>
           </div>
           <div className={styles.infoItem}>
             <span className={styles.infoLabel}>유전체 검사 날짜 :</span>
-            <span>{genomicList.find(g => g.genomic_id === selectedGenomicId)?.sample_date || ' -'}</span>
+            <span>{formatDate(genomicList.find(g => g.genomic_id === selectedGenomicId)?.sample_date)}</span>
           </div>
         </div>
       </div>
 
       <div className={styles.actionArea}>
-        <button
-          className={styles.predictBtn}
-          onClick={handleRunAnalysis}
-          disabled={!selectedRadioId || !selectedClinicalId || !selectedGenomicId}
-        >
+        <button className={styles.predictBtn} onClick={handleRunAnalysis}
+          disabled={!selectedRadioId || !selectedClinicalId}>
           분석 실행
         </button>
       </div>
-
       <div className={styles.resultArea}>
-        <p className={styles.placeholderText}>
-          데이터를 선택하고 분석 실행 버튼을 눌러주세요.
-        </p>
       </div>
     </div>
   );
