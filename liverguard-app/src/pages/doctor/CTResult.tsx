@@ -1,7 +1,6 @@
 // src/pages/doctor/CTResult.tsx
 import { useState, useEffect } from 'react';
 import { getPatientStudies, getStudySeries } from '../../api/orthanc_api';
-import DoctorLayout from '../../layouts/DoctorLayout';
 import DicomViewer2D from '../../components/DicomViewer2D';
 import DicomViewer3D from '../../components/DicomViewer3D';
 import styles from './CTResult.module.css';
@@ -84,7 +83,6 @@ export default function CTResultPage() {
   };
 
   return (
-    <DoctorLayout activeTab="examination">
       <div className={styles.container}>
         {/* 메인 컨텐츠 */}
         <div className={styles.mainContent}>
@@ -324,6 +322,5 @@ export default function CTResultPage() {
           </div>
         </div>
       </div>
-    </DoctorLayout>
   );
 }

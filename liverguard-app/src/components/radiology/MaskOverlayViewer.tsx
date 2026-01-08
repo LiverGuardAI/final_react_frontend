@@ -13,9 +13,13 @@ cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
 // Configure WADO Image Loader
 cornerstoneWADOImageLoader.configure({
   useWebWorkers: true,
+  decodeConfig: {
+    convertFloatPixelDataToInt: false,
+  },
 });
 
 const PREFETCH_DISTANCE = 3;
+const PREFETCH_CONCURRENCY = 12;
 // Fixed color mapping for specific mask values
 // This ensures consistent colors across all slices
 const FIXED_MASK_COLORS: { [key: number]: { r: number; g: number; b: number; a: number } } = {
@@ -66,6 +70,27 @@ interface MaskOverlayViewerProps {
   maskSeriesId: string;
   maskInstances: any[];
   showOverlay: boolean;
+  maskFilter?: 'all' | 'liver' | 'tumor';
+  maskOpacity?: number;
+  measurementEnabled?: boolean;
+  measurementResetToken?: number;
+  measurementBoxes?: Array<{
+    id: string;
+    sliceIndex: number;
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+    widthMm: number;
+    heightMm: number;
+  }>;
+  onMeasurementBoxesChange?: (boxes: Array<{
+    id: string;
+    sliceIndex: number;
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+    widthMm: number;
+    heightMm: number;
+  }>) => void;
+  zoomCommand?: { type: 'in' | 'out' | 'reset'; token: number } | null;
 }
 
 const MaskOverlayViewer = ({
@@ -73,7 +98,14 @@ const MaskOverlayViewer = ({
   instances,
   maskSeriesId,
   maskInstances,
-  showOverlay
+  showOverlay,
+  maskFilter = 'all',
+  maskOpacity = 0.7,
+  measurementEnabled = false,
+  measurementResetToken = 0,
+  measurementBoxes = [],
+  onMeasurementBoxesChange,
+  zoomCommand = null
 }: MaskOverlayViewerProps) => {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -84,21 +116,123 @@ const MaskOverlayViewer = ({
   const currentMaskImageRef = useRef<any>(null);
   const showOverlayRef = useRef<boolean>(showOverlay);
   const hasViewportRef = useRef(false);
+  const measurementEnabledRef = useRef<boolean>(measurementEnabled);
+  const [measurementBox, setMeasurementBox] = useState<{
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+  } | null>(null);
+  const measurementBoxRef = useRef<typeof measurementBox>(null);
+  const isDraggingRef = useRef(false);
+  const prefetchTokenRef = useRef(0);
 
   // Keep showOverlayRef in sync with showOverlay state
   useEffect(() => {
     showOverlayRef.current = showOverlay;
   }, [showOverlay]);
 
+  useEffect(() => {
+    measurementEnabledRef.current = measurementEnabled;
+    if (viewerRef.current) {
+      viewerRef.current.style.cursor = measurementEnabled ? 'crosshair' : 'default';
+    }
+  }, [measurementEnabled]);
+
+  useEffect(() => {
+    measurementBoxRef.current = measurementBox;
+  }, [measurementBox]);
+
+  useEffect(() => {
+    if (!zoomCommand || !viewerRef.current) return;
+    const element = viewerRef.current;
+    let viewport;
+    try {
+      const enabledElement = cornerstone.getEnabledElement(element);
+      viewport = enabledElement?.viewport;
+    } catch (_err) {
+      return;
+    }
+    if (!viewport) return;
+    let nextScale = viewport.scale || 1;
+    if (zoomCommand.type === 'in') {
+      nextScale = nextScale * 1.2;
+    } else if (zoomCommand.type === 'out') {
+      nextScale = nextScale / 1.2;
+    } else {
+      nextScale = 1;
+    }
+    cornerstone.setViewport(element, { ...viewport, scale: nextScale });
+  }, [zoomCommand]);
+
+  useEffect(() => {
+    setMeasurementBox(null);
+    onMeasurementBoxesChange?.([]);
+    renderMaskOverlay();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [measurementResetToken]);
+
+  const isImageCached = useCallback((imageId?: string) => {
+    if (!imageId) return false;
+    const cache = (cornerstone as any).imageCache;
+    if (!cache || typeof cache.getImageLoadObject !== 'function') {
+      return false;
+    }
+    return Boolean(cache.getImageLoadObject(imageId));
+  }, []);
+
+  const prefetchAllImages = useCallback((startIndex: number) => {
+    const total = baseImageIdsRef.current.length;
+    if (!total) return;
+    const token = ++prefetchTokenRef.current;
+
+    const loadCached = (imageId?: string) => {
+      if (!imageId || isImageCached(imageId)) {
+        return Promise.resolve();
+      }
+      return cornerstone.loadAndCacheImage(imageId).catch(() => undefined);
+    };
+
+    const nearbyIndices: number[] = [];
+    const farIndices: number[] = [];
+    for (let i = 0; i < total; i += 1) {
+      if (i === startIndex) continue;
+      if (Math.abs(i - startIndex) <= 10) {
+        nearbyIndices.push(i);
+      } else {
+        farIndices.push(i);
+      }
+    }
+
+    const loadIndex = async (index: number) => {
+      await Promise.all([
+        loadCached(baseImageIdsRef.current[index]),
+        loadCached(maskImageIdsRef.current[index]),
+      ]);
+    };
+
+    const runQueue = async (queue: number[]) => {
+      for (let i = 0; i < queue.length; i += PREFETCH_CONCURRENCY) {
+        if (token !== prefetchTokenRef.current) return;
+        const chunk = queue.slice(i, i + PREFETCH_CONCURRENCY);
+        await Promise.all(chunk.map(loadIndex));
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+    };
+
+    void (async () => {
+      await runQueue(nearbyIndices);
+      await runQueue(farIndices);
+    })();
+  }, [isImageCached]);
+
   // Render mask overlay on separate canvas layer
   const renderMaskOverlay = useCallback(() => {
     try {
-      if (!currentMaskImageRef.current || !viewerRef.current) {
+      if (!viewerRef.current) {
         return;
       }
 
       const maskImage = currentMaskImageRef.current;
-      const maskPixelData = maskImage.getPixelData();
+      const maskPixelData = maskImage ? maskImage.getPixelData() : null;
 
       // Get Cornerstone canvas to match dimensions (exclude overlay-canvas)
       const cornerstoneCanvas = viewerRef.current.querySelector('canvas:not(.overlay-canvas)') as HTMLCanvasElement;
@@ -121,19 +255,13 @@ const MaskOverlayViewer = ({
       overlayCanvas.width = cornerstoneCanvas.width;
       overlayCanvas.height = cornerstoneCanvas.height;
 
-      // Step 2: Get Cornerstone canvas actual rendered dimensions
-      const csRect = cornerstoneCanvas.getBoundingClientRect();
+      // Step 2: Match rendered size + position using offsets (keeps center aligned)
+      overlayCanvas.style.width = `${cornerstoneCanvas.offsetWidth}px`;
+      overlayCanvas.style.height = `${cornerstoneCanvas.offsetHeight}px`;
+      overlayCanvas.style.left = `${cornerstoneCanvas.offsetLeft}px`;
+      overlayCanvas.style.top = `${cornerstoneCanvas.offsetTop}px`;
 
-      // Step 3: Set overlay canvas to EXACT same rendered size (in pixels, not %)
-      overlayCanvas.style.width = `${csRect.width}px`;
-      overlayCanvas.style.height = `${csRect.height}px`;
-
-      // Step 4: Position overlay exactly at the same location as Cornerstone canvas
-      const parentRect = viewerRef.current.getBoundingClientRect();
-      overlayCanvas.style.left = `${csRect.left - parentRect.left}px`;
-      overlayCanvas.style.top = `${csRect.top - parentRect.top}px`;
-
-      console.log('[MaskOverlay] Canvas - Pixel:', overlayCanvas.width, 'x', overlayCanvas.height, '/ Display:', csRect.width.toFixed(1), 'x', csRect.height.toFixed(1), '/ Pos:', overlayCanvas.style.left, overlayCanvas.style.top);
+      console.log('[MaskOverlay] Canvas - Pixel:', overlayCanvas.width, 'x', overlayCanvas.height, '/ Display:', cornerstoneCanvas.offsetWidth, 'x', cornerstoneCanvas.offsetHeight, '/ Pos:', overlayCanvas.style.left, overlayCanvas.style.top);
 
       const context = overlayCanvas.getContext('2d');
       if (!context) {
@@ -143,11 +271,6 @@ const MaskOverlayViewer = ({
 
       // Clear previous overlay
       context.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-
-      // If showOverlay is false, just clear and return
-      if (!showOverlayRef.current) {
-        return;
-      }
 
       // Get Cornerstone viewport to match CT image transformation
       const enabledElement = cornerstone.getEnabledElement(viewerRef.current);
@@ -160,8 +283,8 @@ const MaskOverlayViewer = ({
       }
 
       // Get dimensions
-      const maskWidth = maskImage.width;
-      const maskHeight = maskImage.height;
+      const maskWidth = maskImage ? maskImage.width : baseImage.width;
+      const maskHeight = maskImage ? maskImage.height : baseImage.height;
       const baseWidth = baseImage.width;
       const baseHeight = baseImage.height;
 
@@ -176,25 +299,27 @@ const MaskOverlayViewer = ({
       const unknownColorMap = new Map<number, { r: number; g: number; b: number; a: number }>();
 
       // First pass: detect unique mask values and log them
-      const uniqueMaskValues = new Set<number>();
-      for (let i = 0; i < maskPixelData.length; i++) {
-        const maskValue = maskPixelData[i];
-        if (maskValue > 0) {
-          uniqueMaskValues.add(maskValue);
+      if (showOverlayRef.current && maskPixelData) {
+        const uniqueMaskValues = new Set<number>();
+        for (let i = 0; i < maskPixelData.length; i++) {
+          const maskValue = maskPixelData[i];
+          if (maskValue > 0) {
+            uniqueMaskValues.add(maskValue);
+          }
         }
+
+        const maskValuesArray = Array.from(uniqueMaskValues).sort((a, b) => a - b);
+        console.log('[MaskOverlay] Unique mask values found:', maskValuesArray);
+
+        // Log which colors will be assigned
+        maskValuesArray.forEach(value => {
+          if (FIXED_MASK_COLORS[value]) {
+            console.log(`  - Value ${value}: Fixed color`, FIXED_MASK_COLORS[value]);
+          } else {
+            console.log(`  - Value ${value}: Will use fallback color`);
+          }
+        });
       }
-
-      const maskValuesArray = Array.from(uniqueMaskValues).sort((a, b) => a - b);
-      console.log('[MaskOverlay] Unique mask values found:', maskValuesArray);
-
-      // Log which colors will be assigned
-      maskValuesArray.forEach(value => {
-        if (FIXED_MASK_COLORS[value]) {
-          console.log(`  - Value ${value}: Fixed color`, FIXED_MASK_COLORS[value]);
-        } else {
-          console.log(`  - Value ${value}: Will use fallback color`);
-        }
-      });
 
       // Apply Cornerstone viewport transformation using Canvas 2D transform
       // This matches exactly how Cornerstone renders the base image
@@ -224,12 +349,17 @@ const MaskOverlayViewer = ({
       // Now draw the mask with the same transformation as the base image
       let totalOverlayPixels = 0;
 
-      for (let y = 0; y < maskHeight; y++) {
-        for (let x = 0; x < maskWidth; x++) {
-          const maskIndex = y * maskWidth + x;
-          const maskValue = maskPixelData[maskIndex];
+      if (showOverlayRef.current && maskPixelData) {
+        for (let y = 0; y < maskHeight; y++) {
+          for (let x = 0; x < maskWidth; x++) {
+            const maskIndex = y * maskWidth + x;
+            const maskValue = maskPixelData[maskIndex];
 
-          if (maskValue > 0) {
+          const isLiver = maskValue === 1 || maskValue === 1000;
+          const isTumor = maskValue === 2 || maskValue === 2000;
+          const shouldDraw = maskFilter === 'all' || (maskFilter === 'liver' && isLiver) || (maskFilter === 'tumor' && isTumor);
+
+          if (maskValue > 0 && shouldDraw) {
             totalOverlayPixels++;
             const color = getColorForMaskValue(maskValue, unknownColorMap);
 
@@ -239,20 +369,55 @@ const MaskOverlayViewer = ({
 
             // Draw a rect scaled to match the base image pixel grid
             // The transform will map it to the correct canvas position
-            context.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`;
+            const alpha = (color.a / 255) * maskOpacity;
+            context.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
             context.fillRect(baseX, baseY, scaleX, scaleY);
           }
         }
       }
+      }
+
+      const boxes = measurementBoxes.filter((box) => box.sliceIndex === currentIndex);
+      const activeBox = measurementBoxRef.current;
+      if (boxes.length > 0 || activeBox) {
+        const lineWidth = Math.max(1, 2 / viewport.scale);
+        context.lineWidth = lineWidth;
+
+        const drawBox = (box: { start: { x: number; y: number }; end: { x: number; y: number } }, fill: string) => {
+          const x = Math.min(box.start.x, box.end.x);
+          const y = Math.min(box.start.y, box.end.y);
+          const width = Math.abs(box.end.x - box.start.x);
+          const height = Math.abs(box.end.y - box.start.y);
+
+          context.fillStyle = fill;
+          context.strokeStyle = 'rgba(34, 197, 94, 0.95)';
+          context.fillRect(x, y, width, height);
+          context.strokeRect(x, y, width, height);
+        };
+
+        boxes.forEach((box, index) => {
+          const hue = (index * 53) % 360;
+          const color = `hsla(${hue}, 85%, 55%, 0.28)`;
+          context.strokeStyle = `hsla(${hue}, 85%, 45%, 0.9)`;
+          drawBox(box, color);
+        });
+
+        if (activeBox) {
+          drawBox(activeBox, 'rgba(34, 197, 94, 0.2)');
+        }
+      }
 
       context.restore();
-      console.log('[MaskOverlay] ✓ Overlay applied -', totalOverlayPixels, 'pixels rendered');
+      if (maskPixelData) {
+        console.log('[MaskOverlay] ✓ Overlay applied -', totalOverlayPixels, 'pixels rendered');
+      }
     } catch (err) {
       console.error('Error rendering mask overlay:', err);
     }
-  }, []);
+  }, [currentIndex, measurementBoxes, maskFilter, maskOpacity]);
 
   useEffect(() => {
+    prefetchTokenRef.current += 1;
     if (!viewerRef.current || instances.length === 0) return;
 
     const element = viewerRef.current;
@@ -293,7 +458,7 @@ const MaskOverlayViewer = ({
     }
 
     // 첫 번째 이미지 로드
-    loadImage(0);
+    loadImage(0).catch(() => undefined);
 
     // IMAGE_RENDERED event handler - called whenever image is rendered
     const handleImageRendered = () => {
@@ -329,22 +494,90 @@ const MaskOverlayViewer = ({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seriesId, instances, maskSeriesId, maskInstances]);
+  }, [seriesId, instances, maskSeriesId, maskInstances, prefetchAllImages]);
 
   // showOverlay 변경 시 오버레이 다시 렌더링
   useEffect(() => {
     renderMaskOverlay();
   }, [showOverlay, renderMaskOverlay]);
 
+  useEffect(() => {
+    renderMaskOverlay();
+  }, [measurementBox, measurementBoxes, renderMaskOverlay]);
+
+  useEffect(() => {
+    renderMaskOverlay();
+  }, [maskFilter, maskOpacity, renderMaskOverlay]);
+
+  const updateMeasurement = (start: { x: number; y: number }, end: { x: number; y: number }) => {
+    if (!viewerRef.current) return;
+    const enabledElement = cornerstone.getEnabledElement(viewerRef.current);
+    const image = enabledElement?.image;
+    const rowSpacing = image?.rowPixelSpacing ?? 1;
+    const colSpacing = image?.columnPixelSpacing ?? 1;
+    const widthMm = Math.abs(end.x - start.x) * colSpacing;
+    const heightMm = Math.abs(end.y - start.y) * rowSpacing;
+    return { widthMm, heightMm };
+  };
+
+  const handleMeasurementMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!measurementEnabledRef.current || !viewerRef.current) {
+      return;
+    }
+    const coords = cornerstone.pageToPixel(viewerRef.current, event.pageX, event.pageY);
+    if (!coords) return;
+    isDraggingRef.current = true;
+    const start = { x: coords.x, y: coords.y };
+    setMeasurementBox({ start, end: start });
+  };
+
+  const handleMeasurementMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current || !viewerRef.current) return;
+    const coords = cornerstone.pageToPixel(viewerRef.current, event.pageX, event.pageY);
+    if (!coords) return;
+    setMeasurementBox((prev) => {
+      if (!prev) return prev;
+      const next = { start: prev.start, end: { x: coords.x, y: coords.y } };
+      return next;
+    });
+  };
+
+  const handleMeasurementMouseUp = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current || !viewerRef.current) return;
+    isDraggingRef.current = false;
+    const coords = cornerstone.pageToPixel(viewerRef.current, event.pageX, event.pageY);
+    if (!coords) return;
+    setMeasurementBox((prev) => {
+      if (!prev) return prev;
+      const next = { start: prev.start, end: { x: coords.x, y: coords.y } };
+      const dimensions = updateMeasurement(next.start, next.end);
+      if (dimensions) {
+        const newBox = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          sliceIndex: currentIndex,
+          start: next.start,
+          end: next.end,
+          ...dimensions,
+        };
+        onMeasurementBoxesChange?.([...measurementBoxes, newBox]);
+      }
+      return null;
+    });
+  };
+
   const loadImage = async (index: number) => {
     if (!viewerRef.current || !baseImageIdsRef.current[index]) return;
 
-    setIsLoading(true);
+    const baseImageId = baseImageIdsRef.current[index];
+    const cached = isImageCached(baseImageId);
+    if (!cached) {
+      setIsLoading(true);
+    }
     setError(null);
 
     try {
       // Load base image
-      const image = await cornerstone.loadAndCacheImage(baseImageIdsRef.current[index]);
+      const image = await cornerstone.loadAndCacheImage(baseImageId);
       const element = viewerRef.current;
 
       // Load corresponding mask image if available
@@ -394,25 +627,34 @@ const MaskOverlayViewer = ({
       }, 50);
 
       setCurrentIndex(index);
-      setIsLoading(false);
+      if (!cached) {
+        setIsLoading(false);
+      }
 
-      // Prefetch adjacent slices for smoother scrolling
+      prefetchAllImages(index);
+
+      // Prefetch adjacent slices for smoother scrolling (small priority boost)
       for (let offset = 1; offset <= PREFETCH_DISTANCE; offset++) {
         const nextIndex = index + offset;
         const prevIndex = index - offset;
 
-        if (baseImageIdsRef.current[nextIndex]) {
-          cornerstone.loadAndCacheImage(baseImageIdsRef.current[nextIndex]).catch(() => undefined);
+        const nextBase = baseImageIdsRef.current[nextIndex];
+        const prevBase = baseImageIdsRef.current[prevIndex];
+        const nextMask = maskImageIdsRef.current[nextIndex];
+        const prevMask = maskImageIdsRef.current[prevIndex];
+
+        if (nextBase && !isImageCached(nextBase)) {
+          cornerstone.loadAndCacheImage(nextBase).catch(() => undefined);
         }
-        if (baseImageIdsRef.current[prevIndex]) {
-          cornerstone.loadAndCacheImage(baseImageIdsRef.current[prevIndex]).catch(() => undefined);
+        if (prevBase && !isImageCached(prevBase)) {
+          cornerstone.loadAndCacheImage(prevBase).catch(() => undefined);
         }
 
-        if (maskImageIdsRef.current[nextIndex]) {
-          cornerstone.loadAndCacheImage(maskImageIdsRef.current[nextIndex]).catch(() => undefined);
+        if (nextMask && !isImageCached(nextMask)) {
+          cornerstone.loadAndCacheImage(nextMask).catch(() => undefined);
         }
-        if (maskImageIdsRef.current[prevIndex]) {
-          cornerstone.loadAndCacheImage(maskImageIdsRef.current[prevIndex]).catch(() => undefined);
+        if (prevMask && !isImageCached(prevMask)) {
+          cornerstone.loadAndCacheImage(prevMask).catch(() => undefined);
         }
       }
     } catch (err) {
@@ -449,8 +691,11 @@ const MaskOverlayViewer = ({
         ref={viewerRef}
         className="dicom-canvas"
         onWheel={handleWheel}
+        onMouseDown={handleMeasurementMouseDown}
+        onMouseMove={handleMeasurementMouseMove}
+        onMouseUp={handleMeasurementMouseUp}
+        onMouseLeave={handleMeasurementMouseUp}
       >
-        {isLoading && <div className="viewer-loading">로딩 중...</div>}
         {error && <div className="viewer-error">{error}</div>}
       </div>
       <div className="viewer-controls">
