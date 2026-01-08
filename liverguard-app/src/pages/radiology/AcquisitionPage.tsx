@@ -1,5 +1,6 @@
 // src/pages/radiology/AcquisitionPage.tsx
 import React, { useState, useEffect } from 'react';
+import * as dcmjs from 'dcmjs';
 import PatientHeader from '../../components/radiology/PatientHeader';
 import PatientQueueSidebar from '../../components/radiology/PatientQueueSidebar';
 import SimpleDicomViewer from '../../components/radiology/SimpleDicomViewer';
@@ -144,6 +145,11 @@ const AcquisitionPage: React.FC = () => {
       return;
     }
 
+    if (!selectedPatientId) {
+      alert('촬영 중인 환자가 없습니다.');
+      return;
+    }
+
     const filesToUpload = dicomFiles.filter((file) => selectedFileNames.has(file.name));
     if (filesToUpload.length === 0) {
       alert('선택된 파일이 없습니다.');
@@ -154,8 +160,12 @@ const AcquisitionPage: React.FC = () => {
     setUploadProgress(0);
 
     try {
-      console.log(`Uploading ${filesToUpload.length} file(s) to Orthanc...`);
-      const results = await uploadMultipleDicomFiles(filesToUpload, {
+      const updatedFiles = await Promise.all(
+        filesToUpload.map((file) => updateDicomMetadata(file, selectedPatientId))
+      );
+
+      console.log(`Uploading ${updatedFiles.length} file(s) to Orthanc...`);
+      const results = await uploadMultipleDicomFiles(updatedFiles, {
         concurrency: 4,
         onProgress: (progress) => {
           setUploadProgress(progress.percent);
@@ -224,6 +234,34 @@ const AcquisitionPage: React.FC = () => {
     }
     setDicomFiles((prevFiles) => prevFiles.filter((file) => !selectedFileNames.has(file.name)));
     setSelectedFileNames(new Set());
+  };
+
+  const updateDicomMetadata = async (file: File, patientId: string): Promise<File> => {
+    const lowerName = file.name.toLowerCase();
+    if (!(lowerName.endsWith('.dcm') || lowerName.endsWith('.dicom'))) {
+      return file;
+    }
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const dicomData: any = (dcmjs as any).data.DicomMessage.readFile(arrayBuffer);
+      const dataset = (dcmjs as any).data.DicomMetaDictionary.naturalizeDataset(dicomData.dict);
+
+      dataset.PatientID = patientId;
+      dataset.PatientName = patientId;
+
+      const denormalized = (dcmjs as any).data.DicomMetaDictionary.denaturalizeDataset(dataset);
+      const dicomDict = new (dcmjs as any).data.DicomDict(dicomData.meta);
+      dicomDict.dict = denormalized;
+      const updatedBuffer = dicomDict.write();
+
+      return new File([updatedBuffer], file.name, {
+        type: file.type || 'application/dicom',
+      });
+    } catch (error) {
+      console.error('Failed to update DICOM metadata:', error);
+      return file;
+    }
   };
 
   return (

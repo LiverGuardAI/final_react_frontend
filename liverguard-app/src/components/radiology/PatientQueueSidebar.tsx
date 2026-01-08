@@ -32,6 +32,7 @@ const PatientQueueSidebar: React.FC<PatientQueueSidebarProps> = ({
   const [apiPatients, setApiPatients] = useState<APIPatient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasActiveFilming = patients.some((patient) => patient.status === '촬영중');
 
   useEffect(() => {
     const fetchWaitlist = async () => {
@@ -134,6 +135,7 @@ const PatientQueueSidebar: React.FC<PatientQueueSidebarProps> = ({
                 <button
                   className="start-exam-button"
                   onClick={() => handleStartExam(patient.id)}
+                  disabled={hasActiveFilming}
                 >
                   촬영 시작
                 </button>

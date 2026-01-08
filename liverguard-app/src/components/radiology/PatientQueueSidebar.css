@@ -107,6 +107,12 @@
   background-color: #2d6aa3;
 }
 
+.start-exam-button:disabled {
+  background-color: #475569;
+  color: #cbd5f5;
+  cursor: not-allowed;
+}
+
 .sidebar-footer {
   padding: 16px;
   border-top: 1px solid #2d3748;
