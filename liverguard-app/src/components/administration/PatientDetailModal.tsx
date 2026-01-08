@@ -7,7 +7,6 @@ interface Patient {
   birthDate: string;
   gender: string;
   phone: string;
-  sample_id?: string;
 }
 
 interface PatientDetailModalProps {
@@ -34,7 +33,6 @@ const PatientDetailModal: React.FC<PatientDetailModalProps> = ({
     date_of_birth: '',
     gender: '' as '' | 'M' | 'F',
     phone: '',
-    sample_id: '',
   });
 
   useEffect(() => {
@@ -44,7 +42,6 @@ const PatientDetailModal: React.FC<PatientDetailModalProps> = ({
         date_of_birth: patient.birthDate || '',
         gender: patient.gender === '남' ? 'M' : patient.gender === '여' ? 'F' : (patient.gender as '' | 'M' | 'F'),
         phone: patient.phone || '',
-        sample_id: patient.sample_id || '',
       });
     }
   }, [patient, isOpen]);
@@ -86,12 +83,6 @@ const PatientDetailModal: React.FC<PatientDetailModalProps> = ({
                 <span className={styles.detailLabel}>연락처:</span>
                 <span className={styles.detailValue}>{patient.phone}</span>
               </div>
-              {patient.sample_id && (
-                <div className={styles.detailRow}>
-                  <span className={styles.detailLabel}>검체 ID:</span>
-                  <span className={styles.detailValue}>{patient.sample_id}</span>
-                </div>
-              )}
 
               <div className={styles.modalActions}>
                 <button className={styles.editButton} onClick={onEdit}>
@@ -144,16 +135,6 @@ const PatientDetailModal: React.FC<PatientDetailModalProps> = ({
                   className={styles.formInput}
                   value={editForm.phone}
                   onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>검체 ID</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  value={editForm.sample_id}
-                  onChange={(e) => setEditForm({ ...editForm, sample_id: e.target.value })}
                 />
               </div>
 

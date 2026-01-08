@@ -25,7 +25,6 @@ export const registerPatient = async (patientData: {
   date_of_birth?: string;
   age?: number;
   gender?: "M" | "F";
-  sample_id?: string;
   doctor_id?: number;
 }) => {
   const res = await apiClient.post("administration/patients/register/", patientData);

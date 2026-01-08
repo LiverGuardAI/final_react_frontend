@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from "../../context/AuthContext";
-import { useWaitingQueue } from "../../hooks/useWaitingQueue";
-import { useDashboardStats } from "../../hooks/useDashboardStats";
-import { useDoctors } from "../../hooks/useDoctors";
+import { useAdministrationData } from "../../contexts/AdministrationContext";
 import { usePatients } from "../../hooks/usePatients";
 import {
   registerPatient,
@@ -97,9 +95,28 @@ export default function AdministrationHomePage() {
 
   // 신규 환자 등록은 PatientRegistrationForm 컴포넌트에서 처리
 
-  // Custom Hook으로 환자 관리
+  // Custom Hook으로 환자 관리 (Local usePatients for pagination isolation if desired, or use global if provided)
+  // HomePage specific: Pagination is local.
   const { patients, fetchPatients, isLoading: isLoadingPatients, currentPage, setCurrentPage } = usePatients();
   const patientsPerPage = 5;
+
+  // Context Data
+  const {
+    waitingQueueData: queueData,
+    dashboardStats,
+    fetchWaitingQueue,
+    fetchDashboardStats,
+    doctors: sidebarDoctors,
+    fetchDoctors,
+    refreshPatientsTrigger
+  } = useAdministrationData();
+
+  // 환자 목록 리프레시 트리거 감지
+  useEffect(() => {
+    if (currentPage === 1) { // Only refresh if on first page to avoid jumping
+      fetchPatients(searchQuery, 1);
+    }
+  }, [refreshPatientsTrigger, fetchPatients, searchQuery, currentPage]);
 
   // 환자 상세 모달
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -110,7 +127,6 @@ export default function AdministrationHomePage() {
     date_of_birth: '',
     gender: '' as '' | 'M' | 'F',
     phone: '',
-    sample_id: '',
   });
 
   // 현장 접수 모달
@@ -137,11 +153,6 @@ export default function AdministrationHomePage() {
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [appointmentDoctor, setAppointmentDoctor] = useState<number | null>(null);
-
-  // Custom Hooks로 데이터 관리 - 먼저 선언
-  const { waitingQueueData: queueData, fetchWaitingQueue } = useWaitingQueue();
-  const { stats: dashboardStats, fetchStats: fetchDashboardStats } = useDashboardStats();
-  const { doctors: sidebarDoctors, fetchDoctors } = useDoctors();
 
   // 진료실별 대기 현황 계산 - useMemo로 최적화
   const clinicWaitingList = useMemo((): ClinicWaiting[] => {
@@ -340,7 +351,6 @@ export default function AdministrationHomePage() {
         date_of_birth: detailData.date_of_birth || '',
         gender: detailData.gender || '',
         phone: detailData.phone || '',
-        sample_id: detailData.sample_id || '',
       });
       setIsModalOpen(true);
       setIsEditing(false);
@@ -378,7 +388,6 @@ export default function AdministrationHomePage() {
         date_of_birth: editForm.date_of_birth,
         gender: editForm.gender as 'M' | 'F',
         phone: editForm.phone || undefined,
-        sample_id: editForm.sample_id || undefined,
       };
 
       await updatePatient(selectedPatient.id.toString(), updateData);
@@ -1265,15 +1274,7 @@ export default function AdministrationHomePage() {
                     />
                   </div>
 
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>샘플 ID</label>
-                    <input
-                      type="text"
-                      className={styles.formInput}
-                      value={editForm.sample_id}
-                      onChange={(e) => handleEditFormChange('sample_id', e.target.value)}
-                    />
-                  </div>
+
                 </div>
 
                 <div className={styles.modalActions}>

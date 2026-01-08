@@ -2,8 +2,12 @@ import React, { useState, useEffect } from "react";
 import styles from "./PatientManagementPage.module.css";
 import { getPatients, getEncounters, getAppointments, createQuestionnaire } from "../../api/administration_api";
 import { updatePatient, type PatientUpdateData } from "../../api/administrationApi";
-import QuestionnaireModal, { type QuestionnaireData } from "../../components/administration/QuestionnaireModal";
-import { useWebSocket } from "../../hooks/useWebSocket";
+import VitalMeasurementModal from "../../components/administration/VitalMeasurementModal";
+import PhysicalExamModal from "../../components/administration/PhysicalExamModal";
+import QuestionnaireModal from "../../components/administration/QuestionnaireModal";
+import { useAdministrationData } from "../../contexts/AdministrationContext";
+
+// --- Interfaces ---
 
 interface Patient {
   id: string;
@@ -15,37 +19,53 @@ interface Patient {
   registrationDate: string;
   lastVisitDate: string;
   totalVisits: number;
-  status: "활성" | "휴면" | "탈퇴";
+}
+
+interface QuestionnaireData {
+  chief_complaint: string;
+  symptom_duration: string;
+  pain_level: number;
+  medications?: string;
+  allergies?: string;
+  [key: string]: any;
 }
 
 interface MedicalHistory {
-  id: number;
+  id: string;
   date: string;
   doctor: string;
   department: string;
   diagnosis: string;
   treatment: string;
   prescription?: string;
-  questionnaireData?: any;
+  questionnaireData?: QuestionnaireData;
   questionnaireStatus?: string;
 }
 
 interface Appointment {
-  id: number;
+  id: string;
   date: string;
   time: string;
   doctor: string;
   department: string;
-  status: "예정" | "완료" | "취소";
+  status: '예정' | '완료' | '취소';
 }
 
 const PatientManagementPage: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState<"전체" | "활성" | "휴면" | "탈퇴">("전체");
+
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [activeTab, setActiveTab] = useState<"info" | "history" | "appointments">("info");
+
+  // Selection Mode State
+  const [selectionMode, setSelectionMode] = useState<'none' | 'vital' | 'physical'>('none');
+  const [selectedForAction, setSelectedForAction] = useState<Patient | null>(null);
+
+  // Modals for Actions
+  const [isVitalModalOpen, setIsVitalModalOpen] = useState(false);
+  const [isPhysicalModalOpen, setIsPhysicalModalOpen] = useState(false);
 
   // 진료 기록 및 예약 데이터
   const [medicalHistory, setMedicalHistory] = useState<MedicalHistory[]>([]);
@@ -64,13 +84,15 @@ const PatientManagementPage: React.FC = () => {
     phone: '',
   });
 
+  // Context Data
+  const { refreshPatientsTrigger } = useAdministrationData();
+
   // 환자 목록 로드
   const fetchPatientList = async (search?: string) => {
     setIsLoading(true);
     try {
       const response = await getPatients(search);
 
-      // 각 환자의 진료 기록을 병렬로 조회 (통계 계산용)
       const patientsWithStats = await Promise.all(
         response.results.map(async (p: any) => {
           try {
@@ -88,12 +110,10 @@ const PatientManagementPage: React.FC = () => {
               registrationDate: p.created_at ? p.created_at.split('T')[0] : 'N/A',
               lastVisitDate: completedEncounters.length > 0
                 ? completedEncounters[0].encounter_date
-                : 'N/A',
+                : '없음',
               totalVisits: completedEncounters.length,
-              status: mapStatus(p.current_status),
             };
           } catch (error) {
-            // 개별 환자 조회 실패해도 계속 진행
             return {
               id: p.patient_id,
               patientId: p.patient_id,
@@ -102,9 +122,8 @@ const PatientManagementPage: React.FC = () => {
               gender: p.gender === 'M' ? '남' : p.gender === 'F' ? '여' : 'N/A',
               phone: p.phone || 'N/A',
               registrationDate: p.created_at ? p.created_at.split('T')[0] : 'N/A',
-              lastVisitDate: 'N/A',
+              lastVisitDate: '없음',
               totalVisits: 0,
-              status: mapStatus(p.current_status),
             };
           }
         })
@@ -118,15 +137,6 @@ const PatientManagementPage: React.FC = () => {
     }
   };
 
-  // 환자 상태 매핑
-  const mapStatus = (currentStatus: string): "활성" | "휴면" | "탈퇴" => {
-    if (currentStatus === 'REGISTERED' || currentStatus === 'WAITING_CLINIC' || currentStatus === 'IN_CLINIC') {
-      return '활성';
-    }
-    return '휴면';
-  };
-
-  // 나이 계산
   const calculateAge = (birthDate: string) => {
     if (birthDate === 'N/A') return 0;
     const today = new Date();
@@ -139,20 +149,10 @@ const PatientManagementPage: React.FC = () => {
     return age;
   };
 
-  // 웹소켓 연결 (실시간 업데이트)
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const hostname = window.location.hostname;
-  const WS_URL = `${protocol}//${hostname}:8000/ws/clinic/`;
-
-  useWebSocket(WS_URL, {
-    onMessage: (data: any) => {
-      if (data.type === 'queue_update' || data.type === 'patient_update') {
-        console.log("🔔 환자 정보 업데이트:", data.message);
-        // 환자 목록 새로고침
-        fetchPatientList(searchTerm);
-      }
-    },
-  });
+  // Listen to refresh trigger
+  useEffect(() => {
+    fetchPatientList(searchTerm);
+  }, [refreshPatientsTrigger]);
 
   useEffect(() => {
     fetchPatientList();
@@ -163,8 +163,7 @@ const PatientManagementPage: React.FC = () => {
       patient.name.includes(searchTerm) ||
       patient.patientId.includes(searchTerm) ||
       patient.phone.includes(searchTerm);
-    const matchesStatus = filterStatus === "전체" || patient.status === filterStatus;
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
 
   const handleViewDetails = async (patient: Patient) => {
@@ -172,7 +171,6 @@ const PatientManagementPage: React.FC = () => {
     setActiveTab("info");
     setIsEditing(false);
 
-    // 편집 폼 초기화
     setEditForm({
       name: patient.name,
       date_of_birth: patient.birthDate,
@@ -180,19 +178,16 @@ const PatientManagementPage: React.FC = () => {
       phone: patient.phone,
     });
 
-    // 데이터가 이미 로드되어 있으면 API 호출 생략
     if (medicalHistory.length > 0 && selectedPatient?.id === patient.id) {
       return;
     }
 
-    // 병렬로 API 호출하여 속도 개선
     try {
       const [encountersData, appointmentsData] = await Promise.all([
         getEncounters(patient.patientId),
         getAppointments({ patient_id: patient.patientId })
       ]);
 
-      // 진료 기록 포맷팅 (문진표 데이터 포함)
       const formattedHistory: MedicalHistory[] = encountersData.results.map((e: any) => ({
         id: e.encounter_id,
         date: e.encounter_date,
@@ -206,22 +201,20 @@ const PatientManagementPage: React.FC = () => {
       }));
       setMedicalHistory(formattedHistory);
 
-      // 통계 업데이트
       setPatients(prev => prev.map(p => p.id === patient.id ? {
         ...p,
         totalVisits: formattedHistory.length,
         lastVisitDate: formattedHistory.length > 0 ? formattedHistory[0].date : 'N/A'
       } : p));
 
-      // 예약 내역 포맷팅
       const formattedAppointments: Appointment[] = appointmentsData.results.map((a: any) => ({
         id: a.appointment_id,
         date: a.appointment_date,
         time: a.appointment_time,
         doctor: a.doctor_name || 'N/A',
         department: a.department || 'N/A',
-        status: a.status === 'CONFIRMED' || a.status === '승인완료' ? '예정' :
-                a.status === 'COMPLETED' ? '완료' : '취소',
+        status: (a.status === 'CONFIRMED' || a.status === '승인완료') ? '예정' :
+          a.status === 'COMPLETED' ? '완료' : '취소',
       }));
       setAppointments(formattedAppointments);
     } catch (error) {
@@ -252,7 +245,6 @@ const PatientManagementPage: React.FC = () => {
 
       await updatePatient(selectedPatient.patientId, updateData);
 
-      // 로컬 상태 업데이트
       const updatedPatient = {
         ...selectedPatient,
         name: editForm.name,
@@ -262,7 +254,6 @@ const PatientManagementPage: React.FC = () => {
       };
       setSelectedPatient(updatedPatient);
 
-      // 환자 목록도 업데이트
       setPatients(prev => prev.map(p =>
         p.id === selectedPatient.id ? updatedPatient : p
       ));
@@ -277,12 +268,14 @@ const PatientManagementPage: React.FC = () => {
 
   const handleQuestionnaireSubmit = async (data: QuestionnaireData) => {
     try {
-      await createQuestionnaire(data);
+      if (questionnairePatient) {
+        await createQuestionnaire({ ...data, patient_id: questionnairePatient.patientId });
+      }
+
       alert('문진표가 제출되었습니다.');
       setIsQuestionnaireModalOpen(false);
       setQuestionnairePatient(null);
 
-      // 목록 새로고침
       if (selectedPatient) {
         handleViewDetails(selectedPatient);
       }
@@ -290,6 +283,53 @@ const PatientManagementPage: React.FC = () => {
       console.error('문진표 제출 실패:', error);
       alert(error.response?.data?.message || '문진표 제출 중 오류가 발생했습니다.');
     }
+  };
+
+  const handleModeChange = (mode: 'vital' | 'physical') => {
+    setSelectionMode(mode);
+    setSelectedForAction(null);
+  };
+
+  const handleCancelSelection = () => {
+    setSelectionMode('none');
+    setSelectedForAction(null);
+  };
+
+  const handleSelectPatient = (patient: Patient) => {
+    if (selectedForAction?.id === patient.id) {
+      setSelectedForAction(null);
+    } else {
+      setSelectedForAction(patient);
+    }
+  };
+
+  const handleSelectionConfirm = () => {
+    if (!selectedForAction) return;
+
+    const actionName = selectionMode === 'vital' ? '바이탈 측정' : '신체 계측';
+    const isConfirmed = window.confirm(`[${selectedForAction.name}] 환자의 ${actionName}을(를) 진행하시겠습니까?`);
+
+    if (isConfirmed) {
+      if (selectionMode === 'vital') {
+        setIsVitalModalOpen(true);
+      } else {
+        setIsPhysicalModalOpen(true);
+      }
+    }
+  };
+
+  const handleVitalSubmit = async (data: any) => {
+    console.log("Vital Data Submitted:", data, "For Patient:", selectedForAction);
+    alert(`${selectedForAction?.name} 님의 바이탈 정보가 저장되었습니다.`);
+    setIsVitalModalOpen(false);
+    handleCancelSelection();
+  };
+
+  const handlePhysicalSubmit = async (data: any) => {
+    console.log("Physical Data Submitted:", data, "For Patient:", selectedForAction);
+    alert(`${selectedForAction?.name} 님의 신체 계측 정보가 저장되었습니다.`);
+    setIsPhysicalModalOpen(false);
+    handleCancelSelection();
   };
 
   return (
@@ -301,22 +341,24 @@ const PatientManagementPage: React.FC = () => {
             <span className={styles.statLabel}>전체 환자</span>
             <span className={styles.statValue}>{patients.length}</span>
           </div>
-          <div className={styles.statBox}>
-            <span className={styles.statLabel}>활성</span>
-            <span className={styles.statValue}>
-              {patients.filter(p => p.status === "활성").length}
-            </span>
-          </div>
-          <div className={styles.statBox}>
-            <span className={styles.statLabel}>휴면</span>
-            <span className={styles.statValue}>
-              {patients.filter(p => p.status === "휴면").length}
-            </span>
-          </div>
         </div>
       </div>
 
       <div className={styles.controls}>
+        <div className={styles.leftControls}>
+          <button
+            className={`${styles.actionButton} ${styles.vitalBtn} ${selectionMode === "vital" ? styles.active : ""}`}
+            onClick={() => handleModeChange("vital")}
+          >
+            <span className={styles.icon}>❤️</span> 바이탈 측정
+          </button>
+          <button
+            className={`${styles.actionButton} ${styles.physicalBtn} ${selectionMode === "physical" ? styles.active : ""}`}
+            onClick={() => handleModeChange("physical")}
+          >
+            <span className={styles.icon}>📏</span> 신체 계측
+          </button>
+        </div>
         <div className={styles.searchBox}>
           <input
             type="text"
@@ -333,20 +375,26 @@ const PatientManagementPage: React.FC = () => {
             }}
           />
         </div>
-        <div className={styles.filterBox}>
-          <label className={styles.filterLabel}>상태:</label>
-          <select
-            className={styles.filterSelect}
-            value={filterStatus}
-            onChange={e => setFilterStatus(e.target.value as any)}
-          >
-            <option value="전체">전체</option>
-            <option value="활성">활성</option>
-            <option value="휴면">휴면</option>
-            <option value="탈퇴">탈퇴</option>
-          </select>
-        </div>
       </div>
+
+      {selectionMode !== 'none' && (
+        <div className={styles.selectionBanner}>
+          <span>
+            {selectionMode === 'vital' ? '바이탈 측정' : '신체 계측'}할 환자를 선택하세요.
+            {selectedForAction && <span className={styles.selectedName}> (선택됨: {selectedForAction.name})</span>}
+          </span>
+          <div className={styles.bannerActions}>
+            <button
+              className={styles.confirmSelectionBtn}
+              disabled={!selectedForAction}
+              onClick={handleSelectionConfirm}
+            >
+              확인
+            </button>
+            <button className={styles.cancelSelectionBtn} onClick={handleCancelSelection}>취소</button>
+          </div>
+        </div>
+      )}
 
       <div className={styles.tableContainer}>
         {isLoading ? (
@@ -355,6 +403,7 @@ const PatientManagementPage: React.FC = () => {
           <table className={styles.patientTable}>
             <thead>
               <tr>
+                {selectionMode !== 'none' && <th>선택</th>}
                 <th>환자번호</th>
                 <th>이름</th>
                 <th>생년월일</th>
@@ -363,20 +412,29 @@ const PatientManagementPage: React.FC = () => {
                 <th>연락처</th>
                 <th>최근 방문일</th>
                 <th>총 방문 횟수</th>
-                <th>상태</th>
                 <th>작업</th>
               </tr>
             </thead>
             <tbody>
               {filteredPatients.length === 0 ? (
                 <tr>
-                  <td colSpan={10} style={{ textAlign: 'center', padding: '20px' }}>
+                  <td colSpan={selectionMode !== 'none' ? 10 : 9} style={{ textAlign: 'center', padding: '20px' }}>
                     검색 결과가 없습니다.
                   </td>
                 </tr>
               ) : (
                 filteredPatients.map(patient => (
-                  <tr key={patient.id}>
+                  <tr key={patient.id} className={selectedForAction?.id === patient.id ? styles.selectedRow : ''} onClick={() => selectionMode !== 'none' && handleSelectPatient(patient)}>
+                    {selectionMode !== 'none' && (
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selectedForAction?.id === patient.id}
+                          onChange={() => handleSelectPatient(patient)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </td>
+                    )}
                     <td>{patient.patientId}</td>
                     <td className={styles.patientName}>{patient.name}</td>
                     <td>{patient.birthDate}</td>
@@ -386,14 +444,12 @@ const PatientManagementPage: React.FC = () => {
                     <td>{patient.lastVisitDate}</td>
                     <td>{patient.totalVisits}회</td>
                     <td>
-                      <span className={`${styles.statusBadge} ${styles[patient.status]}`}>
-                        {patient.status}
-                      </span>
-                    </td>
-                    <td>
                       <button
                         className={styles.detailBtn}
-                        onClick={() => handleViewDetails(patient)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewDetails(patient);
+                        }}
                       >
                         상세보기
                       </button>
@@ -479,14 +535,6 @@ const PatientManagementPage: React.FC = () => {
                         <span className={styles.infoLabel}>총 방문 횟수:</span>
                         <span className={styles.infoValue}>{selectedPatient.totalVisits}회</span>
                       </div>
-                      <div className={styles.infoRow}>
-                        <span className={styles.infoLabel}>상태:</span>
-                        <span className={styles.infoValue}>
-                          <span className={`${styles.statusBadge} ${styles[selectedPatient.status]}`}>
-                            {selectedPatient.status}
-                          </span>
-                        </span>
-                      </div>
                     </div>
                   ) : (
                     <div className={styles.infoGrid}>
@@ -545,14 +593,6 @@ const PatientManagementPage: React.FC = () => {
                         <span className={styles.infoLabel}>총 방문 횟수:</span>
                         <span className={styles.infoValue}>{selectedPatient.totalVisits}회</span>
                       </div>
-                      <div className={styles.infoRow}>
-                        <span className={styles.infoLabel}>상태:</span>
-                        <span className={styles.infoValue}>
-                          <span className={`${styles.statusBadge} ${styles[selectedPatient.status]}`}>
-                            {selectedPatient.status}
-                          </span>
-                        </span>
-                      </div>
                     </div>
                   )}
                 </div>
@@ -597,7 +637,6 @@ const PatientManagementPage: React.FC = () => {
                             <span className={styles.historyValue}>{record.treatment}</span>
                           </div>
 
-                          {/* 문진표 데이터가 있으면 표시 */}
                           {record.questionnaireData && (
                             <details style={{ marginTop: '15px', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
                               <summary style={{ cursor: 'pointer', fontWeight: '600', color: '#495057' }}>
@@ -706,6 +745,21 @@ const PatientManagementPage: React.FC = () => {
           setQuestionnairePatient(null);
         }}
         onSubmit={handleQuestionnaireSubmit}
+      />
+
+      {/* 액션 모달들 */}
+      <VitalMeasurementModal
+        isOpen={isVitalModalOpen}
+        patient={selectedForAction}
+        onClose={() => setIsVitalModalOpen(false)}
+        onSubmit={handleVitalSubmit}
+      />
+
+      <PhysicalExamModal
+        isOpen={isPhysicalModalOpen}
+        patient={selectedForAction}
+        onClose={() => setIsPhysicalModalOpen(false)}
+        onSubmit={handlePhysicalSubmit}
       />
     </div>
   );

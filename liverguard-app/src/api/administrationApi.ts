@@ -8,7 +8,6 @@ export interface PatientRegistrationData {
   date_of_birth: string;  // YYYY-MM-DD
   gender: "M" | "F";
   phone?: string;
-  sample_id?: string;
 }
 
 // 환자 등록 API
@@ -39,7 +38,6 @@ export interface PatientUpdateData {
   date_of_birth?: string;
   gender?: "M" | "F";
   phone?: string;
-  sample_id?: string;
 }
 
 export const updatePatient = async (patientId: string, data: PatientUpdateData) => {

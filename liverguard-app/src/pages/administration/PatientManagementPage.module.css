@@ -55,21 +55,136 @@
 
 .controls {
   display: flex;
-  gap: 15px;
+  justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
+}
+
+.leftControls {
+  display: flex;
+  gap: 15px;
+}
+
+.actionButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.vitalBtn {
+  background-color: #ff6b6b;
+  color: white;
+}
+
+.vitalBtn:hover {
+  background-color: #fa5252;
+  transform: translateY(-1px);
+}
+
+.vitalBtn.active {
+  background-color: #c92a2a;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+  transform: translateY(1px);
+}
+
+.physicalBtn {
+  background-color: #20c997;
+  color: white;
+}
+
+.physicalBtn:hover {
+  background-color: #12b886;
+  transform: translateY(-1px);
+}
+
+.physicalBtn.active {
+  background-color: #087f5b;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+  transform: translateY(1px);
+}
+
+.icon {
+  font-size: 1.2rem;
+}
+
+.selectionBanner {
+  background-color: #e3f2fd;
+  border: 1px solid #90caf9;
+  color: #1976d2;
+  padding: 15px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.selectedName {
+  font-weight: bold;
+  color: #0d47a1;
+}
+
+.bannerActions {
+  display: flex;
+  gap: 10px;
+}
+
+.confirmSelectionBtn {
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.confirmSelectionBtn:disabled {
+  background-color: #90caf9;
+  cursor: not-allowed;
+}
+
+.cancelSelectionBtn {
+  background-color: white;
+  color: #1976d2;
+  border: 1px solid #1976d2;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.selectedRow {
+  background-color: #e3f2fd !important;
 }
 
 .searchBox {
   flex: 1;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .searchInput {
-  width: 100%;
   padding: 10px 15px;
-  font-size: 14px;
-  border: 1px solid #DDD;
+  border: 1px solid #ddd;
   border-radius: 8px;
-  transition: all 0.2s;
+  width: 300px;
+  font-size: 0.95rem;
 }
 
 .searchInput:focus {

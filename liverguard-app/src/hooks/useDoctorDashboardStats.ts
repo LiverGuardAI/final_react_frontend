@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
 import { getDoctorDashboardStats, type DoctorDashboardStats } from '../api/doctorApi';
-import { useWebSocket } from './useWebSocket';
 
 export const useDoctorDashboardStats = (doctorId: number | null) => {
   const [stats, setStats] = useState<DoctorDashboardStats>({
@@ -39,17 +38,7 @@ export const useDoctorDashboardStats = (doctorId: number | null) => {
     }
   }, [doctorId]);
 
-  // WebSocket으로 실시간 통계 업데이트 수신
-  const wsUrl = `ws://${window.location.hostname}:8000/ws/clinic/`;
-  useWebSocket(wsUrl, {
-    enabled: !!doctorId,
-    onMessage: (data) => {
-      // 대기열 변경 시 통계도 자동 refetch (type은 'queue_update'임!)
-      if (data.type === 'queue_update') {
-        fetchStats();
-      }
-    },
-  });
+  // WebSocket 로직 제거됨 (Global Context에서 관리)
 
   // 초기 로드
   useEffect(() => {

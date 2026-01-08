@@ -143,6 +143,23 @@ const DoctorSidebar = memo(function DoctorSidebar({
                       {patient.birthDate} | {patient.age}세 | {patient.gender}
                     </div>
                     <div className={styles.patientActions}>
+                      {/* 문진표 상태 뱃지 */}
+                      <span style={{
+                        background: patient.questionnaireStatus === 'COMPLETED' ? '#4CAF50' :
+                          patient.questionnaireStatus === 'IN_PROGRESS' ? '#FF9800' : '#9E9E9E',
+                        color: 'white',
+                        padding: '6px 10px',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        marginRight: '8px',
+                        whiteSpace: 'nowrap',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}>
+                        {patient.questionnaireStatus === 'COMPLETED' ? '작성완료' :
+                          patient.questionnaireStatus === 'IN_PROGRESS' ? '작성중' : '미작성'}
+                      </span>
                       <button
                         className={`${styles.actionButton} ${styles.start}`}
                         onClick={(e) => onStartConsultation(patient, e)}
@@ -160,7 +177,7 @@ const DoctorSidebar = memo(function DoctorSidebar({
                   <div className={styles.emptyState}>대기 중인 환자가 없습니다</div>
                 )}
               </>
-            ) : sidebarTab === 'completed' && completedPatients.length > 0 ? (
+            ) : completedPatients.length > 0 ? (
               completedPatients.map((patient) => (
                 <div
                   key={patient.encounterId}
@@ -179,7 +196,7 @@ const DoctorSidebar = memo(function DoctorSidebar({
               ))
             ) : (
               <div className={styles.emptyState}>
-                {sidebarTab === 'waiting' ? '대기 중인 환자가 없습니다' : '완료된 진료가 없습니다'}
+                완료된 진료가 없습니다
               </div>
             )}
           </div>

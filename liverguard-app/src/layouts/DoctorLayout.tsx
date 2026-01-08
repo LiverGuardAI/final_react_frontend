@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import styles from './DoctorLayout.module.css';
-import { useWebSocket } from '../hooks/useWebSocket';
+import { useWebSocketContext } from '../context/WebSocketContext';
 import { useDoctorWaitingQueue } from '../hooks/useDoctorWaitingQueue';
 import { useDoctorDashboardStats } from '../hooks/useDoctorDashboardStats';
 import { updateEncounter } from '../api/doctorApi';
@@ -9,6 +9,8 @@ import DoctorPatientModal from '../components/doctor/DoctorPatientModal';
 import DoctorSidebar from '../components/doctor/DoctorSidebar';
 import DoctorTopBar from '../components/doctor/DoctorTopBar';
 import { useTreatment } from '../contexts/TreatmentContext';
+import { DoctorDataProvider } from '../contexts/DoctorDataContext';
+import { mapWorkflowStateToStatus } from '../utils/encounterUtils';
 
 interface Patient {
   encounterId: number;
@@ -72,7 +74,8 @@ export default function DoctorLayout() {
     }
 
     waitingQueueData.queue.forEach((item: any) => {
-      const rawStatus = item.encounter_status;
+      const status = mapWorkflowStateToStatus(item.workflow_state);
+
       const patient: Patient = {
         encounterId: item.encounter_id,
         patientId: item.patient_id || item.patient || 'N/A',
@@ -80,16 +83,16 @@ export default function DoctorLayout() {
         birthDate: item.date_of_birth || 'N/A',
         age: item.age || 0,
         gender: item.gender === 'M' ? '남' : item.gender === 'F' ? '여' : 'N/A',
-        status: (rawStatus as Patient['status']) || 'WAITING',
+        status: status,
         queuedAt: item.created_at || item.queued_at,
         phone: item.phone || 'N/A',
         questionnaireStatus: item.questionnaire_status || 'NOT_STARTED',
         questionnaireData: item.questionnaire_data || null,
       };
 
-      if (rawStatus === 'COMPLETED') {
+      if (status === 'COMPLETED') {
         completed.push(patient);
-      } else if (rawStatus === 'IN_PROGRESS') {
+      } else if (status === 'IN_PROGRESS') {
         inProgress.push(patient);
       } else {
         waiting.push(patient);
@@ -134,31 +137,20 @@ export default function DoctorLayout() {
     }
   }, [fetchWaitingQueue, fetchStats, setSelectedEncounterId, navigate]);
 
-  // WebSocket 실시간 알림 처리
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const hostname = window.location.hostname;
-  const WS_URL = `${protocol}//${hostname}:8000/ws/clinic/`;
+  // WebSocket 실시간 알림 처리 (Global Context 사용)
+  const { lastMessage } = useWebSocketContext();
 
-  useWebSocket(WS_URL, {
-    onMessage: (data) => {
-      if (data.type === 'queue_update') {
-        console.log("🔔 실시간 업데이트:", data.message);
-        // WebSocket 메시지 수신 시 대기열과 통계 새로고침
-        fetchWaitingQueue();
-        fetchStats();
-      }
-    },
-    onOpen: () => {
-      console.log("✅ WebSocket 연결 성공");
-    },
-    onClose: () => {
-      console.log("⚠️ WebSocket 연결 종료 (5초 후 자동 재연결)");
-    },
-    onError: () => {
-      console.error("❌ WebSocket 에러");
-    },
-    enabled: !!doctorId,
-  });
+  useEffect(() => {
+    if (lastMessage && lastMessage.type === 'queue_update') {
+      console.log("🔔 실시간 업데이트 (DoctorLayout):", lastMessage.message);
+      fetchWaitingQueue();
+      fetchStats();
+    }
+  }, [lastMessage, fetchWaitingQueue, fetchStats]);
+
+  /* 
+  삭제된 로컬 WebSocket 연결 코드
+  */
 
   useEffect(() => {
     // 의사 정보 로드
@@ -206,7 +198,16 @@ export default function DoctorLayout() {
 
         {/* 메인 컨텐츠 영역 */}
         <div className={styles.mainContent}>
-          <Outlet />
+          <DoctorDataProvider
+            value={{
+              waitingQueueData,
+              stats,
+              fetchWaitingQueue,
+              fetchStats
+            }}
+          >
+            <Outlet />
+          </DoctorDataProvider>
         </div>
       </div>
 

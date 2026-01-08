@@ -21,6 +21,7 @@ const RecurrencePredictionPage = lazy(() => import("../pages/doctor/RecurrencePr
 const SurvivalAnalysisPage = lazy(() => import("../pages/doctor/SurvivalAnalysis"));
 const DDIPage = lazy(() => import("../pages/doctor/DDI"));
 const DoctorPatientManagementPage = lazy(() => import("../pages/doctor/PatientManagementPage"));
+const AdministrationLayout = lazy(() => import("../layouts/AdministrationLayout"));
 const AdministrationHomePage = lazy(() => import("../pages/administration/HomePage"));
 const AppointmentManagementPage = lazy(() => import("../pages/administration/AppointmentManagementPage"));
 const PatientManagementPage = lazy(() => import("../pages/administration/PatientManagementPage"));
@@ -76,9 +77,11 @@ const router = createBrowserRouter(
 
       {/* administration */}
       <Route path="/administration/login" element={<Suspense fallback={<LoadingFallback />}><UnifiedLoginPage initialRole="administration" /></Suspense>} />
-      <Route path="/administration/home" element={<Suspense fallback={<LoadingFallback />}><AdministrationHomePage /></Suspense>} />
-      <Route path="/administration/appointments" element={<Suspense fallback={<LoadingFallback />}><AppointmentManagementPage /></Suspense>} />
-      <Route path="/administration/patients" element={<Suspense fallback={<LoadingFallback />}><PatientManagementPage /></Suspense>} />
+      <Route path="/administration" element={<Suspense fallback={<LoadingFallback />}><AdministrationLayout /></Suspense>}>
+        <Route path="home" element={<Suspense fallback={<LoadingFallback />}><AdministrationHomePage /></Suspense>} />
+        <Route path="appointments" element={<Suspense fallback={<LoadingFallback />}><AppointmentManagementPage /></Suspense>} />
+        <Route path="patients" element={<Suspense fallback={<LoadingFallback />}><PatientManagementPage /></Suspense>} />
+      </Route>
       {/* 테스트용 - 나중에 ProtectedRoute 복원 필요 */}
       {/* <Route
         path="/administration/home"

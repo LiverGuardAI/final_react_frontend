@@ -37,7 +37,6 @@ const AcquisitionPage: React.FC = () => {
             gender: filmingPatient.gender || 'N/A',
             birthDate: filmingPatient.date_of_birth || 'N/A',
             age: filmingPatient.age,
-            sampleId: filmingPatient.sample_id,
           };
           setSelectedPatientId(filmingPatient.patient_id);
           setSelectedPatientData(patientData);
@@ -337,7 +336,7 @@ const AcquisitionPage: React.FC = () => {
                   <div className="file-list-empty">업로드할 파일을 추가해주세요.</div>
                 ) : (
                   dicomFiles.map((file, index) => (
-                  <div key={index} className="file-item">
+                    <div key={index} className="file-item">
                       <label className="file-select">
                         <input
                           type="checkbox"

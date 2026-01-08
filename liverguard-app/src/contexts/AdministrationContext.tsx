@@ -1,0 +1,89 @@
+import React, { createContext, useContext, useEffect, useState, type ReactNode, useCallback } from 'react';
+import { useWaitingQueue } from '../hooks/useWaitingQueue';
+import { useDashboardStats } from '../hooks/useDashboardStats';
+import { useDoctors } from '../hooks/useDoctors';
+import { useWebSocketContext } from '../context/WebSocketContext';
+
+interface AdministrationContextType {
+    // Stats & Queue
+    waitingQueueData: any;
+    dashboardStats: any;
+    fetchWaitingQueue: () => Promise<void>;
+    fetchDashboardStats: () => Promise<void>;
+
+    // Doctors
+    doctors: any[];
+    fetchDoctors: () => Promise<void>;
+
+    // Patients
+    refreshPatientsTrigger: number;
+    triggerPatientRefresh: () => void;
+}
+
+const AdministrationContext = createContext<AdministrationContextType | undefined>(undefined);
+
+export const AdministrationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const { waitingQueueData, fetchWaitingQueue } = useWaitingQueue();
+    const { stats: dashboardStats, fetchStats: fetchDashboardStats } = useDashboardStats();
+    const { doctors, fetchDoctors } = useDoctors();
+
+    const [refreshPatientsTrigger, setRefreshPatientsTrigger] = useState(0);
+
+    const triggerPatientRefresh = useCallback(() => {
+        setRefreshPatientsTrigger(prev => prev + 1);
+    }, []);
+
+    // WebSocket (Global Context 사용)
+    const { lastMessage } = useWebSocketContext();
+
+    useEffect(() => {
+        if (!lastMessage) return;
+
+        const data = lastMessage;
+        console.log("WebSocket Message (Admin Context via Global):", data);
+
+        if (data.type === 'patient_update') {
+            console.log("Global Patient Update Signal");
+            triggerPatientRefresh();
+        }
+        if (data.type === 'queue_update') {
+            console.log("Global Queue Update Signal");
+            fetchWaitingQueue();
+            fetchDashboardStats();
+        }
+        if (data.type === 'stats_update') {
+            console.log("Global Stats Update Signal");
+            fetchDashboardStats();
+        }
+    }, [lastMessage, triggerPatientRefresh, fetchWaitingQueue, fetchDashboardStats]);
+
+    // Fetch initial data
+    useEffect(() => {
+        fetchDoctors();
+        fetchWaitingQueue();
+        fetchDashboardStats();
+    }, [fetchDoctors, fetchWaitingQueue, fetchDashboardStats]);
+
+    return (
+        <AdministrationContext.Provider value={{
+            waitingQueueData,
+            dashboardStats,
+            fetchWaitingQueue,
+            fetchDashboardStats,
+            doctors,
+            fetchDoctors,
+            refreshPatientsTrigger,
+            triggerPatientRefresh
+        }}>
+            {children}
+        </AdministrationContext.Provider>
+    );
+};
+
+export const useAdministrationData = () => {
+    const context = useContext(AdministrationContext);
+    if (context === undefined) {
+        throw new Error('useAdministrationData must be used within an AdministrationProvider');
+    }
+    return context;
+};

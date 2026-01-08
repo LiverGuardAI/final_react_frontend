@@ -71,12 +71,8 @@ export interface DoctorDashboardStats {
 export const getDoctorDashboardStats = async (
   doctorId: number
 ): Promise<DoctorDashboardStats> => {
-  const response = await apiClient.get('/administration/dashboard/stats/', {
-    params: {
-      doctor_id: doctorId,
-    },
-  });
-  return response.data;
+  const response = await apiClient.get('/doctor/dashboard/');
+  return response.data.stats;
 };
 
 /**
@@ -88,7 +84,7 @@ export const getDoctorInProgressEncounter = async (
 ): Promise<QueueItem | null> => {
   const response = await getDoctorWaitingQueue(doctorId, 50);
   const inProgressEncounter = response.queue.find(
-    (item) => item.encounter_status === 'IN_PROGRESS'
+    (item: any) => item.workflow_state === 'IN_CLINIC' || item.status === 'IN_PROGRESS'
   );
   return inProgressEncounter || null;
 };
@@ -142,7 +138,6 @@ export interface PatientDetail {
   phone?: string;
   address?: string;
   emergency_contact?: string;
-  sample_id?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -292,7 +287,7 @@ export const getPatientImagingOrders = async (
   patientId: string,
   limit?: number
 ): Promise<{ count: number; results: ImagingOrder[] }> => {
-  const response = await apiClient.get(`/doctor/patient/${patientId}/imaging-orders/`, {
+  const response = await apiClient.get(`/doctor/patient/${patientId}/doctor-to-radiology-orders/`, {
     params: limit ? { limit } : {},
   });
   return response.data;
