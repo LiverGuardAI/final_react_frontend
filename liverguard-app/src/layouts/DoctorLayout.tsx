@@ -56,12 +56,12 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
     const inProgress: Patient[] = [];
     const completed: Patient[] = [];
 
-    // 첫 번째 아이템 로깅 (디버깅용)
-    if (waitingQueueData.queue.length > 0) {
-      console.log('🔍 API Response Sample:', waitingQueueData.queue[0]);
+    if (waitingQueueData.queue.length === 0) {
+      return { waitingPatients: [], inProgressPatients: [], completedPatients: [] };
     }
 
     waitingQueueData.queue.forEach((item: any) => {
+  const rawStatus = item.encounter_status;
       const patient: Patient = {
         encounterId: item.encounter_id,
         patientId: item.patient_id || item.patient || 'N/A',
@@ -69,16 +69,16 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
         birthDate: item.date_of_birth || 'N/A',
         age: item.age || 0,
         gender: item.gender === 'M' ? '남' : item.gender === 'F' ? '여' : 'N/A',
-        status: item.encounter_status || 'WAITING',
+  status: (rawStatus as Patient['status']) || 'WAITING',
         queuedAt: item.created_at || item.queued_at,
         phone: item.phone || 'N/A',
         questionnaireStatus: item.questionnaire_status || 'NOT_STARTED',
         questionnaireData: item.questionnaire_data || null,
       };
 
-      if (item.encounter_status === 'COMPLETED') {
+      if (rawStatus === 'COMPLETED') {
         completed.push(patient);
-      } else if (item.encounter_status === 'IN_PROGRESS') {
+      } else if (rawStatus === 'IN_PROGRESS') {
         inProgress.push(patient);
       } else {
         waiting.push(patient);
@@ -261,7 +261,7 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
             </div>
 
             <div className={styles.patientListContent}>
-              {sidebarTab === 'waiting' ? (
+              {sidebarTab === 'waiting' && (
                 <>
                   {/* 진료중인 환자 (상단 우선 표시) */}
                   {inProgressPatients.map((patient) => (
@@ -297,7 +297,7 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
                   ))}
 
                   {/* 대기중인 환자 */}
-                  {waitingPatients.map((patient, index) => (
+                  {waitingPatients.map((patient) => (
                     <div
                       key={patient.encounterId}
                       className={styles.patientCard}
@@ -329,27 +329,31 @@ export default function DoctorLayout({ children, activeTab }: DoctorLayoutProps)
                     <div className={styles.emptyState}>대기 중인 환자가 없습니다</div>
                   )}
                 </>
-              ) : sidebarTab === 'completed' && completedPatients.length > 0 ? (
-                completedPatients.map((patient) => (
-                  <div
-                    key={patient.encounterId}
-                    className={styles.patientCard}
-                    onClick={() => handlePatientCardClick(patient)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <div className={styles.patientHeader}>
-                      <span className={styles.patientName}>{patient.name}</span>
-                      <span className={styles.genderIcon}>{patient.gender === '여' ? '♀' : '♂'}</span>
-                    </div>
-                    <div className={styles.patientDetails}>
-                      {patient.birthDate} | {patient.age}세 | {patient.gender}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className={styles.emptyState}>
-                  {sidebarTab === 'waiting' ? '대기 중인 환자가 없습니다' : '완료된 진료가 없습니다'}
-                </div>
+              )}
+
+              {sidebarTab === 'completed' && (
+                <>
+                  {completedPatients.length > 0 ? (
+                    completedPatients.map((patient) => (
+                      <div
+                        key={patient.encounterId}
+                        className={styles.patientCard}
+                        onClick={() => handlePatientCardClick(patient)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <div className={styles.patientHeader}>
+                          <span className={styles.patientName}>{patient.name}</span>
+                          <span className={styles.genderIcon}>{patient.gender === '여' ? '♀' : '♂'}</span>
+                        </div>
+                        <div className={styles.patientDetails}>
+                          {patient.birthDate} | {patient.age}세 | {patient.gender}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className={styles.emptyState}>완료된 진료가 없습니다</div>
+                  )}
+                </>
               )}
             </div>
           </div>

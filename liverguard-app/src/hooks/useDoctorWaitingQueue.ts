@@ -20,9 +20,9 @@ export const useDoctorWaitingQueue = (doctorId: number | null) => {
       setWaitingQueueData(data);
       return data;
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || '대기열 조회 실패';
+  const errorMessage = err.response?.data?.message || '대기열 조회 실패';
       setError(errorMessage);
-      console.error('대기열 조회 실패:', err);
+      console.error('대기열 조회 실패:', err, err.response?.data);
       return null;
     } finally {
       setIsLoading(false);

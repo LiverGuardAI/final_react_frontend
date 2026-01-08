@@ -45,6 +45,8 @@ export default function TreatmentPage() {
     tumor_status: ''
   });
 
+  const [resultTab, setResultTab] = useState<'lab' | 'genomic' | 'imaging'>('lab');
+
   // 진단명에 따라 HCC 진단인지 확인
   const isHCCDiagnosis = diagnosisName.toLowerCase().includes('hcc') ||
                          diagnosisName.toLowerCase().includes('간암') ||
@@ -186,29 +188,29 @@ export default function TreatmentPage() {
 
         {/* 메인 2단 레이아웃 (50:50) */}
         <div className={styles.mainLayout}>
-          {/* 왼쪽: 진료 기록 & 검사 결과 */}
-          <div className={styles.leftSection}>
-            {/* 탭 헤더 */}
-            <div className={styles.leftTabHeader}>
-              <button
-                onClick={() => setLeftTab('records')}
-                className={`${styles.leftTabButton} ${leftTab === 'records' ? styles.active : ''}`}
-              >
-                진료기록
-              </button>
-              <button
-                onClick={() => setLeftTab('questionnaire')}
-                className={`${styles.leftTabButton} ${leftTab === 'questionnaire' ? styles.active : ''}`}
-              >
-                문진표
-              </button>
-            </div>
+          
+          {/* 왼쪽: 진료 기록 (상단) & 검사 결과 (하단 고정) */}
+          <div className={styles.leftSection} style={{ display: 'flex', flexDirection: 'column' }}>
+            
+            {/* 1. 상단: 탭 헤더 및 탭 컨텐츠 (진료기록/문진표) */}
+            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+              <div className={styles.leftTabHeader}>
+                <button
+                  onClick={() => setLeftTab('records')}
+                  className={`${styles.leftTabButton} ${leftTab === 'records' ? styles.active : ''}`}
+                >
+                  진료기록
+                </button>
+                <button
+                  onClick={() => setLeftTab('questionnaire')}
+                  className={`${styles.leftTabButton} ${leftTab === 'questionnaire' ? styles.active : ''}`}
+                >
+                  문진표
+                </button>
+              </div>
 
-            {/* 탭 컨텐츠 */}
-            <div className={styles.leftTabContent}>
-              {leftTab === 'records' ? (
-                <>
-                  {/* 이전 진료기록 */}
+              <div className={styles.leftTabContent}>
+                {leftTab === 'records' ? (
                   <div className={styles.recordCard}>
                     <h3>📋 과거 진료기록</h3>
                     <div className={styles.recordList}>
@@ -227,10 +229,6 @@ export default function TreatmentPage() {
                             <div className={styles.recordDetail}>
                               • 진단명: {encounter.diagnosis_name || 'N/A'}
                             </div>
-                            <div className={styles.recordDetail}>
-                              • 오더: {encounter.lab_recorded ? '혈액검사 ' : ''}
-                              {encounter.ct_recorded ? 'CT촬영 ' : ''}
-                            </div>
                             <button className={styles.detailButton}>상세보기</button>
                           </div>
                         ))
@@ -239,50 +237,182 @@ export default function TreatmentPage() {
                       )}
                     </div>
                   </div>
-
-                  {/* 검사 결과 */}
-                  <div className={styles.recordCard}>
-                    <h3>🧪 검사결과</h3>
-                    {labResults.length > 0 && (
-                      <>
-                        <div className={styles.testResultTitle}>
-                          혈액검사 ({labResults[0].test_date})
-                        </div>
-                        <div className={styles.testResultGrid}>
-                          <div>AFP: {labResults[0].afp || 'N/A'}</div>
-                          <div>알부민: {labResults[0].albumin || 'N/A'}</div>
-                          <div>빌리루빈: {labResults[0].bilirubin_total || 'N/A'}</div>
-                          <div>INR: {labResults[0].pt_inr || 'N/A'}</div>
-                        </div>
-                        <button className={`${styles.viewButton} ${styles.lab}`}>전체보기</button>
-                      </>
-                    )}
-                    {imagingOrders.length > 0 && (
-                      <>
-                        <div className={styles.testResultTitle} style={{ marginTop: '15px' }}>
-                          {imagingOrders[0].modality} 영상 ({new Date(imagingOrders[0].ordered_at).toLocaleDateString()})
-                        </div>
-                        <button className={`${styles.viewButton} ${styles.ct}`}>영상 보기</button>
-                      </>
-                    )}
-                    {labResults.length === 0 && imagingOrders.length === 0 && (
-                      <div className={styles.emptyRecord}>검사 결과가 없습니다.</div>
+                ) : (
+                  /* 문진표 컨텐츠 */
+                  <div className={styles.questionnaireContent}>
+                    <h3>📝 문진표</h3>
+                    {currentEncounter.questionnaire_data ? (
+                      <div className={styles.questionnaireData}>
+                        <pre>{JSON.stringify(currentEncounter.questionnaire_data, null, 2)}</pre>
+                      </div>
+                    ) : (
+                      <div className={styles.emptyRecord}>문진표 데이터가 없습니다.</div>
                     )}
                   </div>
-                </>
-              ) : (
-                <div className={styles.questionnaireContent}>
-                  <h3>📝 문진표</h3>
-                  {currentEncounter.questionnaire_data ? (
-                    <div className={styles.questionnaireData}>
-                      <pre>{JSON.stringify(currentEncounter.questionnaire_data, null, 2)}</pre>
+                )}
+              </div>
+            </div>
+
+            {/* [하단 영역] 검사 결과 (고정된 섹션) */}
+            <div className={styles.recordCard} style={{ flexShrink: 0, height: '45%', display: 'flex', flexDirection: 'column' }}>
+              
+              {/* 대제목 */}
+              <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: '#2c3e50', borderBottom: '2px solid #eee', paddingBottom: '8px' }}>
+                🧪 검사결과
+              </h3>
+
+              {/* 검사결과 서브 탭 */}
+              <div className={styles.tabHeader} style={{ marginBottom: '15px', justifyContent: 'flex-start', gap: '10px' }}>
+                <button
+                  onClick={() => setResultTab('lab')}
+                  style={{ 
+                    padding: '6px 12px', 
+                    borderRadius: '15px', 
+                    border: resultTab === 'lab' ? '1px solid #007bff' : '1px solid #ddd',
+                    backgroundColor: resultTab === 'lab' ? '#e7f1ff' : '#fff',
+                    color: resultTab === 'lab' ? '#007bff' : '#666',
+                    fontWeight: resultTab === 'lab' ? 'bold' : 'normal',
+                    cursor: 'pointer'
+                  }}
+                >
+                  혈액 검사
+                </button>
+                <button
+                  onClick={() => setResultTab('genomic')}
+                  style={{ 
+                    padding: '6px 12px', 
+                    borderRadius: '15px', 
+                    border: resultTab === 'genomic' ? '1px solid #8e44ad' : '1px solid #ddd',
+                    backgroundColor: resultTab === 'genomic' ? '#f5eef8' : '#fff',
+                    color: resultTab === 'genomic' ? '#8e44ad' : '#666',
+                    fontWeight: resultTab === 'genomic' ? 'bold' : 'normal',
+                    cursor: 'pointer'
+                  }}
+                >
+                  유전체 검사
+                </button>
+                <button
+                  onClick={() => setResultTab('imaging')}
+                  style={{ 
+                    padding: '6px 12px', 
+                    borderRadius: '15px', 
+                    border: resultTab === 'imaging' ? '1px solid #28a745' : '1px solid #ddd',
+                    backgroundColor: resultTab === 'imaging' ? '#e8f5e9' : '#fff',
+                    color: resultTab === 'imaging' ? '#28a745' : '#666',
+                    fontWeight: resultTab === 'imaging' ? 'bold' : 'normal',
+                    cursor: 'pointer'
+                  }}
+                >
+                  CT 촬영
+                </button>
+              </div>
+
+              {/* 탭 내용 (스크롤 가능) */}
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                
+                {/* 1. 혈액 검사 탭 */}
+                {resultTab === 'lab' && (
+                  labResults.length > 0 ? (
+                    <div className={styles.testResultGrid}>
+                      <div className={styles.testResultTitle} style={{ gridColumn: '1 / -1', marginBottom: '10px' }}>
+                        최근 검사일: {labResults[0].test_date}
+                      </div>
+                      <div className={styles.resultItem}>
+                        <span className={styles.label}>AFP</span>
+                        <span className={styles.value}>{labResults[0].afp || '-'}</span>
+                      </div>
+                      <div className={styles.resultItem}>
+                        <span className={styles.label}>Albumin</span>
+                        <span className={styles.value}>{labResults[0].albumin || '-'}</span>
+                      </div>
+                      <div className={styles.resultItem}>
+                        <span className={styles.label}>Total Bilirubin</span>
+                        <span className={styles.value}>{labResults[0].bilirubin_total || '-'}</span>
+                      </div>
+                      <div className={styles.resultItem}>
+                        <span className={styles.label}>PT(INR)</span>
+                        <span className={styles.value}>{labResults[0].pt_inr || '-'}</span>
+                      </div>
+                      <div className={styles.resultItem}>
+                        <span className={styles.label}>Platelet</span>
+                        <span className={styles.value}>{labResults[0].platelet || '-'}</span>
+                      </div>
+                      <div className={styles.resultItem}>
+                        <span className={styles.label}>Creatinine</span>
+                        <span className={styles.value}>{labResults[0].creatinine || '-'}</span>
+                      </div>
                     </div>
                   ) : (
-                    <div className={styles.emptyRecord}>문진표 데이터가 없습니다.</div>
-                  )}
-                </div>
-              )}
+                    <div className={styles.emptyRecord}>등록된 혈액 검사 결과가 없습니다.</div>
+                  )
+                )}
+
+                {/* 2. 유전체 검사 탭 */}
+                {resultTab === 'genomic' && (
+                  <div style={{ padding: '5px' }}>
+                    <div style={{ marginBottom: '15px', backgroundColor: '#f8f9fa', padding: '10px', borderRadius: '8px' }}>
+                      <h4 style={{ margin: '0 0 8px 0', fontSize: '0.95rem', color: '#555' }}>🧬 주요 유전자 변이 분석</h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', textAlign: 'center' }}>
+                         {/* 실제 데이터가 들어오면 교체될 부분 */}
+                        <div style={{ background: 'white', padding: '8px', border: '1px solid #eee', borderRadius: '6px' }}>
+                           <div style={{ fontSize: '0.8rem', color: '#888' }}>TP53</div>
+                           <div style={{ color: '#e74c3c', fontWeight: 'bold' }}>Mutated</div>
+                        </div>
+                        <div style={{ background: 'white', padding: '8px', border: '1px solid #eee', borderRadius: '6px' }}>
+                           <div style={{ fontSize: '0.8rem', color: '#888' }}>CTNNB1</div>
+                           <div style={{ color: '#2ecc71', fontWeight: 'bold' }}>Wild Type</div>
+                        </div>
+                        <div style={{ background: 'white', padding: '8px', border: '1px solid #eee', borderRadius: '6px' }}>
+                           <div style={{ fontSize: '0.8rem', color: '#888' }}>TERT</div>
+                           <div style={{ color: '#e74c3c', fontWeight: 'bold' }}>Detected</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ backgroundColor: '#fff8e1', padding: '10px', borderRadius: '8px', border: '1px solid #ffe082' }}>
+                      <h4 style={{ margin: '0 0 5px 0', fontSize: '0.95rem', color: '#f57f17' }}>📊 AI 생존율 예측 (Radiogenomics)</h4>
+                      <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: '1.4' }}>
+                        임상 데이터와 유전체 정보를 통합 분석한 결과,<br/>
+                        <strong>3년 생존 확률은 72%</strong>로 예측됩니다.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. CT 촬영 탭 */}
+                {resultTab === 'imaging' && (
+                  imagingOrders.length > 0 ? (
+                    <div>
+                      {imagingOrders.map((order, idx) => (
+                        <div key={idx} style={{ borderBottom: '1px solid #eee', padding: '10px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <div style={{ fontWeight: 'bold', fontSize: '1rem' }}>{order.modality} Scan</div>
+                            <div style={{ fontSize: '0.85rem', color: '#666' }}>
+                              {new Date(order.ordered_at).toLocaleDateString()} | {order.status}
+                            </div>
+                          </div>
+                          <button 
+                            className={`${styles.viewButton} ${styles.ct}`}
+                            style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+                          >
+                            영상 보기
+                          </button>
+                        </div>
+                      ))}
+                      {/* PACS Viewer / Segmentation 결과 예시 영역 */}
+                      <div style={{ marginTop: '15px', background: '#000', height: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', color: '#fff' }}>
+                        [ CT Image Viewer Integration Area ]<br/>
+                        Segmentation Overlay On
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={styles.emptyRecord}>최근 CT 촬영 내역이 없습니다.</div>
+                  )
+                )}
+
+              </div>
             </div>
+
           </div>
 
           {/* 오른쪽: 오늘 진료 작성 */}
