@@ -7,6 +7,9 @@
 .main {
   flex: 1;
   padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
 .title {
@@ -28,6 +31,7 @@
   padding: 20px;
   box-shadow: 0 6px 18px rgba(30, 42, 59, 0.08);
   width: 100%;
+  border: 1px solid #E2E8F0;
 }
 
 .panelTitle {
@@ -98,7 +102,7 @@
 }
 
 .formPanel {
-  max-width: 900px;
+  max-width: 980px;
 }
 
 .formGrid {
@@ -215,4 +219,64 @@
   padding: 6px 12px;
   font-size: 12px;
   cursor: pointer;
+}
+
+.selectionRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 520px;
+}
+
+.tabBar {
+  display: inline-flex;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 4px;
+  background: #F3F7FC;
+  border-radius: 12px;
+  border: 1px solid #D7E2EE;
+}
+
+.tabButton {
+  border: none;
+  background: transparent;
+  color: #4B617A;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tabButton:hover {
+  color: #1E2A3B;
+}
+
+.tabActive {
+  background: #FFFFFF;
+  color: #1E2A3B;
+  box-shadow: 0 4px 10px rgba(30, 42, 59, 0.12);
+}
+
+.pathwayGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 1024px) {
+  .pathwayGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .selectionRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .formGrid,
+  .pathwayGrid {
+    grid-template-columns: 1fr;
+  }
 }
