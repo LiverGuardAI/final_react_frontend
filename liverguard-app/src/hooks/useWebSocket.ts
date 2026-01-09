@@ -19,6 +19,8 @@ export const useWebSocket = (url: string, options: UseWebSocketOptions = {}) => 
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const reconnectAttemptsRef = useRef(0);
+  const maxReconnectAttempts = 3;
 
   const connect = useCallback(() => {
     if (!enabled) return;
@@ -28,6 +30,7 @@ export const useWebSocket = (url: string, options: UseWebSocketOptions = {}) => 
 
       ws.onopen = () => {
         console.log(`✅ WebSocket 연결됨: ${url}`);
+        reconnectAttemptsRef.current = 0;
         onOpen?.();
       };
 
@@ -50,10 +53,15 @@ export const useWebSocket = (url: string, options: UseWebSocketOptions = {}) => 
         onClose?.();
 
         // 5초 후 자동 재연결 시도
-        reconnectTimeoutRef.current = setTimeout(() => {
-          console.log('🔄 WebSocket 재연결 시도...');
-          connect();
-        }, 5000);
+        if (reconnectAttemptsRef.current < maxReconnectAttempts) {
+          reconnectAttemptsRef.current += 1;
+          reconnectTimeoutRef.current = setTimeout(() => {
+            console.log(`🔄 WebSocket 재연결 시도... (${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
+            connect();
+          }, 5000);
+        } else {
+          console.warn('⚠️ WebSocket 재연결 최대 횟수에 도달했습니다.');
+        }
       };
 
       wsRef.current = ws;
@@ -66,6 +74,7 @@ export const useWebSocket = (url: string, options: UseWebSocketOptions = {}) => 
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
     }
+    reconnectAttemptsRef.current = 0;
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.close();
     }
