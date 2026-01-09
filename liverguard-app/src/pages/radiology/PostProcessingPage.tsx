@@ -1,5 +1,5 @@
 // src/pages/radiology/PostProcessingPage.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import PatientHeader from '../../components/radiology/PatientHeader';
 import SeriesListSidebar from '../../components/radiology/SeriesListSidebar';
 import MaskOverlayViewer from '../../components/radiology/MaskOverlayViewer';
@@ -167,22 +167,22 @@ const PostProcessingPage: React.FC = () => {
     selectedSeriesInfo?.StudyMainDicomTags ||
     selectedSeries?.data.StudyMainDicomTags;
 
+  const fetchSeriesList = useCallback(async () => {
+    setIsLoadingSeries(true);
+    try {
+      const data = await getSeriesList();
+      setSeriesList(data);
+    } catch (error) {
+      console.error('Failed to fetch series list:', error);
+    } finally {
+      setIsLoadingSeries(false);
+    }
+  }, []);
+
   // Fetch series list from Orthanc on component mount
   useEffect(() => {
-    const fetchSeriesList = async () => {
-      setIsLoadingSeries(true);
-      try {
-        const data = await getSeriesList();
-        setSeriesList(data);
-      } catch (error) {
-        console.error('Failed to fetch series list:', error);
-      } finally {
-        setIsLoadingSeries(false);
-      }
-    };
-
     fetchSeriesList();
-  }, []);
+  }, [fetchSeriesList]);
 
   // Fetch instances when a series is selected
   useEffect(() => {
@@ -485,6 +485,32 @@ const PostProcessingPage: React.FC = () => {
           selectedSeriesId={selectedSeriesId}
           onSeriesSelect={setSelectedSeriesId}
           isLoading={isLoadingSeries}
+          headerAction={
+            <button
+              type="button"
+              className="series-refresh-button"
+              onClick={fetchSeriesList}
+              disabled={isLoadingSeries}
+              title="Series 목록 새로고침"
+              aria-label="Series 목록 새로고침"
+            >
+              {isLoadingSeries ? (
+                <span className="series-refresh-spinner" aria-hidden="true" />
+              ) : (
+                <svg
+                  className="series-refresh-icon"
+                  viewBox="0 0 24 24"
+                  role="img"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M17.65 6.35A7.95 7.95 0 0012 4a8 8 0 108 8h-2a6 6 0 11-1.76-4.24L14 10h6V4l-2.35 2.35z"
+                    fill="currentColor"
+                  />
+                </svg>
+              )}
+            </button>
+          }
         />
 
         <div className="main-content">
