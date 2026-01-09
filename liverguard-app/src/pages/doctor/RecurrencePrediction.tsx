@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import * as api from '../../api/predictionApi';
 import * as adminApi from '../../api/administration_api';
+import FeatureSelectRow from '../../components/doctor/FeatureSelectRow';
 import styles from './AIAnalysis.module.css';
 
 /**
@@ -10,10 +11,7 @@ import styles from './AIAnalysis.module.css';
  */
 const RecurrencePrediction: React.FC = () => {
   const { patientId: urlPatientId } = useParams();
-  const navigate = useNavigate();
-
   // 상태 관리
-  const [patientList, setPatientList] = useState<any[]>([]);
   const [selectedPatient, setSelectedPatient] = useState(urlPatientId || '');
   const [radioList, setRadioList] = useState<api.RadioFeature[]>([]);
   const [clinicalList, setClinicalList] = useState<api.ClinicalFeature[]>([]);
@@ -31,11 +29,6 @@ const RecurrencePrediction: React.FC = () => {
   };
 
   // 1. 전체 환자 목록 로드
-  useEffect(() => {
-    adminApi.getPatients().then(data => {
-      setPatientList(data.results || data);
-    });
-  }, []);
   // 2. 선택된 환자의 특징 데이터 로드
   useEffect(() => {
     const loadFeatures = async () => {
@@ -72,63 +65,18 @@ const RecurrencePrediction: React.FC = () => {
 
       {/* 데이터 선택 영역 (상단 일렬 배치) */}
       <div className={styles.selectionHeader}>
-        {/* 환자 선택 */}
-        <div className={styles.selectWrapper}>
-          <span className={styles.selectLabel}>환자 :</span>
-          <select
-            className={styles.selectInput}
-            value={selectedPatient}
-            onChange={(e) => {
-              const pid = e.target.value;
-              setSelectedPatient(pid);
-              navigate(`/doctor/ai-stage-prediction/${pid}`);
-            }}
-          >
-            <option value="">- 환자를 선택하세요 -</option> 
-            {patientList.map(p => (
-              <option key={p.patient_id} value={p.patient_id}>{p.name} ({p.patient_id})</option>
-            ))}
-          </select>
-        </div>
-
-        {/* CT 목록창 */}
-        <div className={styles.selectWrapper}>
-          <span className={styles.selectLabel}>CT 데이터:</span>
-          <select className={styles.selectInput} value={selectedRadioId}
-            onChange={(e) => setSelectedRadioId(e.target.value)}
-            disabled={!selectedPatient}
-          >
-            {radioList.map(r => (
-              <option key={r.radio_vector_id} value={r.radio_vector_id}>{formatDate(r.study_date)} ({r.model_name})</option>
-            ))}
-          </select>
-        </div>
-
-        {/* 혈액 데이터 목록창 */}
-        <div className={styles.selectWrapper}>
-          <span className={styles.selectLabel}>혈액 데이터:</span>
-          <select className={styles.selectInput} value={selectedClinicalId}
-            onChange={(e) => setSelectedClinicalId(e.target.value)}
-            disabled={!selectedPatient}
-          >
-            {clinicalList.map(c => (
-              <option key={c.clinical_vector_id} value={c.clinical_vector_id}>{formatDate(c.lab_date)}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* 유전체 데이터 목록창 */}
-        <div className={styles.selectWrapper}>
-          <span className={styles.selectLabel}>유전체 데이터:</span>
-          <select className={styles.selectInput} value={selectedGenomicId}
-            onChange={(e) => setSelectedGenomicId(e.target.value)}
-            disabled={!selectedPatient}
-          >
-            {genomicList.map(g => (
-              <option key={g.genomic_id} value={g.genomic_id}>{g.sample_date} ({g.sample_id})</option>
-            ))}
-          </select>
-        </div>
+        <FeatureSelectRow
+          radioList={radioList}
+          clinicalList={clinicalList}
+          genomicList={genomicList}
+          selectedRadioId={selectedRadioId}
+          selectedClinicalId={selectedClinicalId}
+          selectedGenomicId={selectedGenomicId}
+          onRadioChange={setSelectedRadioId}
+          onClinicalChange={setSelectedClinicalId}
+          onGenomicChange={setSelectedGenomicId}
+          formatDate={formatDate}
+        />
       </div>
 
       {/* 선택된 데이터의 날짜 정보 표시 */}

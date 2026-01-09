@@ -360,6 +360,38 @@ export const getPatientHCCDiagnosis = async (
   return response.data;
 };
 
+export interface CtSeriesItem {
+  series_uid: string;
+  study_id: string;
+  series_description?: string;
+  series_number?: number;
+  modality?: string;
+  study__study_datetime?: string;
+}
+
+export const getPatientCtSeries = async (
+  patientId: string
+): Promise<{ count: number; results: CtSeriesItem[] }> => {
+  const response = await apiClient.get(`/doctor/patient/${patientId}/ct-series/`);
+  return response.data;
+};
+
+export interface GenomicDataItem {
+  genomic_id: number;
+  sample_date?: string;
+  created_at?: string;
+}
+
+export const getPatientGenomicData = async (
+  patientId: string,
+  limit?: number
+): Promise<{ count: number; results: GenomicDataItem[] }> => {
+  const response = await apiClient.get(`/doctor/patient/${patientId}/genomic-data/`, {
+    params: limit ? { limit } : {},
+  });
+  return response.data;
+};
+
 export default apiClient;
 
 /**
