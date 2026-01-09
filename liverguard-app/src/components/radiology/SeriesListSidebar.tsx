@@ -21,6 +21,7 @@ interface SeriesListSidebarProps {
   selectedSeriesId: string | null;
   onSeriesSelect: (seriesId: string) => void;
   isLoading?: boolean;
+  headerAction?: React.ReactNode;
 }
 
 const SeriesListSidebar: React.FC<SeriesListSidebarProps> = ({
@@ -28,6 +29,7 @@ const SeriesListSidebar: React.FC<SeriesListSidebarProps> = ({
   selectedSeriesId,
   onSeriesSelect,
   isLoading = false,
+  headerAction,
 }) => {
   const formatSeriesNumber = (seriesNumber?: string) => {
     return seriesNumber ? `Series ${seriesNumber}` : 'Series';
@@ -46,6 +48,7 @@ const SeriesListSidebar: React.FC<SeriesListSidebarProps> = ({
     <div className="series-list-sidebar">
       <div className="sidebar-header">
         <h2>Series 목록</h2>
+        {headerAction}
       </div>
 
       <div className="series-list">
