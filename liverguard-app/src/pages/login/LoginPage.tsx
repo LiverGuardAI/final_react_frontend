@@ -60,6 +60,13 @@ export default function LoginPage({ initialRole }: UnifiedLoginPageProps) {
     if (initialRole && initialRole !== role) {
       setRole(initialRole);
     }
+    // Clear potentially stale auth tokens
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("doctor");
+    localStorage.removeItem("administration");
+    localStorage.removeItem("radiology");
   }, [initialRole, role]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -111,57 +118,57 @@ export default function LoginPage({ initialRole }: UnifiedLoginPageProps) {
           <p>역할과 계정을 선택해 안전하게 접속하세요.</p>
         </div>
 
-          {error && (
-            <div className="login-error">{error}</div>
-          )}
+        {error && (
+          <div className="login-error">{error}</div>
+        )}
 
-          <label className="field">
-            <span>역할</span>
-            <select
-              value={role}
-              onChange={(e) => {
-                setRole(e.target.value as RoleKey);
-                setError("");
-              }}
-            >
-              {ROLE_CONFIGS.map((item) => (
-                <option key={item.key} value={item.key}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="field">
-            <span>사번</span>
-            <input
-              type="text"
-              placeholder="Employee Number"
-              value={employeeNo}
-              onChange={(e) => setEmployeeNo(e.target.value)}
-              required
-            />
-          </label>
-
-          <label className="field">
-            <span>전화번호</span>
-            <input
-              type="text"
-              placeholder="Phone"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              required
-            />
-          </label>
-
-          <button
-            type="submit"
-            className="login-submit"
-            disabled={loading}
+        <label className="field">
+          <span>역할</span>
+          <select
+            value={role}
+            onChange={(e) => {
+              setRole(e.target.value as RoleKey);
+              setError("");
+            }}
           >
-            {loading ? "로그인 중..." : "로그인"}
-          </button>
-        </form>
+            {ROLE_CONFIGS.map((item) => (
+              <option key={item.key} value={item.key}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="field">
+          <span>사번</span>
+          <input
+            type="text"
+            placeholder="Employee Number"
+            value={employeeNo}
+            onChange={(e) => setEmployeeNo(e.target.value)}
+            required
+          />
+        </label>
+
+        <label className="field">
+          <span>전화번호</span>
+          <input
+            type="text"
+            placeholder="Phone"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            required
+          />
+        </label>
+
+        <button
+          type="submit"
+          className="login-submit"
+          disabled={loading}
+        >
+          {loading ? "로그인 중..." : "로그인"}
+        </button>
+      </form>
     </div>
   );
 }

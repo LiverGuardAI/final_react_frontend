@@ -94,7 +94,7 @@ export const getDoctorInProgressEncounter = async (
 // ===========================
 
 export interface EncounterUpdateData {
-  encounter_status?: 'WAITING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  encounter_status?: 'WAITING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'IN_CLINIC';
   questionnaire_data?: any;
   questionnaire_status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
   chief_complaint?: string;
@@ -200,6 +200,14 @@ export interface EncounterDetail {
   next_visit_date?: string;
   lab_recorded?: boolean;
   ct_recorded?: boolean;
+  questionnaire?: {
+    questionnaire_id: number;
+    status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+    status_display: string;
+    data: any;
+    created_at: string;
+    updated_at: string;
+  };
   created_at: string;
   updated_at: string;
 }
@@ -255,6 +263,35 @@ export interface LabResult {
  * @param patientId - 환자 ID
  * @param limit - 조회할 최대 건수 (선택)
  */
+
+export interface LabOrder {
+  order_id: number;
+  patient_name: string;
+  doctor_name: string;
+  order_type: string;
+  order_type_display: string;
+  status: string;
+  status_display: string;
+  order_notes: any;
+  created_at: string;
+  encounter?: number;
+}
+
+/**
+ * 특정 환자의 진단검사(Lab) 오더 목록 조회
+ * @param patientId - 환자 ID
+ * @param limit - 조회할 최대 건수
+ */
+export const getPatientLabOrders = async (
+  patientId: string,
+  limit?: number
+): Promise<{ count: number; results: LabOrder[] }> => {
+  const response = await apiClient.get(`/doctor/patient/${patientId}/lab-orders/`, {
+    params: limit ? { limit } : {},
+  });
+  return response.data;
+};
+
 export const getPatientLabResults = async (
   patientId: string,
   limit?: number
@@ -276,6 +313,7 @@ export interface ImagingOrder {
   ordered_at: string;
   scheduled_at?: string;
   study_uid?: string;
+  encounter?: number;
 }
 
 /**
@@ -323,3 +361,50 @@ export const getPatientHCCDiagnosis = async (
 };
 
 export default apiClient;
+
+/**
+ * 의사 본인의 진료 기록 목록 조회
+ * @param params - 검색 조건 (search, startDate, endDate)
+ */
+export const getDoctorMedicalRecords = async (params: {
+  search?: string;
+  start_date?: string;
+  end_date?: string;
+}): Promise<{ count: number; results: EncounterDetail[] }> => {
+  const response = await apiClient.get('/doctor/medical-records/', {
+    params,
+  });
+  return response.data;
+};
+
+// ===========================
+// 오더 생성 API
+// ===========================
+
+export interface CreateLabOrderRequest {
+  patient_id: string;
+  encounter_id: number;
+  doctor_id: number;
+  order_type: 'BLOOD_LIVER' | 'GENOMIC' | 'PHYSICAL' | 'VITAL';
+  order_notes?: any; // JSON
+}
+
+export const createLabOrder = async (data: CreateLabOrderRequest) => {
+  const response = await apiClient.post('/doctor/lab-orders/', data);
+  return response.data;
+};
+
+export interface CreateImagingOrderRequest {
+  patient_id: string;
+  encounter_id: number;
+  doctor_id: number;
+  modality: string;
+  body_part?: string;
+  order_notes?: string;
+}
+
+export const createImagingOrder = async (data: CreateImagingOrderRequest) => {
+  const response = await apiClient.post('/doctor/doctor-to-radiology-orders/', data);
+  return response.data;
+};
+

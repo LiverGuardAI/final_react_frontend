@@ -1,5 +1,13 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import styles from './DoctorPatientModal.module.css';
+import {
+  getEncounterDetail,
+  getPatientLabOrders,
+  getPatientImagingOrders,
+  type EncounterDetail,
+  type LabOrder,
+  type ImagingOrder
+} from '../../api/doctorApi';
 
 interface Patient {
   encounterId: number;
@@ -59,6 +67,53 @@ const DoctorPatientModal: React.FC<DoctorPatientModalProps> = ({
   questionnaireData,
   onClose,
 }) => {
+  const [detail, setDetail] = useState<EncounterDetail | null>(null);
+  const [labOrders, setLabOrders] = useState<LabOrder[]>([]);
+  const [imagingOrders, setImagingOrders] = useState<ImagingOrder[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    async function fetchData() {
+      if (!patient?.encounterId) return;
+      setLoading(true);
+      try {
+        // Fetch Encounter Detail
+        const encounterData = await getEncounterDetail(patient.encounterId);
+        setDetail(encounterData);
+
+        // Fetch Orders
+        if (patient.patientId) {
+          const [imgRes, labRes] = await Promise.all([
+            getPatientImagingOrders(patient.patientId),
+            getPatientLabOrders(patient.patientId)
+          ]);
+
+          const encounterDate = encounterData.encounter_date || new Date().toISOString().split('T')[0];
+
+          // Filter Imaging Orders (match encounterId or date)
+          const relevantImg = imgRes.results.filter((o: any) => o.encounter === patient.encounterId || o.ordered_at?.startsWith(encounterDate));
+          setImagingOrders(relevantImg);
+
+          // Filter Lab Orders (match encounterId or date)
+          const relevantLab = labRes.results.filter((o: any) => o.encounter === patient.encounterId || o.created_at?.startsWith(encounterDate));
+          setLabOrders(relevantLab);
+        }
+      } catch (err) {
+        console.error("Failed to fetch patient clinical data", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (isOpen && patient) {
+      fetchData();
+    } else {
+      setDetail(null);
+      setLabOrders([]);
+      setImagingOrders([]);
+    }
+  }, [isOpen, patient]);
+
   if (!isOpen || !patient) return null;
 
   // 흡연 상태 한글 변환
@@ -169,7 +224,113 @@ const DoctorPatientModal: React.FC<DoctorPatientModalProps> = ({
                 <span className={styles.infoLabel}>성별:</span>
                 <span className={styles.infoValue}>{patient.gender}</span>
               </div>
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>진단명:</span>
+                <span className={styles.infoValue} style={{ color: '#e74c3c', fontWeight: 'bold' }}>
+                  {detail?.diagnosis_name || '미입력'}
+                </span>
+              </div>
             </div>
+          </section>
+
+          {/* 진료 기록 (C.C & Note) */}
+          {detail && (
+            <section className={styles.section}>
+              <h4 className={styles.sectionTitle}>📋 진료 기록</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div>
+                  <span className={styles.infoLabel}>주증상 (C.C): </span>
+                  <span className={styles.infoValue}>{detail.chief_complaint || questionnaireData?.chief_complaint || '-'}</span>
+                </div>
+                <div>
+                  <span className={styles.infoLabel} style={{ display: 'block', marginBottom: '4px' }}>의사 소견 (Note):</span>
+                  <pre style={{
+                    backgroundColor: '#f8f9fa',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    whiteSpace: 'pre-wrap',
+                    fontFamily: 'inherit',
+                    fontSize: '0.9rem',
+                    border: '1px solid #e9ecef',
+                    margin: 0
+                  }}>
+                    {detail.clinical_notes || '내용 없음'}
+                  </pre>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* 진단 검사 오더 (Lab) */}
+          <section className={styles.section}>
+            <h4 className={styles.sectionTitle}>🩸 진단 검사 오더 (Lab)</h4>
+            {labOrders.length > 0 ? (
+              <div className={styles.tagList} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {labOrders.map(order => (
+                  <div key={order.order_id} style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    backgroundColor: '#f3e5f5',
+                    padding: '8px 12px',
+                    borderRadius: '6px'
+                  }}>
+                    <div>
+                      <span style={{ fontWeight: 'bold', marginRight: '8px' }}>{order.order_type_display}</span>
+                      <span style={{ fontSize: '0.85rem', color: '#666' }}>
+                        {order.order_notes ? (typeof order.order_notes === 'string' ? order.order_notes : JSON.stringify(order.order_notes)) : ''}
+                      </span>
+                    </div>
+                    <span style={{
+                      fontSize: '0.8rem',
+                      padding: '2px 8px',
+                      backgroundColor: order.status === 'COMPLETED' ? '#2e7d32' : '#f57c00',
+                      color: 'white',
+                      borderRadius: '10px'
+                    }}>
+                      {order.status_display}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <span className={styles.noData}>진단 검사 오더 없음</span>
+            )}
+          </section>
+
+          {/* 영상 검사 오더 (Imaging) */}
+          <section className={styles.section}>
+            <h4 className={styles.sectionTitle}>🎥 영상 검사 오더 (Imaging)</h4>
+            {imagingOrders.length > 0 ? (
+              <div className={styles.tagList} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {imagingOrders.map(order => (
+                  <div key={order.order_id} style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    backgroundColor: '#e8f5e9',
+                    padding: '8px 12px',
+                    borderRadius: '6px'
+                  }}>
+                    <div>
+                      <span style={{ fontWeight: 'bold', marginRight: '8px' }}>{order.modality}</span>
+                      <span style={{ fontSize: '0.85rem', color: '#666' }}>{order.body_part || '-'}</span>
+                    </div>
+                    <span style={{
+                      fontSize: '0.8rem',
+                      padding: '2px 8px',
+                      backgroundColor: order.status === 'COMPLETED' ? '#2e7d32' : '#f57c00',
+                      color: 'white',
+                      borderRadius: '10px'
+                    }}>
+                      {order.status_display}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <span className={styles.noData}>영상 오더 없음</span>
+            )}
           </section>
 
           {/* 문진표 정보 */}

@@ -32,6 +32,7 @@ import PatientRegistrationForm from '../../components/administration/PatientRegi
 import PatientDetailModal from '../../components/administration/PatientDetailModal';
 import QuestionnaireModal, { type QuestionnaireData } from '../../components/administration/QuestionnaireModal';
 import PatientActionModal from '../../components/administration/PatientActionModal';
+import EncounterDetailModal from '../../components/administration/EncounterDetailModal';
 
 interface Patient {
   id: string;  // patient_id is a string like "P251230002"
@@ -70,7 +71,7 @@ interface ClinicWaiting {
     encounterId: number;
     name: string;
     phone: string;
-    status: '진료중' | '대기중' | '접수완료';
+    status: '진료중' | '대기중' | '진료완료';
   }[];
 }
 
@@ -143,6 +144,11 @@ export default function AdministrationHomePage() {
   const [lastEncounterId, setLastEncounterId] = useState<number | null>(null);
   const [questionnaireInitialData, setQuestionnaireInitialData] = useState<QuestionnaireData | null>(null);
 
+  // Completed Patient View Modal State
+  const [isEncounterModalOpen, setIsEncounterModalOpen] = useState(false);
+  const [selectedEncounterId, setSelectedEncounterId] = useState<number | null>(null);
+  const [selectedPatientNameForModal, setSelectedPatientNameForModal] = useState<string>('');
+
   // 환자 작업 선택 모달
   const [isPatientActionModalOpen, setIsPatientActionModalOpen] = useState(false);
   const [selectedWaitingPatient, setSelectedWaitingPatient] = useState<any>(null);
@@ -157,6 +163,16 @@ export default function AdministrationHomePage() {
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [appointmentDoctor, setAppointmentDoctor] = useState<number | null>(null);
+
+  // 진료실별 대기 현황 뷰 모드 ('WAITING' | 'COMPLETED')
+  const [clinicViewModes, setClinicViewModes] = useState<Record<number, 'WAITING' | 'COMPLETED'>>({});
+
+  const toggleClinicViewMode = (doctorId: number) => {
+    setClinicViewModes(prev => ({
+      ...prev,
+      [doctorId]: prev[doctorId] === 'COMPLETED' ? 'WAITING' : 'COMPLETED'
+    }));
+  };
 
   // 진료실별 대기 현황 계산 - useMemo로 최적화
   const clinicWaitingList = useMemo((): ClinicWaiting[] => {
@@ -188,19 +204,26 @@ export default function AdministrationHomePage() {
 
       // 환자 정보 매핑 및 정렬 (진료중 환자가 맨 위로)
       const formattedPatients = myPatients
-        .map((p: any) => ({
-          encounterId: p.encounter_id,
-          name: p.patient_name || '이름 없음',
-          phone: '010-****-****', // 개인정보 마스킹
-          status: (p.encounter_status === 'IN_PROGRESS' ? '진료중' : '대기중') as '진료중' | '대기중',
-          encounter_status: p.encounter_status, // 정렬용
-          checkin_time: p.checkin_time // 대기시간 계산용
-        }))
+        .map((p: any) => {
+          let statusText = '대기중';
+          if (p.encounter_status === 'IN_PROGRESS') statusText = '진료중';
+          else if (p.encounter_status === 'COMPLETED') statusText = '진료완료';
+
+          return {
+            encounterId: p.encounter_id,
+            name: p.patient_name || '이름 없음',
+            phone: '010-****-****', // 개인정보 마스킹
+            status: statusText as '진료중' | '대기중' | '진료완료',
+            patientId: p.patient || p.patient_id, // Rendering에서 사용될 수 있음
+            encounter_status: p.encounter_status, // 정렬용
+            checkin_time: p.checkin_time // 대기시간 계산용
+          };
+        })
         .sort((a: any, b: any) => {
           // 1순위: 진료중(IN_PROGRESS)이 먼저
           if (a.encounter_status === 'IN_PROGRESS' && b.encounter_status !== 'IN_PROGRESS') return -1;
           if (a.encounter_status !== 'IN_PROGRESS' && b.encounter_status === 'IN_PROGRESS') return 1;
-          // 2순위: 대기 시간 순 (checkin_time 오름차순)
+          // 2순위: 대기 시간 순 (checkin_time 오름차순) - 완료된 환자는 업데이트 시간 역순이 좋을수도 있지만 일단 유지
           return 0;
         });
 
@@ -1113,46 +1136,87 @@ export default function AdministrationHomePage() {
               <div className={styles.detailedWaitingContainer}>
                 <h3 className={styles.sectionTitle}>진료실별 대기 현황</h3>
                 <div className={styles.waitingDetailCards}>
-                  {clinicWaitingList.map((clinic) => (
-                    <div key={clinic.id} className={styles.waitingDetailCard}>
-                      <div className={styles.cardHeader}>
-                        <div className={styles.cardTitleSection}>
-                          <span className={styles.cardTitle}>{clinic.roomNumber}</span>
-                          <span style={{ fontSize: '0.9em', color: '#FFFFFF', marginLeft: '10px' }}>
-                            {clinic.doctorName} ({clinic.clinicName})
-                          </span>
-                          <button className={styles.cardButton}>진료대기</button>
+                  {clinicWaitingList.map((clinic) => {
+                    const viewMode = clinicViewModes[clinic.id] || 'WAITING';
+                    const isCompletedMode = viewMode === 'COMPLETED';
+
+                    // 뷰 모드에 따라 환자 필터링
+                    const filteredPatients = clinic.patients.filter(p => {
+                      if (isCompletedMode) {
+                        return p.status === '진료완료';
+                      } else {
+                        return p.status === '진료중' || p.status === '대기중' || p.status === '접수완료';
+                      }
+                    });
+
+                    return (
+                      <div key={clinic.id} className={styles.waitingDetailCard}>
+                        <div className={styles.cardHeader}>
+                          <div className={styles.cardTitleSection}>
+                            <span className={styles.cardTitle}>{clinic.roomNumber}</span>
+                            <span style={{ fontSize: '0.9em', color: '#FFFFFF', marginLeft: '10px' }}>
+                              {clinic.doctorName} ({clinic.clinicName})
+                            </span>
+                            <button
+                              className={styles.cardButton}
+                              onClick={() => toggleClinicViewMode(clinic.id)}
+                            >
+                              {isCompletedMode ? '진료완료' : '진료대기'}
+                            </button>
+                          </div>
+                        </div>
+                        <div className={styles.cardBody}>
+                          {filteredPatients.length > 0 ? (
+                            filteredPatients.map((patient, index) => (
+                              <div
+                                key={index}
+                                className={styles.waitingPatientRow}
+                                onClick={() => {
+                                  if (isCompletedMode) {
+                                    setSelectedEncounterId(patient.encounterId);
+                                    setSelectedPatientNameForModal(patient.name);
+                                    setIsEncounterModalOpen(true);
+                                  }
+                                }}
+                                style={isCompletedMode ? { cursor: 'pointer', backgroundColor: '#f0fff4' } : {}}
+                              >
+                                <div className={styles.patientDetailRow}>
+                                  <span className={styles.patientIndex}>{index + 1}</span>
+                                  <span className={styles.patientNameLarge}>{patient.name}</span>
+                                  <span className={styles.patientPhoneLarge}>{patient.phone}</span>
+                                </div>
+                                <div className={styles.patientActions}>
+                                  <span
+                                    className={`${styles.statusBadgeLarge}`}
+                                    style={{
+                                      backgroundColor: patient.status === '진료중' ? '#e74c3c' :
+                                        patient.status === '진료완료' ? '#2ecc71' : '#f1c40f',
+                                      color: 'white'
+                                    }}
+                                  >
+                                    {patient.status}
+                                  </span>
+                                  {!isCompletedMode && (
+                                    <button
+                                      className={styles.cancelWaitingBtn}
+                                      onClick={() => handleCancelWaiting(patient.encounterId, patient.name)}
+                                      title="대기 취소"
+                                    >
+                                      취소
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className={styles.emptyWaiting}>
+                              {isCompletedMode ? '완료된 진료가 없습니다' : '대기 환자가 없습니다'}
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <div className={styles.cardBody}>
-                        {clinic.patients.length > 0 ? (
-                          clinic.patients.map((patient, index) => (
-                            <div key={index} className={styles.waitingPatientRow}>
-                              <div className={styles.patientDetailRow}>
-                                <span className={styles.patientIndex}>{index + 1}</span>
-                                <span className={styles.patientNameLarge}>{patient.name}</span>
-                                <span className={styles.patientPhoneLarge}>{patient.phone}</span>
-                              </div>
-                              <div className={styles.patientActions}>
-                                <span className={`${styles.statusBadgeLarge} ${styles[patient.status]}`}>
-                                  {patient.status}
-                                </span>
-                                <button
-                                  className={styles.cancelWaitingBtn}
-                                  onClick={() => handleCancelWaiting(patient.encounterId, patient.name)}
-                                  title="대기 취소"
-                                >
-                                  취소
-                                </button>
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className={styles.emptyWaiting}>대기 환자가 없습니다</div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -1432,6 +1496,28 @@ export default function AdministrationHomePage() {
         }}
         onSubmit={handleQuestionnaireSubmit}
         onDelete={questionnaireInitialData ? handleQuestionnaireDelete : undefined}
+      />
+
+      {/* 진료 기록 상세 모달 (Administration용) */}
+      <EncounterDetailModal
+        isOpen={isEncounterModalOpen}
+        encounterId={selectedEncounterId}
+        patientName={selectedPatientNameForModal}
+        onClose={() => {
+          setIsEncounterModalOpen(false);
+          setSelectedEncounterId(null);
+        }}
+      />
+
+      {/* 진료 기록 상세 모달 (Administration용) */}
+      <EncounterDetailModal
+        isOpen={isEncounterModalOpen}
+        encounterId={selectedEncounterId}
+        patientName={selectedPatientNameForModal}
+        onClose={() => {
+          setIsEncounterModalOpen(false);
+          setSelectedEncounterId(null);
+        }}
       />
     </div>
   );

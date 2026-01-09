@@ -26,12 +26,12 @@ interface Patient {
   questionnaireData?: any;
 }
 
-type TabType = 'home' | 'schedule' | 'treatment' | 'patientManagement' | 'examination' | 'testForm' | 'medication';
+type TabType = 'home' | 'schedule' | 'treatment' | 'medicalRecord' | 'examination' | 'testForm' | 'medication';
 
 export default function DoctorLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { setSelectedEncounterId } = useTreatment();
+  const { setSelectedEncounterId, setSelectedPatientId, selectedPatientId } = useTreatment();
 
   // 현재 경로에서 activeTab 유추
   const activeTab: TabType = useMemo(() => {
@@ -39,7 +39,7 @@ export default function DoctorLayout() {
     if (path.includes('/home')) return 'home';
     if (path.includes('/schedule')) return 'schedule';
     if (path.includes('/treatment')) return 'treatment';
-    if (path.includes('/patient-management')) return 'patientManagement';
+    if (path.includes('/medical-record')) return 'medicalRecord';
     if (path.includes('/ddi')) return 'medication';
     if (path.includes('/ct-result') || path.includes('/mrna-result') || path.includes('/blood-result')) return 'examination';
     if (path.includes('/ai-')) return 'testForm';
@@ -111,15 +111,16 @@ export default function DoctorLayout() {
   // 환자 카드 클릭 핸들러 - 바로 상세 정보 모달 열기
   const handlePatientCardClick = useCallback((patient: Patient) => {
     setSelectedPatient(patient);
+    setSelectedPatientId(patient.patientId); // 환자 ID 전역 상태 설정
     setIsPatientModalOpen(true);
-  }, []);
+  }, [setSelectedPatientId]);
 
   // 진료 시작 핸들러
   const handleStartConsultation = useCallback(async (patient: Patient, event: React.MouseEvent) => {
     event.stopPropagation(); // 카드 클릭 이벤트 전파 방지
     try {
       await updateEncounter(patient.encounterId, {
-        encounter_status: 'IN_PROGRESS'
+        encounter_status: 'IN_CLINIC'
       });
 
       // 대기열 및 통계 새로고침
@@ -128,14 +129,15 @@ export default function DoctorLayout() {
         fetchStats()
       ]);
 
-      // 선택된 encounter ID 설정 및 진료 페이지로 이동
+      // 선택된 encounter ID 및 Patient ID 설정 및 진료 페이지로 이동
       setSelectedEncounterId(patient.encounterId);
+      setSelectedPatientId(patient.patientId);
       navigate('/doctor/treatment');
     } catch (error: any) {
       console.error('진료 시작 실패:', error);
       alert(error.response?.data?.message || '진료 시작에 실패했습니다.');
     }
-  }, [fetchWaitingQueue, fetchStats, setSelectedEncounterId, navigate]);
+  }, [fetchWaitingQueue, fetchStats, setSelectedEncounterId, setSelectedPatientId, navigate]);
 
   // WebSocket 실시간 알림 처리 (Global Context 사용)
   const { lastMessage } = useWebSocketContext();

@@ -19,7 +19,7 @@ const StagePredictionPage = lazy(() => import("../pages/doctor/StagePrediction")
 const RecurrencePredictionPage = lazy(() => import("../pages/doctor/RecurrencePrediction"));
 const SurvivalAnalysisPage = lazy(() => import("../pages/doctor/SurvivalAnalysis"));
 const DDIPage = lazy(() => import("../pages/doctor/DDI"));
-const DoctorPatientManagementPage = lazy(() => import("../pages/doctor/PatientManagementPage"));
+const MedicalRecordPage = lazy(() => import("../pages/doctor/MedicalRecordPage"));
 const AdministrationLayout = lazy(() => import("../layouts/AdministrationLayout"));
 const AdministrationHomePage = lazy(() => import("../pages/administration/HomePage"));
 const AppointmentManagementPage = lazy(() => import("../pages/administration/AppointmentManagementPage"));
@@ -28,6 +28,7 @@ const RadiologyHomePage = lazy(() => import("../pages/radiology/HomePage"));
 const AcquisitionPage = lazy(() => import("../pages/radiology/AcquisitionPage"));
 const PostProcessingPage = lazy(() => import("../pages/radiology/PostProcessingPage"));
 const ProtectedRoute = lazy(() => import("../components/auth/ProtectedRoute"));
+const ErrorPage = lazy(() => import("../pages/ErrorPage"));
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -46,11 +47,16 @@ const LoadingFallback = () => (
 const router = createBrowserRouter(
   createRoutesFromElements(
     <>
-      <Route path="/" element={<Suspense fallback={<LoadingFallback />}><UnifiedLoginPage /></Suspense>} />
+      <Route path="/"
+        errorElement={<Suspense fallback={<LoadingFallback />}><ErrorPage /></Suspense>}
+        element={<Suspense fallback={<LoadingFallback />}><UnifiedLoginPage /></Suspense>}
+      />
 
       {/* doctor - nested routes with shared layout */}
       <Route path="/doctor/login" element={<Suspense fallback={<LoadingFallback />}><UnifiedLoginPage initialRole="doctor" /></Suspense>} />
-      <Route path="/doctor" element={<Suspense fallback={<LoadingFallback />}><DoctorLayout /></Suspense>}>
+      <Route path="/doctor"
+        errorElement={<Suspense fallback={<LoadingFallback />}><ErrorPage /></Suspense>}
+        element={<Suspense fallback={<LoadingFallback />}><DoctorLayout /></Suspense>}>
         <Route path="home" element={<Suspense fallback={<LoadingFallback />}><DoctorHomePage /></Suspense>} />
         <Route path="schedule" element={<Suspense fallback={<LoadingFallback />}><SchedulePage /></Suspense>} />
         <Route path="treatment" element={<Suspense fallback={<LoadingFallback />}><TreatmentPage /></Suspense>} />
@@ -61,7 +67,7 @@ const router = createBrowserRouter(
         <Route path="ai-recurrence-prediction/:patientId?" element={<Suspense fallback={<LoadingFallback />}><RecurrencePredictionPage /></Suspense>} />
         <Route path="ai-survival-analysis/:patientId?" element={<Suspense fallback={<LoadingFallback />}><SurvivalAnalysisPage /></Suspense>} />
         <Route path="ddi" element={<Suspense fallback={<LoadingFallback />}><DDIPage /></Suspense>} />
-        <Route path="patient-management" element={<Suspense fallback={<LoadingFallback />}><DoctorPatientManagementPage /></Suspense>} />
+        <Route path="medical-record" element={<Suspense fallback={<LoadingFallback />}><MedicalRecordPage /></Suspense>} />
       </Route>
       {/* 테스트용 - 나중에 ProtectedRoute 복원 필요 */}
       {/* <Route

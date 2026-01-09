@@ -2,7 +2,7 @@ import { memo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from '../../layouts/DoctorLayout.module.css';
 
-type TabType = 'home' | 'schedule' | 'treatment' | 'patientManagement' | 'examination' | 'testForm' | 'medication';
+type TabType = 'home' | 'schedule' | 'treatment' | 'medicalRecord' | 'examination' | 'testForm' | 'medication';
 
 interface DoctorTopBarProps {
   activeTab: TabType;
@@ -55,8 +55,8 @@ const DoctorTopBar = memo(function DoctorTopBar({ activeTab }: DoctorTopBarProps
       case 'testForm':
         navigate('/doctor/ai-result');
         break;
-      case 'patientManagement':
-        navigate('/doctor/patient-management');
+      case 'medicalRecord':
+        navigate('/doctor/medical-record');
         break;
       case 'medication':
         navigate('/doctor/ddi');
@@ -152,10 +152,10 @@ const DoctorTopBar = memo(function DoctorTopBar({ activeTab }: DoctorTopBarProps
         </div>
 
         <button
-          className={`${styles.tabButton} ${activeTab === 'patientManagement' ? styles.active : ''}`}
-          onClick={() => handleTabClick('patientManagement')}
+          className={`${styles.tabButton} ${activeTab === 'medicalRecord' ? styles.active : ''}`}
+          onClick={() => handleTabClick('medicalRecord')}
         >
-          <span>환자 관리</span>
+          <span>진료 기록</span>
         </button>
 
         <button
@@ -195,7 +195,15 @@ const DoctorTopBar = memo(function DoctorTopBar({ activeTab }: DoctorTopBarProps
         </button>
         <button
           className={styles.iconButton}
-          onClick={() => console.log('Logout clicked')}
+          onClick={() => {
+            // 로그아웃 처리
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('doctor');
+            localStorage.removeItem('userRole'); // context store
+            navigate('/');
+          }}
           title="로그아웃"
         >
           <svg className={styles.logoutIcon} width="24" height="24" viewBox="0 0 24 24" fill="none">

@@ -58,8 +58,13 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .loadingState p {
@@ -673,7 +678,177 @@
 
 .leftTabContent::-webkit-scrollbar-thumb:hover,
 .tabContent::-webkit-scrollbar-thumb:hover,
-.recordList::-webkit-scrollbar-thumb:hover,
-.questionnaireData::-webkit-scrollbar-thumb:hover {
-  background: #A0A0A0;
+
+/* 오더 상세 요청 박스 */
+.orderDetailBox {
+  margin-top: 12px;
+  padding: 16px;
+  background-color: #F8F9FA;
+  border: 1px solid #E9ECEF;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.orderDetailTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.checkboxGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.checkboxLabelSmall {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #495057;
+  cursor: pointer;
+}
+
+.checkboxLabelSmall input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.formInputSmall {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid #CED4DA;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.formInputSmall:focus {
+  outline: none;
+  border-color: #6C5CE7;
+}
+
+.formSelect {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid #CED4DA;
+  border-radius: 6px;
+  background-color: white;
+  cursor: pointer;
+}
+
+.formSelect:focus {
+  outline: none;
+  border-color: #6C5CE7;
+}
+
+/* 문진표 섹션 스타일 */
+.qSection {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.qSection:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.qSection h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #6C5CE7;
+  font-weight: 600;
+}
+
+.qSection p {
+  margin: 0;
+  font-size: 14px;
+  color: #333;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* PatientHistorySection 문진표 스타일 리팩토링 */
+.questionnaireGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 15px;
+  padding: 10px 0;
+}
+
+.infoCard {
+  background: #F8F9FA;
+  border: 1px solid #E9ECEF;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.infoLabel {
+  font-size: 13px;
+  color: #6C5CE7;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+
+.infoContent {
+  font-size: 14px;
+  color: #343A40;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.textMuted {
+  color: #ADB5BD;
+  font-weight: 400;
+}
+
+.textValue {
+  color: #212529;
+}
+
+.tagYes {
+  display: inline-block;
+  padding: 2px 8px;
+  background-color: #E8F5E9;
+  color: #2E7D32;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tagNo {
+  display: inline-block;
+  padding: 2px 8px;
+  background-color: #FFEBEE;
+  color: #C62828;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tagContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.badgeItem {
+  display: inline-block;
+  padding: 4px 8px;
+  background-color: #E3F2FD;
+  color: #1976D2;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
 }

@@ -45,8 +45,8 @@ apiClient.interceptors.response.use(
     const data = error.response?.data;
     const isTokenInvalid = data?.code === "token_not_valid";
 
-    // 토큰이 만료되었고, 재시도하지 않은 요청인 경우
-    if (isTokenInvalid && !originalRequest._retry) {
+    // 토큰이 만료되었거나 401 에러인 경우 (코드 무관)
+    if ((isTokenInvalid || error.response?.status === 401) && !originalRequest._retry) {
       originalRequest._retry = true;
 
       const refreshToken = localStorage.getItem("refresh_token");
@@ -69,10 +69,7 @@ apiClient.interceptors.response.use(
         } catch (refreshError) {
           // Refresh token도 만료됨 - 로그아웃 처리
           console.error("Refresh token expired. Please login again.");
-          localStorage.removeItem("access_token");
-          localStorage.removeItem("refresh_token");
-          localStorage.removeItem("user");
-          localStorage.removeItem("administration");
+          localStorage.clear(); // 모든 저장소 초기화
 
           // 로그인 페이지로 리다이렉트
           window.location.href = "/";
@@ -80,10 +77,7 @@ apiClient.interceptors.response.use(
         }
       } else {
         // Refresh token이 없음 - 로그아웃 처리
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
-        localStorage.removeItem("user");
-        localStorage.removeItem("administration");
+        localStorage.clear();
 
         window.location.href = "/";
       }
