@@ -1,0 +1,218 @@
+.page {
+  display: flex;
+  min-height: 100vh;
+  background: #F4F7FB;
+}
+
+.main {
+  flex: 1;
+  padding: 28px 32px;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1E2A3B;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #4B617A;
+  margin-bottom: 24px;
+}
+
+.panel {
+  background: #FFFFFF;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 6px 18px rgba(30, 42, 59, 0.08);
+  width: 100%;
+}
+
+.panelTitle {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: #1E2A3B;
+}
+
+.panelBody {
+  font-size: 14px;
+  color: #4B617A;
+}
+
+.splitPanels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.listTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: #1E2A3B;
+}
+
+.listTable th,
+.listTable td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #E2E8F0;
+  text-align: left;
+}
+
+.listTable th {
+  font-weight: 600;
+  color: #2C3C53;
+}
+
+.listActions {
+  display: flex;
+  gap: 8px;
+}
+
+.actionButton {
+  border: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.actionPrimary {
+  background: #52759C;
+  color: #FFFFFF;
+}
+
+.actionDanger {
+  background: #E66A6A;
+  color: #FFFFFF;
+}
+
+.actionDisabled {
+  background: #C9D3DE;
+  color: #FFFFFF;
+  cursor: not-allowed;
+}
+
+.formPanel {
+  max-width: 900px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.formRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.formLabel {
+  font-size: 12px;
+  color: #2C3C53;
+  font-weight: 600;
+}
+
+.formInput {
+  border: 1px solid #D7E2EE;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #1E2A3B;
+  background: #FFFFFF;
+}
+
+.formInput:focus {
+  outline: none;
+  border-color: #52759C;
+  box-shadow: 0 0 0 2px rgba(82, 117, 156, 0.12);
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.primaryButton {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  background: #52759C;
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondaryButton {
+  border: 1px solid #C9D3DE;
+  border-radius: 10px;
+  padding: 10px 16px;
+  background: #FFFFFF;
+  color: #2C3C53;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.infoBox {
+  background: #F3F7FC;
+  border: 1px solid #D7E2EE;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 18px;
+  font-size: 13px;
+  color: #2C3C53;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(30, 42, 59, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1000;
+}
+
+.modalCard {
+  width: min(920px, 100%);
+  max-height: 90vh;
+  background: #FFFFFF;
+  border-radius: 16px;
+  box-shadow: 0 12px 30px rgba(30, 42, 59, 0.2);
+  overflow: auto;
+  padding: 24px;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.modalTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1E2A3B;
+}
+
+.modalClose {
+  border: none;
+  background: #EFF4FA;
+  color: #2C3C53;
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
