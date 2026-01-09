@@ -27,6 +27,10 @@ const PatientManagementPage = lazy(() => import("../pages/administration/Patient
 const RadiologyHomePage = lazy(() => import("../pages/radiology/HomePage"));
 const AcquisitionPage = lazy(() => import("../pages/radiology/AcquisitionPage"));
 const PostProcessingPage = lazy(() => import("../pages/radiology/PostProcessingPage"));
+const LisHomePage = lazy(() => import("../pages/lis/HomePage"));
+const LisReceptionPage = lazy(() => import("../pages/lis/ReceptionPage"));
+const LisResultEntryPage = lazy(() => import("../pages/lis/ResultEntryPage"));
+const LisLabResultFormPage = lazy(() => import("../pages/lis/LabResultFormPage"));
 const ProtectedRoute = lazy(() => import("../components/auth/ProtectedRoute"));
 const ErrorPage = lazy(() => import("../pages/ErrorPage"));
 
@@ -109,6 +113,12 @@ const router = createBrowserRouter(
           </ProtectedRoute>
         }
       /> */}
+
+      {/* lis */}
+      <Route path="/lis/home" element={<Suspense fallback={<LoadingFallback />}><LisHomePage /></Suspense>} />
+      <Route path="/lis/reception" element={<Suspense fallback={<LoadingFallback />}><LisReceptionPage /></Suspense>} />
+      <Route path="/lis/result-entry" element={<Suspense fallback={<LoadingFallback />}><LisResultEntryPage /></Suspense>} />
+      <Route path="/lis/lab-result/new" element={<Suspense fallback={<LoadingFallback />}><LisLabResultFormPage /></Suspense>} />
     </>
   )
 );

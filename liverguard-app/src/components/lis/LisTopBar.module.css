@@ -1,0 +1,30 @@
+.topBar {
+  height: 48px;
+  margin: 12px 0 24px 0;
+  padding: 6px;
+  border-radius: 14px;
+  background: #E6F0FA;
+  border: 1px solid #C7D6E7;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tabButton {
+  flex: 1;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #2C3C53;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.tabButtonActive {
+  background: #FFFFFF;
+  color: #1E2A3B;
+  box-shadow: 0 2px 8px rgba(30, 42, 59, 0.12);
+}
