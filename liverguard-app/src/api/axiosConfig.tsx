@@ -1,8 +1,9 @@
 // src/api/axiosConfig.ts
 import axios from "axios";
 
-const baseURL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+const rawBaseURL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/";
+const baseURL = rawBaseURL.endsWith("/") ? rawBaseURL : `${rawBaseURL}/`;
 
 const apiClient = axios.create({
   baseURL,
@@ -54,11 +55,9 @@ apiClient.interceptors.response.use(
       if (refreshToken) {
         try {
           // Refresh token으로 새 access token 받기
-          const response = await axios.post(
-            `${baseURL}auth/refresh/`,
-            { refresh: refreshToken },
-            { headers: { "Content-Type": "application/json" } }
-          );
+          const response = await apiClient.post("auth/refresh/", {
+            refresh: refreshToken,
+          });
 
           const newAccessToken = response.data.access;
           localStorage.setItem("access_token", newAccessToken);
