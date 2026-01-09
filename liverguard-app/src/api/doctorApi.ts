@@ -302,6 +302,29 @@ export const getPatientLabResults = async (
   return response.data;
 };
 
+export interface CreateLabResultPayload {
+  test_date: string;
+  measured_at?: string | null;
+  afp?: number;
+  albumin?: number;
+  bilirubin_total?: number;
+  pt_inr?: number;
+  platelet?: number;
+  creatinine?: number;
+  child_pugh_class?: string;
+  meld_score?: number;
+  albi_score?: number;
+  albi_grade?: string;
+}
+
+export const createLabResult = async (
+  patientId: string,
+  payload: CreateLabResultPayload
+): Promise<LabResult> => {
+  const response = await apiClient.post(`/lis/patient/${patientId}/lab-results/`, payload);
+  return response.data;
+};
+
 export interface ImagingOrder {
   order_id: number;
   patient_name: string;
@@ -389,6 +412,20 @@ export const getPatientGenomicData = async (
   const response = await apiClient.get(`/doctor/patient/${patientId}/genomic-data/`, {
     params: limit ? { limit } : {},
   });
+  return response.data;
+};
+
+export interface CreateGenomicDataPayload {
+  sample_date: string;
+  measured_at?: string | null;
+  pathway_scores?: Record<string, number>;
+}
+
+export const createGenomicData = async (
+  patientId: string,
+  payload: CreateGenomicDataPayload
+): Promise<GenomicDataItem> => {
+  const response = await apiClient.post(`/lis/patient/${patientId}/genomic-data/`, payload);
   return response.data;
 };
 
