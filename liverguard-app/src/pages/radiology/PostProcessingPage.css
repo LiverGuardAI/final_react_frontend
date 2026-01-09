@@ -14,6 +14,50 @@
   min-height: 0;
 }
 
+.series-refresh-button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: #e2e8f0;
+  background-color: #1a2332;
+  border: 1px solid #2d3748;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.series-refresh-button:hover {
+  border-color: #4a90e2;
+}
+
+.series-refresh-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.series-refresh-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.series-refresh-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(226, 232, 240, 0.35);
+  border-top-color: #e2e8f0;
+  animation: series-refresh-spin 0.8s linear infinite;
+}
+
+@keyframes series-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .main-content {
   flex: 1;
   display: flex;
@@ -471,6 +515,27 @@
   margin-left: 10px;
   font-size: 12px;
   color: #94a3b8;
+}
+
+.viewer-status-overlay {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+}
+
+.viewer-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background-color: rgba(26, 35, 50, 0.92);
+  border: 1px solid #4a90e2;
+  color: #e2e8f0;
+  font-size: 11px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .bottom-toolbar {

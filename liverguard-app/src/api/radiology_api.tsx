@@ -4,7 +4,6 @@ import apiClient from "./axiosConfig";
 // 타입 정의
 export interface Patient {
   patient_id: string;
-  sample_id: string | null;
   name: string;
   date_of_birth: string | null;
   age: number | null;

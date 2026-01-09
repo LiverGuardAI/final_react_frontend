@@ -1,5 +1,6 @@
 // src/pages/radiology/AcquisitionPage.tsx
 import React, { useState, useEffect } from 'react';
+import * as dcmjs from 'dcmjs';
 import PatientHeader from '../../components/radiology/PatientHeader';
 import PatientQueueSidebar from '../../components/radiology/PatientQueueSidebar';
 import SimpleDicomViewer from '../../components/radiology/SimpleDicomViewer';
@@ -37,7 +38,6 @@ const AcquisitionPage: React.FC = () => {
             gender: filmingPatient.gender || 'N/A',
             birthDate: filmingPatient.date_of_birth || 'N/A',
             age: filmingPatient.age,
-            sampleId: filmingPatient.sample_id,
           };
           setSelectedPatientId(filmingPatient.patient_id);
           setSelectedPatientData(patientData);
@@ -120,6 +120,14 @@ const AcquisitionPage: React.FC = () => {
         alert(`${newDicomFiles.length - uniqueNewFiles.length}개의 중복 파일은 제외되었습니다.`);
       }
 
+      if (uniqueNewFiles.length > 0) {
+        setSelectedFileNames(prevSelected => {
+          const next = new Set(prevSelected);
+          uniqueNewFiles.forEach((file) => next.add(file.name));
+          return next;
+        });
+      }
+
       return [...prevFiles, ...uniqueNewFiles];
     });
 
@@ -137,12 +145,27 @@ const AcquisitionPage: React.FC = () => {
       return;
     }
 
+    if (!selectedPatientId) {
+      alert('촬영 중인 환자가 없습니다.');
+      return;
+    }
+
+    const filesToUpload = dicomFiles.filter((file) => selectedFileNames.has(file.name));
+    if (filesToUpload.length === 0) {
+      alert('선택된 파일이 없습니다.');
+      return;
+    }
+
     setUploading(true);
     setUploadProgress(0);
 
     try {
-      console.log(`Uploading ${dicomFiles.length} file(s) to Orthanc...`);
-      const results = await uploadMultipleDicomFiles(dicomFiles, {
+      const updatedFiles = await Promise.all(
+        filesToUpload.map((file) => updateDicomMetadata(file, selectedPatientId))
+      );
+
+      console.log(`Uploading ${updatedFiles.length} file(s) to Orthanc...`);
+      const results = await uploadMultipleDicomFiles(updatedFiles, {
         concurrency: 4,
         onProgress: (progress) => {
           setUploadProgress(progress.percent);
@@ -150,14 +173,19 @@ const AcquisitionPage: React.FC = () => {
       });
 
       console.log('Upload successful:', results);
-      alert(`${dicomFiles.length}개의 DICOM 파일이 성공적으로 업로드되었습니다.`);
+      alert(`${filesToUpload.length}개의 DICOM 파일이 성공적으로 업로드되었습니다.`);
 
       setIsLoadingPreview(false);
       setUploadedInstances([]);
       setUploadedSeriesId('');
 
-      // 업로드 성공 후 파일 목록 초기화
-      setDicomFiles([]);
+      // 업로드 성공 후 선택된 파일만 목록에서 제거
+      setDicomFiles((prevFiles) => prevFiles.filter((file) => !selectedFileNames.has(file.name)));
+      setSelectedFileNames((prevSelected) => {
+        const next = new Set(prevSelected);
+        filesToUpload.forEach((file) => next.delete(file.name));
+        return next;
+      });
     } catch (error) {
       console.error('Upload failed:', error);
       alert('DICOM 파일 업로드에 실패했습니다. 다시 시도해주세요.');
@@ -206,6 +234,34 @@ const AcquisitionPage: React.FC = () => {
     }
     setDicomFiles((prevFiles) => prevFiles.filter((file) => !selectedFileNames.has(file.name)));
     setSelectedFileNames(new Set());
+  };
+
+  const updateDicomMetadata = async (file: File, patientId: string): Promise<File> => {
+    const lowerName = file.name.toLowerCase();
+    if (!(lowerName.endsWith('.dcm') || lowerName.endsWith('.dicom'))) {
+      return file;
+    }
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const dicomData: any = (dcmjs as any).data.DicomMessage.readFile(arrayBuffer);
+      const dataset = (dcmjs as any).data.DicomMetaDictionary.naturalizeDataset(dicomData.dict);
+
+      dataset.PatientID = patientId;
+      dataset.PatientName = patientId;
+
+      const denormalized = (dcmjs as any).data.DicomMetaDictionary.denaturalizeDataset(dataset);
+      const dicomDict = new (dcmjs as any).data.DicomDict(dicomData.meta);
+      dicomDict.dict = denormalized;
+      const updatedBuffer = dicomDict.write();
+
+      return new File([updatedBuffer], file.name, {
+        type: file.type || 'application/dicom',
+      });
+    } catch (error) {
+      console.error('Failed to update DICOM metadata:', error);
+      return file;
+    }
   };
 
   return (
@@ -318,7 +374,7 @@ const AcquisitionPage: React.FC = () => {
                   <div className="file-list-empty">업로드할 파일을 추가해주세요.</div>
                 ) : (
                   dicomFiles.map((file, index) => (
-                  <div key={index} className="file-item">
+                    <div key={index} className="file-item">
                       <label className="file-select">
                         <input
                           type="checkbox"

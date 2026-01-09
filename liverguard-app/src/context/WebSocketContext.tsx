@@ -1,5 +1,4 @@
-import React, { createContext, useContext, useCallback } from 'react';
-import type { ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
 
 interface WebSocketContextType {
@@ -7,51 +6,37 @@ interface WebSocketContextType {
   disconnect: () => void;
   reconnect: () => void;
   isConnected: boolean;
+  lastMessage: any | null;
 }
 
 const WebSocketContext = createContext<WebSocketContextType | undefined>(undefined);
 
 interface WebSocketProviderProps {
   children: ReactNode;
-  onQueueUpdate?: () => void;
 }
 
-export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children, onQueueUpdate }) => {
+export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }) => {
+  const [lastMessage, setLastMessage] = useState<any | null>(null);
+
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const hostname = window.location.hostname;
   const WS_URL = `${protocol}//${hostname}:8000/ws/clinic/`;
 
   const handleMessage = useCallback((data: any) => {
-    console.log('📨 WebSocket 메시지 수신:', data);
-
-    if (data.type === 'queue_update') {
-      console.log('🔔 대기열 업데이트 알림:', data.message);
-      onQueueUpdate?.();
-    }
-  }, [onQueueUpdate]);
-
-  const handleOpen = useCallback(() => {
-    console.log('✅ WebSocket 연결 성공');
-  }, []);
-
-  const handleError = useCallback((error: Event) => {
-    console.error('❌ WebSocket 에러:', error);
-  }, []);
-
-  const handleClose = useCallback(() => {
-    console.log('⚠️ WebSocket 연결 종료 (5초 후 재연결 시도)');
+    // console.log('Global WS Message:', data); 
+    // 너무 시끄러우면 로그 주석 처리, 하지만 개발 중엔 유용함
+    setLastMessage(data);
   }, []);
 
   const { sendMessage, disconnect, reconnect, isConnected } = useWebSocket(WS_URL, {
     onMessage: handleMessage,
-    onOpen: handleOpen,
-    onError: handleError,
-    onClose: handleClose,
+    onOpen: () => console.log('✅ Global WebSocket Connected'),
+    onClose: () => console.log('⚠️ Global WebSocket Disconnected'),
     enabled: true,
   });
 
   return (
-    <WebSocketContext.Provider value={{ sendMessage, disconnect, reconnect, isConnected }}>
+    <WebSocketContext.Provider value={{ sendMessage, disconnect, reconnect, isConnected, lastMessage }}>
       {children}
     </WebSocketContext.Provider>
   );

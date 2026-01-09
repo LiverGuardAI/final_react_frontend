@@ -14,7 +14,6 @@ const PatientRegistrationForm: React.FC<PatientRegistrationFormProps> = ({ onSub
     date_of_birth: '',
     gender: '' as '' | 'M' | 'F',
     phone: '',
-    sample_id: '',
   });
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,7 +41,6 @@ const PatientRegistrationForm: React.FC<PatientRegistrationFormProps> = ({ onSub
         date_of_birth: formData.date_of_birth,
         gender: formData.gender,
         phone: formData.phone.trim() || undefined,
-        sample_id: formData.sample_id.trim() || undefined,
       };
 
       await onSubmit(data);
@@ -54,7 +52,6 @@ const PatientRegistrationForm: React.FC<PatientRegistrationFormProps> = ({ onSub
         date_of_birth: '',
         gender: '',
         phone: '',
-        sample_id: '',
       });
     } catch (error: any) {
       console.error('환자 등록 실패:', error);
@@ -138,17 +135,6 @@ const PatientRegistrationForm: React.FC<PatientRegistrationFormProps> = ({ onSub
           value={formData.phone}
           onChange={(e) => handleChange('phone', e.target.value)}
           placeholder="010-1234-5678"
-        />
-      </div>
-
-      <div className={styles.formGroup}>
-        <label className={styles.formLabel}>검체 ID</label>
-        <input
-          type="text"
-          className={styles.formInput}
-          value={formData.sample_id}
-          onChange={(e) => handleChange('sample_id', e.target.value)}
-          placeholder="S2024001"
         />
       </div>
 

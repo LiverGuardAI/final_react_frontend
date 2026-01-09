@@ -5,6 +5,7 @@ import { useWebSocket } from "../../hooks/useWebSocket";
 import { useWaitingQueue } from "../../hooks/useWaitingQueue";
 import { useDashboardStats } from "../../hooks/useDashboardStats";
 import { useDoctors } from "../../hooks/useDoctors";
+import { useAdministrationData } from "../../contexts/AdministrationContext";
 import { usePatients } from "../../hooks/usePatients";
 import {
   registerPatient,
@@ -98,9 +99,28 @@ export default function AdministrationHomePage() {
 
   // 신규 환자 등록은 PatientRegistrationForm 컴포넌트에서 처리
 
-  // Custom Hook으로 환자 관리
+  // Custom Hook으로 환자 관리 (Local usePatients for pagination isolation if desired, or use global if provided)
+  // HomePage specific: Pagination is local.
   const { patients, fetchPatients, isLoading: isLoadingPatients, currentPage, setCurrentPage } = usePatients();
   const patientsPerPage = 5;
+
+  // Context Data
+  const {
+    waitingQueueData: queueData,
+    dashboardStats,
+    fetchWaitingQueue,
+    fetchDashboardStats,
+    doctors: sidebarDoctors,
+    fetchDoctors,
+    refreshPatientsTrigger
+  } = useAdministrationData();
+
+  // 환자 목록 리프레시 트리거 감지
+  useEffect(() => {
+    if (currentPage === 1) { // Only refresh if on first page to avoid jumping
+      fetchPatients(searchQuery, 1);
+    }
+  }, [refreshPatientsTrigger, fetchPatients, searchQuery, currentPage]);
 
   // 환자 상세 모달
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -111,7 +131,6 @@ export default function AdministrationHomePage() {
     date_of_birth: '',
     gender: '' as '' | 'M' | 'F',
     phone: '',
-    sample_id: '',
   });
 
   // 현장 접수 모달
@@ -138,11 +157,6 @@ export default function AdministrationHomePage() {
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [appointmentDoctor, setAppointmentDoctor] = useState<number | null>(null);
-
-  // Custom Hooks로 데이터 관리 - 먼저 선언
-  const { waitingQueueData: queueData, fetchWaitingQueue } = useWaitingQueue();
-  const { stats: dashboardStats, fetchStats: fetchDashboardStats } = useDashboardStats();
-  const { doctors: sidebarDoctors, fetchDoctors } = useDoctors();
 
   // 진료실별 대기 현황 계산 - useMemo로 최적화
   const clinicWaitingList = useMemo((): ClinicWaiting[] => {
@@ -341,7 +355,6 @@ export default function AdministrationHomePage() {
         date_of_birth: detailData.date_of_birth || '',
         gender: detailData.gender || '',
         phone: detailData.phone || '',
-        sample_id: detailData.sample_id || '',
       });
       setIsModalOpen(true);
       setIsEditing(false);
@@ -379,7 +392,6 @@ export default function AdministrationHomePage() {
         date_of_birth: editForm.date_of_birth,
         gender: editForm.gender as 'M' | 'F',
         phone: editForm.phone || undefined,
-        sample_id: editForm.sample_id || undefined,
       };
 
       await updatePatient(selectedPatient.id.toString(), updateData);
@@ -435,6 +447,7 @@ export default function AdministrationHomePage() {
         is_first_visit: false,
         department: selectedDoctor?.department?.dept_name || '일반',
         priority: 5,
+        workflow_state: 'WAITING_CLINIC',
       };
 
       const response = await createEncounter(encounterData);
@@ -596,7 +609,7 @@ export default function AdministrationHomePage() {
             <div className={styles.waitingSectionTitle}>총 대기 현황</div>
             <div className={styles.waitingList}>
               {!waitingQueueData || !waitingQueueData.queue || waitingQueueData.queue.length === 0 ? (
-                <div style={{color:'#333', padding:'20px', textAlign:'center', opacity:0.7}}>
+                <div style={{ color: '#333', padding: '20px', textAlign: 'center', opacity: 0.7 }}>
                   대기 중인 환자가 없습니다.
                 </div>
               ) : (
@@ -608,7 +621,13 @@ export default function AdministrationHomePage() {
                       const doctorId = queueItem.doctor_id || queueItem.doctor;
                       const doctor = sidebarDoctors.find(d => d.doctor_id === doctorId);
                       const questionnaireStatus = queueItem.questionnaire_status || 'NOT_STARTED';
-                      const questionnaireDisplay = queueItem.questionnaire_status_display || '미작성';
+
+                      let questionnaireDisplay = '미작성';
+                      if (questionnaireStatus === 'COMPLETED') {
+                        questionnaireDisplay = '작성완료';
+                      } else if (questionnaireStatus === 'IN_PROGRESS') {
+                        questionnaireDisplay = '작성중';
+                      }
                       let questionnaireBadgeStyle = {};
 
                       if (questionnaireStatus === 'COMPLETED') {
@@ -633,15 +652,15 @@ export default function AdministrationHomePage() {
                           title="클릭하여 문진표 작성/확인"
                         >
                           <div className={styles.patientMainInfo}>
-                            <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
-                              <span style={{fontSize: '0.75em', fontWeight: 'bold', color: '#6C5CE7', minWidth: '30px'}}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontSize: '0.75em', fontWeight: 'bold', color: '#6C5CE7', minWidth: '30px' }}>
                                 진료중
                               </span>
-                              <span style={{fontSize: '1em', fontWeight: 'bold', color: '#000'}}>
+                              <span style={{ fontSize: '1em', fontWeight: 'bold', color: '#000', whiteSpace: 'nowrap' }}>
                                 {queueItem.patient_name || '이름 없음'}
                               </span>
                             </div>
-                            <div style={{display: 'flex', gap: '4px'}}>
+                            <div style={{ display: 'flex', gap: '4px' }}>
                               <span
                                 className={styles.questionnaireBadge}
                                 style={{
@@ -649,25 +668,26 @@ export default function AdministrationHomePage() {
                                   padding: '2px 6px',
                                   borderRadius: '4px',
                                   fontWeight: '500',
+                                  whiteSpace: 'nowrap',
                                   ...questionnaireBadgeStyle
                                 }}
                               >
                                 {questionnaireDisplay}
                               </span>
-                              <span className={`${styles.statusTag} ${styles.진료중}`} style={{fontSize: '0.75em'}}>
+                              <span className={`${styles.statusTag} ${styles.진료중}`} style={{ fontSize: '0.75em', whiteSpace: 'nowrap' }}>
                                 진료중
                               </span>
                             </div>
                           </div>
                           <div className={styles.patientDetailInfo}>
-                            <div style={{fontSize: '0.75em', color: '#555'}}>
+                            <div style={{ fontSize: '0.75em', color: '#555' }}>
                               환자ID: {queueItem.patient || 'N/A'}
                             </div>
-                            <div style={{fontSize: '0.75em', color: '#555'}}>
-                              접수시간: {queueItem.created_at ? new Date(queueItem.created_at).toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit'}) : 'N/A'}
+                            <div style={{ fontSize: '0.75em', color: '#555' }}>
+                              접수시간: {queueItem.created_at ? new Date(queueItem.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
                             </div>
-                            <div style={{fontSize: '0.75em', color: '#555'}}>
-                              배정의사: {doctor ? `${doctor.name} (${doctor.room_number || '미배정'}호)` : queueItem.doctor_name || '의사 정보 없음'}
+                            <div style={{ fontSize: '0.75em', color: '#555' }}>
+                              배정: {doctor ? `${doctor.name} (${doctor.room_number || '미배정'}호)` : queueItem.doctor_name || '정보 없음'}
                             </div>
                           </div>
                         </div>
@@ -678,78 +698,85 @@ export default function AdministrationHomePage() {
                   {waitingQueueData.queue
                     .filter((item: any) => item.encounter_status !== 'IN_PROGRESS' && item.encounter_status !== 'COMPLETED')
                     .map((queueItem: any, index: number) => {
-                  // 해당 환자의 의사 정보 찾기
-                  const doctorId = queueItem.doctor_id || queueItem.doctor;
-                  const doctor = sidebarDoctors.find(d => d.doctor_id === doctorId);
+                      // 해당 환자의 의사 정보 찾기
+                      const doctorId = queueItem.doctor_id || queueItem.doctor;
+                      const doctor = sidebarDoctors.find(d => d.doctor_id === doctorId);
 
-                  // 문진표 상태에 따른 스타일 및 텍스트
-                  const questionnaireStatus = queueItem.questionnaire_status || 'NOT_STARTED';
-                  const questionnaireDisplay = queueItem.questionnaire_status_display || '미작성';
-                  let questionnaireBadgeStyle = {};
+                      // 문진표 상태에 따른 스타일 및 텍스트
+                      const questionnaireStatus = queueItem.questionnaire_status || 'NOT_STARTED';
 
-                  if (questionnaireStatus === 'COMPLETED') {
-                    questionnaireBadgeStyle = { backgroundColor: '#4CAF50', color: 'white' };
-                  } else if (questionnaireStatus === 'IN_PROGRESS') {
-                    questionnaireBadgeStyle = { backgroundColor: '#FF9800', color: 'white' };
-                  } else {
-                    questionnaireBadgeStyle = { backgroundColor: '#9E9E9E', color: 'white' };
-                  }
+                      let questionnaireDisplay = '미작성';
+                      if (questionnaireStatus === 'COMPLETED') {
+                        questionnaireDisplay = '작성완료';
+                      } else if (questionnaireStatus === 'IN_PROGRESS') {
+                        questionnaireDisplay = '작성중';
+                      }
+                      let questionnaireBadgeStyle = {};
 
-                  const handlePatientClick = () => {
-                    // 환자 작업 선택 모달 열기
-                    setSelectedWaitingPatient(queueItem);
-                    setIsPatientActionModalOpen(true);
-                  };
+                      if (questionnaireStatus === 'COMPLETED') {
+                        questionnaireBadgeStyle = { backgroundColor: '#4CAF50', color: 'white' };
+                      } else if (questionnaireStatus === 'IN_PROGRESS') {
+                        questionnaireBadgeStyle = { backgroundColor: '#FF9800', color: 'white' };
+                      } else {
+                        questionnaireBadgeStyle = { backgroundColor: '#9E9E9E', color: 'white' };
+                      }
 
-                  return (
-                    <div
-                      key={index}
-                      className={styles.totalWaitingPatientCard}
-                      onClick={handlePatientClick}
-                      style={{ cursor: 'pointer' }}
-                      title="클릭하여 문진표 작성/확인"
-                    >
-                      <div className={styles.patientMainInfo}>
-                        <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
-                          <span style={{fontSize: '0.75em', fontWeight: 'bold', color: '#52759C', minWidth: '24px'}}>
-                            {index + 1}
-                          </span>
-                          <span style={{fontSize: '1em', fontWeight: 'bold', color: '#000'}}>
-                            {queueItem.patient_name || '이름 없음'}
-                          </span>
+                      const handlePatientClick = () => {
+                        // 환자 작업 선택 모달 열기
+                        setSelectedWaitingPatient(queueItem);
+                        setIsPatientActionModalOpen(true);
+                      };
+
+                      return (
+                        <div
+                          key={index}
+                          className={styles.totalWaitingPatientCard}
+                          onClick={handlePatientClick}
+                          style={{ cursor: 'pointer' }}
+                          title="클릭하여 문진표 작성/확인"
+                        >
+                          <div className={styles.patientMainInfo}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontSize: '0.75em', fontWeight: 'bold', color: '#52759C', minWidth: '24px' }}>
+                                {index + 1}
+                              </span>
+                              <span style={{ fontSize: '1em', fontWeight: 'bold', color: '#000', whiteSpace: 'nowrap' }}>
+                                {queueItem.patient_name || '이름 없음'}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              <span
+                                className={styles.questionnaireBadge}
+                                style={{
+                                  fontSize: '0.7em',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  fontWeight: '500',
+                                  whiteSpace: 'nowrap',
+                                  ...questionnaireBadgeStyle
+                                }}
+                              >
+                                {questionnaireDisplay}
+                              </span>
+                              <span className={`${styles.statusTag} ${queueItem.encounter_status === 'IN_PROGRESS' ? styles.진료중 : styles.대기중}`} style={{ fontSize: '0.75em', whiteSpace: 'nowrap' }}>
+                                {queueItem.encounter_status === 'IN_PROGRESS' ? '진료중' : '대기중'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className={styles.patientDetailInfo}>
+                            <div style={{ fontSize: '0.75em', color: '#555' }}>
+                              환자ID: {queueItem.patient || 'N/A'}
+                            </div>
+                            <div style={{ fontSize: '0.75em', color: '#555' }}>
+                              접수시간: {queueItem.created_at ? new Date(queueItem.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+                            </div>
+                            <div style={{ fontSize: '0.75em', color: '#555' }}>
+                              배정의사: {doctor ? `${doctor.name} (${doctor.room_number || '미배정'}호)` : queueItem.doctor_name || '의사 정보 없음'}
+                            </div>
+                          </div>
                         </div>
-                        <div style={{display: 'flex', gap: '4px'}}>
-                          <span
-                            className={styles.questionnaireBadge}
-                            style={{
-                              fontSize: '0.7em',
-                              padding: '2px 6px',
-                              borderRadius: '4px',
-                              fontWeight: '500',
-                              ...questionnaireBadgeStyle
-                            }}
-                          >
-                            {questionnaireDisplay}
-                          </span>
-                          <span className={`${styles.statusTag} ${queueItem.encounter_status === 'IN_PROGRESS' ? styles.진료중 : styles.대기중}`} style={{fontSize: '0.75em'}}>
-                            {queueItem.encounter_status === 'IN_PROGRESS' ? '진료중' : '대기중'}
-                          </span>
-                        </div>
-                      </div>
-                      <div className={styles.patientDetailInfo}>
-                        <div style={{fontSize: '0.75em', color: '#555'}}>
-                          환자ID: {queueItem.patient || 'N/A'}
-                        </div>
-                        <div style={{fontSize: '0.75em', color: '#555'}}>
-                          접수시간: {queueItem.created_at ? new Date(queueItem.created_at).toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit'}) : 'N/A'}
-                        </div>
-                        <div style={{fontSize: '0.75em', color: '#555'}}>
-                          배정의사: {doctor ? `${doctor.name} (${doctor.room_number || '미배정'}호)` : queueItem.doctor_name || '의사 정보 없음'}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                  })}
+                      );
+                    })}
                 </>
               )}
             </div>
@@ -799,7 +826,7 @@ export default function AdministrationHomePage() {
               title="메시지"
             >
               <svg className={styles.messageIcon} width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M20 2H4C2.9 2 2.01 2.9 2.01 4L2 22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM18 14H6V12H18V14ZM18 11H6V9H18V11ZM18 8H6V6H18V8Z" fill="currentColor"/>
+                <path d="M20 2H4C2.9 2 2.01 2.9 2.01 4L2 22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM18 14H6V12H18V14ZM18 11H6V9H18V11ZM18 8H6V6H18V8Z" fill="currentColor" />
               </svg>
             </button>
             <button
@@ -808,7 +835,7 @@ export default function AdministrationHomePage() {
               title="알림"
             >
               <svg className={styles.bellIcon} width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M12 22C13.1 22 14 21.1 14 20H10C10 21.1 10.89 22 12 22ZM18 16V11C18 7.93 16.36 5.36 13.5 4.68V4C13.5 3.17 12.83 2.5 12 2.5C11.17 2.5 10.5 3.17 10.5 4V4.68C7.63 5.36 6 7.92 6 11V16L4 18V19H20V18L18 16Z" fill="currentColor"/>
+                <path d="M12 22C13.1 22 14 21.1 14 20H10C10 21.1 10.89 22 12 22ZM18 16V11C18 7.93 16.36 5.36 13.5 4.68V4C13.5 3.17 12.83 2.5 12 2.5C11.17 2.5 10.5 3.17 10.5 4V4.68C7.63 5.36 6 7.92 6 11V16L4 18V19H20V18L18 16Z" fill="currentColor" />
               </svg>
             </button>
             <button
@@ -817,7 +844,7 @@ export default function AdministrationHomePage() {
               title="로그아웃"
             >
               <svg className={styles.logoutIcon} width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M17 7L15.59 8.41L18.17 11H8V13H18.17L15.59 15.59L17 17L22 12L17 7ZM4 5H12V3H4C2.9 3 2 3.9 2 5V19C2 20.1 2.9 21 4 21H12V19H4V5Z" fill="currentColor"/>
+                <path d="M17 7L15.59 8.41L18.17 11H8V13H18.17L15.59 15.59L17 17L22 12L17 7ZM4 5H12V3H4C2.9 3 2 3.9 2 5V19C2 20.1 2.9 21 4 21H12V19H4V5Z" fill="currentColor" />
               </svg>
             </button>
           </div>
@@ -832,303 +859,303 @@ export default function AdministrationHomePage() {
           ) : activeTab === 'patients' ? (
             <PatientManagementPage />
           ) : (
-          <div className={styles.mainLayout}>
-            {/* 상단 영역 - 환자 검색 및 금일 예약 */}
-            <div className={styles.topRow}>
-            {/* 왼쪽 영역 - 환자 검색 및 등록 */}
-            <div className={styles.leftSection}>
-              <div className={styles.contentContainer}>
-                {/* 컨텐츠 탭 */}
-                <div className={styles.contentTabs}>
-                  <button
-                    className={`${styles.contentTab} ${contentTab === 'search' ? styles.active : ''}`}
-                    onClick={() => setContentTab('search')}
-                  >
-                    검색
-                  </button>
-                  <button
-                    className={`${styles.contentTab} ${contentTab === 'newPatient' ? styles.active : ''}`}
-                    onClick={() => setContentTab('newPatient')}
-                  >
-                    신규 환자
-                  </button>
-                  <button
-                    className={`${styles.contentTab} ${contentTab === 'appointments' ? styles.active : ''}`}
-                    onClick={() => setContentTab('appointments')}
-                  >
-                    금일 예약
-                  </button>
-                </div>
+            <div className={styles.mainLayout}>
+              {/* 상단 영역 - 환자 검색 및 금일 예약 */}
+              <div className={styles.topRow}>
+                {/* 왼쪽 영역 - 환자 검색 및 등록 */}
+                <div className={styles.leftSection}>
+                  <div className={styles.contentContainer}>
+                    {/* 컨텐츠 탭 */}
+                    <div className={styles.contentTabs}>
+                      <button
+                        className={`${styles.contentTab} ${contentTab === 'search' ? styles.active : ''}`}
+                        onClick={() => setContentTab('search')}
+                      >
+                        검색
+                      </button>
+                      <button
+                        className={`${styles.contentTab} ${contentTab === 'newPatient' ? styles.active : ''}`}
+                        onClick={() => setContentTab('newPatient')}
+                      >
+                        신규 환자
+                      </button>
+                      <button
+                        className={`${styles.contentTab} ${contentTab === 'appointments' ? styles.active : ''}`}
+                        onClick={() => setContentTab('appointments')}
+                      >
+                        금일 예약
+                      </button>
+                    </div>
 
-                {contentTab === 'search' ? (
-                  <div className={styles.contentBody}>
-                    {/* 환자 검색 섹션 */}
-                    <div className={styles.searchSection}>
-                      <div className={styles.searchBar}>
-                        <input
-                          type="text"
-                          placeholder="이름, 환자 ID, 생년월일 검색"
-                          className={styles.searchInput}
-                          value={searchQuery}
-                          onChange={(e) => handleSearchChange(e.target.value)}
-                        />
-                        <button
-                          className={styles.searchButton}
-                          onClick={() => fetchPatients()}
-                        >
-                          검색
-                        </button>
-                      </div>
+                    {contentTab === 'search' ? (
+                      <div className={styles.contentBody}>
+                        {/* 환자 검색 섹션 */}
+                        <div className={styles.searchSection}>
+                          <div className={styles.searchBar}>
+                            <input
+                              type="text"
+                              placeholder="이름, 환자 ID, 생년월일 검색"
+                              className={styles.searchInput}
+                              value={searchQuery}
+                              onChange={(e) => handleSearchChange(e.target.value)}
+                            />
+                            <button
+                              className={styles.searchButton}
+                              onClick={() => fetchPatients()}
+                            >
+                              검색
+                            </button>
+                          </div>
 
-                      {/* 환자 목록 테이블 */}
-                      <div className={styles.tableContainer}>
-                        {isLoadingPatients ? (
-                          <div style={{ textAlign: 'center', padding: '20px' }}>환자 목록 로딩 중...</div>
-                        ) : (
-                          <table className={styles.patientTable}>
-                            <thead>
-                              <tr>
-                                <th>이름</th>
-                                <th>생년월일</th>
-                                <th>성별</th>
-                                <th>나이</th>
-                                <th>최근 방문</th>
-                                <th>작업</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {patients.length === 0 ? (
-                                <tr>
-                                  <td colSpan={6} style={{ textAlign: 'center', padding: '20px' }}>
-                                    등록된 환자가 없습니다.
-                                  </td>
-                                </tr>
-                              ) : (
-                                currentPatients.map((patient) => {
-                                  const isWaiting = waitingPatientIds.includes(patient.id);
-                                  return (
-                                    <tr key={patient.id}>
-                                      <td
-                                        className={styles.patientNameClickable}
-                                        onClick={() => handlePatientClick(patient)}
-                                        style={{ cursor: 'pointer' }}
-                                      >
-                                        {patient.name}
-                                      </td>
-                                      <td>{patient.birthDate}</td>
-                                      <td>{patient.gender}</td>
-                                      <td>{patient.age}세</td>
-                                      <td>{patient.lastVisit}</td>
-                                      <td>
-                                        <div className={styles.actionButtons}>
-                                          {isWaiting ? (
-                                            <span className={styles.alreadyCheckedIn}>접수 완료</span>
-                                          ) : (
-                                            <button
-                                              className={styles.checkinBtn}
-                                              title="현장 접수"
-                                              onClick={() => handleCheckinClick(patient)}
-                                            >
-                                              현장 접수
-                                            </button>
-                                          )}
-                                        </div>
+                          {/* 환자 목록 테이블 */}
+                          <div className={styles.tableContainer}>
+                            {isLoadingPatients ? (
+                              <div style={{ textAlign: 'center', padding: '20px' }}>환자 목록 로딩 중...</div>
+                            ) : (
+                              <table className={styles.patientTable}>
+                                <thead>
+                                  <tr>
+                                    <th>이름</th>
+                                    <th>생년월일</th>
+                                    <th>성별</th>
+                                    <th>나이</th>
+                                    <th>최근 방문</th>
+                                    <th>작업</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {patients.length === 0 ? (
+                                    <tr>
+                                      <td colSpan={6} style={{ textAlign: 'center', padding: '20px' }}>
+                                        등록된 환자가 없습니다.
                                       </td>
                                     </tr>
-                                  );
-                                })
-                              )}
-                            </tbody>
-                          </table>
-                        )}
-                      </div>
-
-                      {/* 페이지네이션 */}
-                      {patients.length > 0 && (
-                        <div className={styles.pagination}>
-                          <button
-                            className={styles.pageButton}
-                            onClick={() => handlePageChange(currentPage - 1)}
-                            disabled={currentPage === 1}
-                          >
-                            이전
-                          </button>
-                          {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => (
-                            <button
-                              key={pageNumber}
-                              className={`${styles.pageButton} ${currentPage === pageNumber ? styles.activePage : ''}`}
-                              onClick={() => handlePageChange(pageNumber)}
-                            >
-                              {pageNumber}
-                            </button>
-                          ))}
-                          <button
-                            className={styles.pageButton}
-                            onClick={() => handlePageChange(currentPage + 1)}
-                            disabled={currentPage === totalPages}
-                          >
-                            다음
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : contentTab === 'newPatient' ? (
-                  <div className={styles.contentBody}>
-                    {/* 신규 환자 등록 폼 - 컴포넌트로 분리 */}
-                    <PatientRegistrationForm
-                      onSubmit={handlePatientRegistrationSubmit}
-                      onCancel={() => setContentTab('search')}
-                    />
-                  </div>
-                ) : (
-                  <div className={styles.contentBody}>
-                    <div className={`${styles.appointmentContainer} ${styles.tabAppointmentContainer}`}>
-                      <div className={styles.sectionHeader}>
-                        <h3 className={styles.sectionTitle}>
-                          금일 예약 {new Date().toLocaleDateString('ko-KR', {year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short'})}
-                        </h3>
-                        <span className={styles.currentTime}>
-                          {new Date().toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit', second: '2-digit'})}
-                        </span>
-                      </div>
-                      <div className={styles.tableContainer}>
-                        <table className={styles.scheduleTable}>
-                          <thead>
-                            <tr>
-                              <th>요청일시</th>
-                              <th>환자명</th>
-                              <th>환자번호</th>
-                              <th>연락처</th>
-                              <th>희망일시</th>
-                              <th>상태</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {appointments.length === 0 ? (
-                              <tr>
-                                <td colSpan={6} style={{textAlign: 'center', padding: '20px'}}>
-                                  금일 예약이 없습니다.
-                                </td>
-                              </tr>
-                            ) : (
-                              appointments.map((appointment) => (
-                                <tr
-                                  key={appointment.id}
-                                  onClick={() => {
-                                    setSelectedAppointment(appointment);
-                                    setIsAppointmentModalOpen(true);
-                                  }}
-                                  style={{cursor: 'pointer'}}
-                                  className={styles.appointmentRow}
-                                >
-                                  <td>{appointment.createdAt ? new Date(appointment.createdAt).toLocaleString('ko-KR') : 'N/A'}</td>
-                                  <td className={styles.patientName}>{appointment.patientName}</td>
-                                  <td>{appointment.patientId}</td>
-                                  <td>{appointment.phone}</td>
-                                  <td>{appointment.appointmentDate} {appointment.time}</td>
-                                  <td>
-                                    <span className={`${styles.appointmentStatus} ${styles[appointment.status]}`}>
-                                      {appointment.status}
-                                    </span>
-                                  </td>
-                                </tr>
-                              ))
+                                  ) : (
+                                    currentPatients.map((patient) => {
+                                      const isWaiting = waitingPatientIds.includes(patient.id);
+                                      return (
+                                        <tr key={patient.id}>
+                                          <td
+                                            className={styles.patientNameClickable}
+                                            onClick={() => handlePatientClick(patient)}
+                                            style={{ cursor: 'pointer' }}
+                                          >
+                                            {patient.name}
+                                          </td>
+                                          <td>{patient.birthDate}</td>
+                                          <td>{patient.gender}</td>
+                                          <td>{patient.age}세</td>
+                                          <td>{patient.lastVisit}</td>
+                                          <td>
+                                            <div className={styles.actionButtons}>
+                                              {isWaiting ? (
+                                                <span className={styles.alreadyCheckedIn}>접수 완료</span>
+                                              ) : (
+                                                <button
+                                                  className={styles.checkinBtn}
+                                                  title="현장 접수"
+                                                  onClick={() => handleCheckinClick(patient)}
+                                                >
+                                                  현장 접수
+                                                </button>
+                                              )}
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })
+                                  )}
+                                </tbody>
+                              </table>
                             )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+                          </div>
 
-            {/* 오른쪽 영역 - 접수 목록 */}
-            <div className={styles.rightSection}>
-              <div className={styles.appointmentContainer}>
-                <div className={styles.rightTabs}>
-                  <button
-                    className={`${styles.rightTab} ${receptionTab === 'reception' ? styles.rightTabActive : ''}`}
-                    onClick={() => setReceptionTab('reception')}
-                  >
-                    접수목록
-                  </button>
-                  <button
-                    className={`${styles.rightTab} ${receptionTab === 'additional' ? styles.rightTabActive : ''}`}
-                    onClick={() => setReceptionTab('additional')}
-                  >
-                    추가진료
-                  </button>
-                  <button
-                    className={`${styles.rightTab} ${receptionTab === 'payment' ? styles.rightTabActive : ''}`}
-                    onClick={() => setReceptionTab('payment')}
-                  >
-                    수납대기
-                  </button>
-                </div>
-                <div className={styles.tableContainer}>
-                  {receptionTab === 'reception' && (
-                    <div className={styles.emptyState}>접수 목록이 없습니다.</div>
-                  )}
-                  {receptionTab === 'additional' && (
-                    <div className={styles.emptyState}>추가진료 목록이 없습니다.</div>
-                  )}
-                  {receptionTab === 'payment' && (
-                    <div className={styles.emptyState}>수납대기 목록이 없습니다.</div>
-                  )}
-                </div>
-              </div>
-            </div>
-            </div>
-
-            {/* 진료실별 대기 현황 (상세) - 2행 전체 */}
-            <div className={styles.detailedWaitingContainer}>
-              <h3 className={styles.sectionTitle}>진료실별 대기 현황</h3>
-              <div className={styles.waitingDetailCards}>
-                {clinicWaitingList.map((clinic) => (
-                  <div key={clinic.id} className={styles.waitingDetailCard}>
-                    <div className={styles.cardHeader}>
-                      <div className={styles.cardTitleSection}>
-                        <span className={styles.cardTitle}>{clinic.roomNumber}</span>
-                        <span style={{fontSize: '0.9em', color: '#FFFFFF', marginLeft: '10px'}}>
-                          {clinic.doctorName} ({clinic.clinicName})
-                        </span>
-                        <button className={styles.cardButton}>진료대기</button>
-                      </div>
-                    </div>
-                    <div className={styles.cardBody}>
-                      {clinic.patients.length > 0 ? (
-                        clinic.patients.map((patient, index) => (
-                          <div key={index} className={styles.waitingPatientRow}>
-                            <div className={styles.patientDetailRow}>
-                              <span className={styles.patientIndex}>{index + 1}</span>
-                              <span className={styles.patientNameLarge}>{patient.name}</span>
-                              <span className={styles.patientPhoneLarge}>{patient.phone}</span>
-                            </div>
-                            <div className={styles.patientActions}>
-                              <span className={`${styles.statusBadgeLarge} ${styles[patient.status]}`}>
-                                {patient.status}
-                              </span>
+                          {/* 페이지네이션 */}
+                          {patients.length > 0 && (
+                            <div className={styles.pagination}>
                               <button
-                                className={styles.cancelWaitingBtn}
-                                onClick={() => handleCancelWaiting(patient.encounterId, patient.name)}
-                                title="대기 취소"
+                                className={styles.pageButton}
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={currentPage === 1}
                               >
-                                취소
+                                이전
+                              </button>
+                              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => (
+                                <button
+                                  key={pageNumber}
+                                  className={`${styles.pageButton} ${currentPage === pageNumber ? styles.activePage : ''}`}
+                                  onClick={() => handlePageChange(pageNumber)}
+                                >
+                                  {pageNumber}
+                                </button>
+                              ))}
+                              <button
+                                className={styles.pageButton}
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={currentPage === totalPages}
+                              >
+                                다음
                               </button>
                             </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : contentTab === 'newPatient' ? (
+                      <div className={styles.contentBody}>
+                        {/* 신규 환자 등록 폼 - 컴포넌트로 분리 */}
+                        <PatientRegistrationForm
+                          onSubmit={handlePatientRegistrationSubmit}
+                          onCancel={() => setContentTab('search')}
+                        />
+                      </div>
+                    ) : (
+                      <div className={styles.contentBody}>
+                        <div className={`${styles.appointmentContainer} ${styles.tabAppointmentContainer}`}>
+                          <div className={styles.sectionHeader}>
+                            <h3 className={styles.sectionTitle}>
+                              금일 예약 {new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' })}
+                            </h3>
+                            <span className={styles.currentTime}>
+                              {new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </span>
                           </div>
-                        ))
-                      ) : (
-                        <div className={styles.emptyWaiting}>대기 환자가 없습니다</div>
+                          <div className={styles.tableContainer}>
+                            <table className={styles.scheduleTable}>
+                              <thead>
+                                <tr>
+                                  <th>요청일시</th>
+                                  <th>환자명</th>
+                                  <th>환자번호</th>
+                                  <th>연락처</th>
+                                  <th>희망일시</th>
+                                  <th>상태</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {appointments.length === 0 ? (
+                                  <tr>
+                                    <td colSpan={6} style={{ textAlign: 'center', padding: '20px' }}>
+                                      금일 예약이 없습니다.
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  appointments.map((appointment) => (
+                                    <tr
+                                      key={appointment.id}
+                                      onClick={() => {
+                                        setSelectedAppointment(appointment);
+                                        setIsAppointmentModalOpen(true);
+                                      }}
+                                      style={{ cursor: 'pointer' }}
+                                      className={styles.appointmentRow}
+                                    >
+                                      <td>{appointment.createdAt ? new Date(appointment.createdAt).toLocaleString('ko-KR') : 'N/A'}</td>
+                                      <td className={styles.patientName}>{appointment.patientName}</td>
+                                      <td>{appointment.patientId}</td>
+                                      <td>{appointment.phone}</td>
+                                      <td>{appointment.appointmentDate} {appointment.time}</td>
+                                      <td>
+                                        <span className={`${styles.appointmentStatus} ${styles[appointment.status]}`}>
+                                          {appointment.status}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  ))
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 오른쪽 영역 - 접수 목록 */}
+                <div className={styles.rightSection}>
+                  <div className={styles.appointmentContainer}>
+                    <div className={styles.rightTabs}>
+                      <button
+                        className={`${styles.rightTab} ${receptionTab === 'reception' ? styles.rightTabActive : ''}`}
+                        onClick={() => setReceptionTab('reception')}
+                      >
+                        접수목록
+                      </button>
+                      <button
+                        className={`${styles.rightTab} ${receptionTab === 'additional' ? styles.rightTabActive : ''}`}
+                        onClick={() => setReceptionTab('additional')}
+                      >
+                        추가진료
+                      </button>
+                      <button
+                        className={`${styles.rightTab} ${receptionTab === 'payment' ? styles.rightTabActive : ''}`}
+                        onClick={() => setReceptionTab('payment')}
+                      >
+                        수납대기
+                      </button>
+                    </div>
+                    <div className={styles.tableContainer}>
+                      {receptionTab === 'reception' && (
+                        <div className={styles.emptyState}>접수 목록이 없습니다.</div>
+                      )}
+                      {receptionTab === 'additional' && (
+                        <div className={styles.emptyState}>추가진료 목록이 없습니다.</div>
+                      )}
+                      {receptionTab === 'payment' && (
+                        <div className={styles.emptyState}>수납대기 목록이 없습니다.</div>
                       )}
                     </div>
                   </div>
-                ))}
+                </div>
+              </div>
+
+              {/* 진료실별 대기 현황 (상세) - 2행 전체 */}
+              <div className={styles.detailedWaitingContainer}>
+                <h3 className={styles.sectionTitle}>진료실별 대기 현황</h3>
+                <div className={styles.waitingDetailCards}>
+                  {clinicWaitingList.map((clinic) => (
+                    <div key={clinic.id} className={styles.waitingDetailCard}>
+                      <div className={styles.cardHeader}>
+                        <div className={styles.cardTitleSection}>
+                          <span className={styles.cardTitle}>{clinic.roomNumber}</span>
+                          <span style={{ fontSize: '0.9em', color: '#FFFFFF', marginLeft: '10px' }}>
+                            {clinic.doctorName} ({clinic.clinicName})
+                          </span>
+                          <button className={styles.cardButton}>진료대기</button>
+                        </div>
+                      </div>
+                      <div className={styles.cardBody}>
+                        {clinic.patients.length > 0 ? (
+                          clinic.patients.map((patient, index) => (
+                            <div key={index} className={styles.waitingPatientRow}>
+                              <div className={styles.patientDetailRow}>
+                                <span className={styles.patientIndex}>{index + 1}</span>
+                                <span className={styles.patientNameLarge}>{patient.name}</span>
+                                <span className={styles.patientPhoneLarge}>{patient.phone}</span>
+                              </div>
+                              <div className={styles.patientActions}>
+                                <span className={`${styles.statusBadgeLarge} ${styles[patient.status]}`}>
+                                  {patient.status}
+                                </span>
+                                <button
+                                  className={styles.cancelWaitingBtn}
+                                  onClick={() => handleCancelWaiting(patient.encounterId, patient.name)}
+                                  title="대기 취소"
+                                >
+                                  취소
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className={styles.emptyWaiting}>대기 환자가 없습니다</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
           )}
         </div>
       </div>
@@ -1251,15 +1278,7 @@ export default function AdministrationHomePage() {
                     />
                   </div>
 
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>샘플 ID</label>
-                    <input
-                      type="text"
-                      className={styles.formInput}
-                      value={editForm.sample_id}
-                      onChange={(e) => handleEditFormChange('sample_id', e.target.value)}
-                    />
-                  </div>
+
                 </div>
 
                 <div className={styles.modalActions}>
@@ -1330,7 +1349,7 @@ export default function AdministrationHomePage() {
                 </div>
               )}
 
-              <div className={styles.modalActions} style={{marginTop: '20px'}}>
+              <div className={styles.modalActions} style={{ marginTop: '20px' }}>
                 <button
                   type="button"
                   className={styles.submitButton}

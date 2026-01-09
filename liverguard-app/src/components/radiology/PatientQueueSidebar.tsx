@@ -17,7 +17,6 @@ export interface SelectedPatientData {
   gender: string;
   birthDate: string;
   age: number | null;
-  sampleId: string | null;
 }
 
 interface PatientQueueSidebarProps {
@@ -33,6 +32,7 @@ const PatientQueueSidebar: React.FC<PatientQueueSidebarProps> = ({
   const [apiPatients, setApiPatients] = useState<APIPatient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasActiveFilming = patients.some((patient) => patient.status === '촬영중');
 
   useEffect(() => {
     const fetchWaitlist = async () => {
@@ -45,7 +45,7 @@ const PatientQueueSidebar: React.FC<PatientQueueSidebarProps> = ({
         const mappedPatients: Patient[] = response.patients.map((patient: APIPatient) => ({
           id: patient.patient_id,
           name: patient.name,
-          episode: patient.sample_id || patient.patient_id,
+          episode: patient.patient_id,
           status: patient.current_status === '촬영중' ? '촬영중' : '촬영대기'
         }));
 
@@ -76,7 +76,6 @@ const PatientQueueSidebar: React.FC<PatientQueueSidebarProps> = ({
           gender: apiPatient.gender || 'N/A',
           birthDate: apiPatient.date_of_birth || 'N/A',
           age: apiPatient.age,
-          sampleId: apiPatient.sample_id,
         };
         onPatientSelect(patientId, patientData);
 
@@ -85,7 +84,7 @@ const PatientQueueSidebar: React.FC<PatientQueueSidebarProps> = ({
         const mappedPatients: Patient[] = response.patients.map((patient: APIPatient) => ({
           id: patient.patient_id,
           name: patient.name,
-          episode: patient.sample_id || patient.patient_id,
+          episode: patient.patient_id,
           status: patient.current_status === '촬영중' ? '촬영중' : '촬영대기'
         }));
         setPatients(mappedPatients);
@@ -136,6 +135,7 @@ const PatientQueueSidebar: React.FC<PatientQueueSidebarProps> = ({
                 <button
                   className="start-exam-button"
                   onClick={() => handleStartExam(patient.id)}
+                  disabled={hasActiveFilming}
                 >
                   촬영 시작
                 </button>
