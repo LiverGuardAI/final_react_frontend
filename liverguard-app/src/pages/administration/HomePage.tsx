@@ -33,6 +33,9 @@ import PatientDetailModal from '../../components/administration/PatientDetailMod
 import QuestionnaireModal, { type QuestionnaireData } from '../../components/administration/QuestionnaireModal';
 import PatientActionModal from '../../components/administration/PatientActionModal';
 import EncounterDetailModal from '../../components/administration/EncounterDetailModal';
+import OrderList from '../../components/administration/OrderList';
+
+
 
 interface Patient {
   id: string;  // patient_id is a string like "P251230002"
@@ -167,6 +170,24 @@ export default function AdministrationHomePage() {
   // 진료실별 대기 현황 뷰 모드 ('WAITING' | 'COMPLETED')
   const [clinicViewModes, setClinicViewModes] = useState<Record<number, 'WAITING' | 'COMPLETED'>>({});
 
+  // 오더 목록 리프레시 및 알림
+  const [orderRefreshTrigger, setOrderRefreshTrigger] = useState(0);
+  const [notification, setNotification] = useState<{ message: string, type: string } | null>(null);
+
+  // WebSocket for Notifications
+  useWebSocket('ws://127.0.0.1:8000/ws/clinic/', {
+    onMessage: (data) => {
+      if (data.type === 'new_order') {
+        const msg = data.message || '새로운 오더가 도착했습니다.';
+        setNotification({ message: msg, type: 'info' });
+        setOrderRefreshTrigger(prev => prev + 1);
+
+        // 3초 후 알림 닫기
+        setTimeout(() => setNotification(null), 3000);
+      }
+    }
+  });
+
   const toggleClinicViewMode = (doctorId: number) => {
     setClinicViewModes(prev => ({
       ...prev,
@@ -206,7 +227,8 @@ export default function AdministrationHomePage() {
       const formattedPatients = myPatients
         .map((p: any) => {
           let statusText = '대기중';
-          if (p.encounter_status === 'IN_PROGRESS') statusText = '진료중';
+          if (p.encounter_status === 'IN_PROGRESS' || p.encounter_status === 'IN_CLINIC') statusText = '진료중';
+          else if (p.encounter_status === 'WAITING_RESULTS') statusText = '결과대기';
           else if (p.encounter_status === 'COMPLETED') statusText = '진료완료';
 
           return {
@@ -1102,7 +1124,7 @@ export default function AdministrationHomePage() {
                         className={`${styles.rightTab} ${receptionTab === 'reception' ? styles.rightTabActive : ''}`}
                         onClick={() => setReceptionTab('reception')}
                       >
-                        접수목록
+                        오더 대기
                       </button>
                       <button
                         className={`${styles.rightTab} ${receptionTab === 'additional' ? styles.rightTabActive : ''}`}
@@ -1119,10 +1141,62 @@ export default function AdministrationHomePage() {
                     </div>
                     <div className={styles.tableContainer}>
                       {receptionTab === 'reception' && (
-                        <div className={styles.emptyState}>접수 목록이 없습니다.</div>
+                        <OrderList refreshTrigger={orderRefreshTrigger} />
                       )}
+
                       {receptionTab === 'additional' && (
-                        <div className={styles.emptyState}>추가진료 목록이 없습니다.</div>
+                        <div style={{ padding: '10px' }}>
+                          <div className={styles.sectionTitle} style={{ marginBottom: '10px', fontSize: '14px', color: '#555' }}>
+                            추가 진료 대기 환자 (결과 대기)
+                          </div>
+                          {/* 추가 진료 대기 환자 목록 (WAITING_RESULTS) */}
+                          {waitingQueueData?.queue?.filter((p: any) => p.encounter_status === 'WAITING_RESULTS').length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '20px', color: '#999', fontSize: '14px' }}>
+                              추가 진료가 필요한 환자가 없습니다.
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              {waitingQueueData?.queue
+                                ?.filter((p: any) => p.encounter_status === 'WAITING_RESULTS')
+                                .map((patient: any) => (
+                                  <div
+                                    key={patient.encounter_id}
+                                    style={{
+                                      padding: '12px',
+                                      backgroundColor: '#FFF3E0',
+                                      borderLeft: '4px solid #FF9800',
+                                      borderRadius: '4px',
+                                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center'
+                                    }}
+                                  >
+                                    <div>
+                                      <div style={{ fontWeight: 'bold', fontSize: '15px' }}>{patient.patient_name} <span style={{ fontSize: '12px', color: '#666' }}>({patient.patient_id})</span></div>
+                                      <div style={{ fontSize: '12px', color: '#777', marginTop: '4px' }}>
+                                        {patient.doctor_name} ({patient.department_name})
+                                      </div>
+                                    </div>
+                                    <div style={{ textAlign: 'right' }}>
+                                      <span style={{
+                                        fontSize: '12px',
+                                        padding: '3px 8px',
+                                        borderRadius: '12px',
+                                        backgroundColor: '#FFE0B2',
+                                        color: '#EF6C00',
+                                        fontWeight: 'bold'
+                                      }}>결과대기</span>
+                                      <div style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>
+                                        {patient.checkin_time ? new Date(patient.checkin_time).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))
+                              }
+                            </div>
+                          )}
+                        </div>
                       )}
                       {receptionTab === 'payment' && (
                         <div className={styles.emptyState}>수납대기 목록이 없습니다.</div>
@@ -1145,7 +1219,7 @@ export default function AdministrationHomePage() {
                       if (isCompletedMode) {
                         return p.status === '진료완료';
                       } else {
-                        return p.status === '진료중' || p.status === '대기중' || p.status === '접수완료';
+                        return p.status === '진료중' || p.status === '대기중';
                       }
                     });
 
@@ -1519,6 +1593,24 @@ export default function AdministrationHomePage() {
           setSelectedEncounterId(null);
         }}
       />
+      {/* Notification Toast */}
+      {notification && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          backgroundColor: '#333',
+          color: 'white',
+          padding: '15px 20px',
+          borderRadius: '8px',
+          zIndex: 9999,
+          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+          animation: 'slideIn 0.3s ease-out'
+        }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>알림</div>
+          <div>{notification.message}</div>
+        </div>
+      )}
     </div>
   );
 }

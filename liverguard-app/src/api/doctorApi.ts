@@ -94,7 +94,7 @@ export const getDoctorInProgressEncounter = async (
 // ===========================
 
 export interface EncounterUpdateData {
-  encounter_status?: 'WAITING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'IN_CLINIC';
+  encounter_status?: 'WAITING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'IN_CLINIC' | 'WAITING_RESULTS';
   questionnaire_data?: any;
   questionnaire_status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
   chief_complaint?: string;

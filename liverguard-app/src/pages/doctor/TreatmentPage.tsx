@@ -202,7 +202,7 @@ export default function TreatmentPage() {
     );
   };
 
-  const handleCompleteTreatment = async () => {
+  const handleCompleteTreatment = async (status: 'COMPLETED' | 'WAITING_RESULTS' = 'COMPLETED') => {
     if (!currentEncounter || !selectedEncounterId) return;
 
     // 의사 정보 (localStorage or context)
@@ -281,14 +281,14 @@ export default function TreatmentPage() {
 
       await Promise.all(promises);
 
-      // 2. Encounter 상태 업데이트 (COMPLETED)
+      // 2. Encounter 상태 업데이트 (COMPLETED or WAITING_RESULTS)
       await updateEncounter(selectedEncounterId, {
-        encounter_status: 'COMPLETED',
+        encounter_status: status,
         treatment_plan: clinicalNotes,
         diagnosis: diagnosisName
       });
 
-      alert('진료 및 오더가 성공적으로 전송되었습니다.');
+      alert(status === 'WAITING_RESULTS' ? '검사 대기 처리되었습니다.' : '진료가 완료되었습니다.');
       // 목록 리프레시 혹은 초기화
       setSelectedEncounterId(null);
       setCurrentEncounter(null);
@@ -300,6 +300,10 @@ export default function TreatmentPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleWaitResult = async () => {
+    await handleCompleteTreatment('WAITING_RESULTS');
   };
 
   return (
@@ -332,7 +336,8 @@ export default function TreatmentPage() {
           setOrderRequests={setOrderRequests}
           hccDetails={hccDetails}
           setHccDetails={setHccDetails}
-          onComplete={handleCompleteTreatment}
+          onComplete={() => handleCompleteTreatment('COMPLETED')}
+          onWaitResult={handleWaitResult}
           disabled={!selectedEncounterId || currentEncounter?.encounter_status === 'COMPLETED'}
         />
       </div>
