@@ -37,17 +37,14 @@ export default function CTResultPage() {
   const [segSectionExpanded, setSegSectionExpanded] = useState(false);
 
   // 임시로 TCGA-BC-A3KF 환자 ID 사용
-  const patientId = 'TCGA-BC-A3KF';
+  const patientId = 'P20240009';
+  const cacheKey = `ct-result:${patientId}`;
 
   // CT Series만 필터링
   const ctSeriesList = seriesList.filter(series => series.Modality === 'CT');
 
   // SEG Series만 필터링
   const segSeriesList = seriesList.filter(series => series.Modality === 'SEG');
-
-  useEffect(() => {
-    fetchStudies();
-  }, []);
 
   const fetchStudies = async () => {
     try {
@@ -62,6 +59,64 @@ export default function CTResultPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        setStudies(parsed.studies || []);
+        setSeriesList(parsed.seriesList || []);
+        setSelectedStudy(parsed.selectedStudy ?? null);
+        setSelectedCtSeries(parsed.selectedCtSeries ?? null);
+        setSelectedSegSeries(parsed.selectedSegSeries ?? null);
+        setStudySectionExpanded(Boolean(parsed.studySectionExpanded));
+        setSeriesSectionExpanded(Boolean(parsed.seriesSectionExpanded));
+        setSegSectionExpanded(Boolean(parsed.segSectionExpanded));
+        setLoading(false);
+        setSeriesLoading(false);
+        setError(null);
+        return;
+      } catch (err) {
+        console.warn('Failed to parse CTResult cache:', err);
+        sessionStorage.removeItem(cacheKey);
+      }
+    }
+    fetchStudies();
+  }, [cacheKey]);
+
+  useEffect(() => {
+    if (
+      studies.length === 0 &&
+      seriesList.length === 0 &&
+      !selectedStudy &&
+      !selectedCtSeries &&
+      !selectedSegSeries
+    ) {
+      return;
+    }
+    const payload = {
+      studies,
+      seriesList,
+      selectedStudy,
+      selectedCtSeries,
+      selectedSegSeries,
+      studySectionExpanded,
+      seriesSectionExpanded,
+      segSectionExpanded,
+    };
+    sessionStorage.setItem(cacheKey, JSON.stringify(payload));
+  }, [
+    cacheKey,
+    studies,
+    seriesList,
+    selectedStudy,
+    selectedCtSeries,
+    selectedSegSeries,
+    studySectionExpanded,
+    seriesSectionExpanded,
+    segSectionExpanded,
+  ]);
 
   const fetchSeriesForStudy = async (studyId: string) => {
     try {
