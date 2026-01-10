@@ -509,6 +509,32 @@ const MaskOverlayViewer = ({
     renderMaskOverlay();
   }, [maskFilter, maskOpacity, renderMaskOverlay]);
 
+  const pageToPixel = (element: HTMLDivElement, pageX: number, pageY: number) => {
+    try {
+      const enabledElement = cornerstone.getEnabledElement(element);
+      const canvas = element.querySelector('canvas') as HTMLCanvasElement;
+      if (!canvas || !enabledElement) return null;
+
+      const rect = canvas.getBoundingClientRect();
+      const canvasX = pageX - rect.left;
+      const canvasY = pageY - rect.top;
+
+      const viewport = enabledElement.viewport;
+      const image = enabledElement.image;
+
+      // Convert canvas coordinates to pixel coordinates
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const pixelX = (canvasX * scaleX - canvas.width / 2 - viewport.translation.x) / viewport.scale + image.width / 2;
+      const pixelY = (canvasY * scaleY - canvas.height / 2 - viewport.translation.y) / viewport.scale + image.height / 2;
+
+      return { x: pixelX, y: pixelY };
+    } catch (err) {
+      console.error('Error converting page to pixel coordinates:', err);
+      return null;
+    }
+  };
+
   const updateMeasurement = (start: { x: number; y: number }, end: { x: number; y: number }) => {
     if (!viewerRef.current) return;
     const enabledElement = cornerstone.getEnabledElement(viewerRef.current);
@@ -524,7 +550,7 @@ const MaskOverlayViewer = ({
     if (!measurementEnabledRef.current || !viewerRef.current) {
       return;
     }
-    const coords = cornerstone.pageToPixel(viewerRef.current, event.pageX, event.pageY);
+    const coords = pageToPixel(viewerRef.current, event.pageX, event.pageY);
     if (!coords) return;
     isDraggingRef.current = true;
     const start = { x: coords.x, y: coords.y };
@@ -533,7 +559,7 @@ const MaskOverlayViewer = ({
 
   const handleMeasurementMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!isDraggingRef.current || !viewerRef.current) return;
-    const coords = cornerstone.pageToPixel(viewerRef.current, event.pageX, event.pageY);
+    const coords = pageToPixel(viewerRef.current, event.pageX, event.pageY);
     if (!coords) return;
     setMeasurementBox((prev) => {
       if (!prev) return prev;
@@ -545,7 +571,7 @@ const MaskOverlayViewer = ({
   const handleMeasurementMouseUp = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!isDraggingRef.current || !viewerRef.current) return;
     isDraggingRef.current = false;
-    const coords = cornerstone.pageToPixel(viewerRef.current, event.pageX, event.pageY);
+    const coords = pageToPixel(viewerRef.current, event.pageX, event.pageY);
     if (!coords) return;
     setMeasurementBox((prev) => {
       if (!prev) return prev;
