@@ -16,6 +16,12 @@ const LAB_CONFIG: Record<string, { label: string; unit: string; min?: number; ma
   platelet: { label: 'Platelet', unit: '10^3/uL', min: 150, max: 450 },
   pt_inr: { label: 'PT (INR)', unit: '', min: 0.8, max: 1.2 },
   creatinine: { label: 'Creatinine', unit: 'mg/dL', min: 0.6, max: 1.2 },
+
+  // 추가 간 기능 지표
+  child_pugh_class: { label: 'Child-Pugh Class', unit: '' },
+  meld_score: { label: 'MELD Score', unit: 'pts', max: 20 },
+  albi_score: { label: 'ALBI Score', unit: 'pts', max: -1.39 }, // -1.39 보다 높으면(덜 음수면) 안좋음
+  albi_grade: { label: 'ALBI Grade', unit: 'Gr' },
 };
 
 export default function BloodResultPage() {
@@ -49,10 +55,14 @@ export default function BloodResultPage() {
 
   // 그래프용 데이터 변환
   const chartData = useMemo(() => {
-    return results.map(r => ({
-      date: r.test_date.split('T')[0], // YYYY-MM-DD
-      value: r[selectedMetric as keyof LabResult] as number || 0,
-    }));
+    return results.map(r => {
+      const val = r[selectedMetric as keyof LabResult];
+      return {
+        date: r.test_date.split('T')[0],  // YYYY-MM-DD
+        value: getChartValue(selectedMetric, val), // 문자열(A,B,C)을 숫자로 변환
+        originalValue: val // 툴팁 표시용 원본 값
+      };
+    });
   }, [results, selectedMetric]);
 
   // 현재 선택된 항목의 설정 값
@@ -63,7 +73,7 @@ export default function BloodResultPage() {
       <header className={styles.header}>
         <h2 className={styles.pageTitle}>BLOOD RESULT ANALYSIS</h2>
         <div className={styles.patientInfo}>
-          Patient ID: {patientId || '-'} <span className={styles.divider}>|</span> Last Update: {latest?.test_date?.split('T')[0] || '-'}
+          Patient ID : {patientId || '-'} <span className={styles.divider}>|</span> Last Update : {latest?.test_date?.split('T')[0] || '-'}
         </div>
       </header>
 
@@ -94,10 +104,11 @@ export default function BloodResultPage() {
               </div>
               <div className={styles.cardFooter}>
                 <span className={styles.refRange}>
-                  Ref: {conf.min ? `${conf.min} - ` : ''}{conf.max}
+                  {/* 범위 정보가 있으면 표시 */}
+                  {conf.min || conf.max ? `Ref : ${conf.min || ''} ~ ${conf.max || ''}` : ' '}
                 </span>
                 <span className={`${styles.badge} ${styles[status]}`}>
-                  {status === 'normal' ? 'Normal' : 'Risk'}
+                  {status === 'normal' ? 'Normal' : status === 'warning' ? 'Warning' : 'Risk'}
                 </span>
               </div>
             </div>
@@ -123,14 +134,26 @@ export default function BloodResultPage() {
                 axisLine={false}
                 tickLine={false}
                 tick={{ fill: '#6b7280', fontSize: 12 }}
+                domain={['auto', 'auto']} // 데이터 범위에 맞춰 자동 조정
               />
               <Tooltip
-                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                cursor={{ stroke: '#3b82f6', strokeWidth: 1 }}
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    const dataItem = payload[0].payload;
+                    return (
+                      <div style={{ background: 'white', padding: '10px', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
+                        <p style={{ fontWeight: 'bold', marginBottom: '5px' }}>{label}</p>
+                        <p style={{ color: '#3b82f6' }}>
+                          {config.label}: {dataItem.originalValue} {config.unit}
+                        </p>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
               />
-              {/* 기준선 표시 (Optional) */}
-              {config.max && (
-                <ReferenceLine y={config.max} stroke="#ef4444" strokeDasharray="3 3" />
+              {config.max && selectedMetric !== 'albi_score' && (
+                <ReferenceLine y={config.max} stroke="#ef4444" strokeDasharray="3 3" label="Max" />
               )}
 
               <Line
@@ -155,7 +178,7 @@ export default function BloodResultPage() {
 
       {/* 3. Historical Table Section */}
       <div className={styles.tableSection}>
-        <h3 className={styles.sectionTitle}>Historical Test Results (Latest 10)</h3>
+        <h3 className={styles.sectionTitle}>Historical Test Results</h3>
         <div className={styles.tableResponsive}>
           <table className={styles.historyTable}>
             <thead>
@@ -163,7 +186,6 @@ export default function BloodResultPage() {
                 <th>Date</th>
                 <th>Test</th>
                 <th>Result</th>
-                <th>Reference Range</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -184,9 +206,6 @@ export default function BloodResultPage() {
                       <td>{row.test_date.split('T')[0]}</td>
                       <td className={styles.cellTestName}>{config.label}</td>
                       <td className={styles.cellValue}>{val ?? '-'} {config.unit}</td>
-                      <td className={styles.cellRef}>
-                        {config.min ? `${config.min} - ` : ''}{config.max} {config.unit}
-                      </td>
                       <td>
                         <span className={`${styles.statusBadge} ${styles[status]}`}>
                           {status === 'normal' ? 'Normal' : 'Risk'}
@@ -207,10 +226,50 @@ export default function BloodResultPage() {
 // ---------------------------
 // Helper Functions
 // ---------------------------
-function getStatus(key: string, value?: number): 'normal' | 'danger' | 'warning' {
+// 문자열 데이터(Grade 등)를 숫자로 변환하여 그래프 Y축에 매핑
+function getChartValue(key: string, value: any): number {
+  if (value === undefined || value === null) return 0;
+
+  // Child-Pugh A=1, B=2, C=3
+  if (key === 'child_pugh_class') {
+    if (value === 'A') return 1;
+    if (value === 'B') return 2;
+    if (value === 'C') return 3;
+    return 0;
+  }
+  // ALBI Grade '1'=1, '2'=2 '3'=3
+  if (key === 'albi_grade') {
+    return parseInt(value) || 0;
+  }
+
+  // 일반 수치 데이터
+  return Number(value) || 0;
+}
+// 상태(Normal/Warning/Risk) 판별
+function getStatus(key: string, value: any): 'normal' | 'danger' | 'warning' {
   if (value === undefined || value === null) return 'normal';
+  // 1. Child-Pugh Class (C=Risk, B=Warning)
+  if (key === 'child_pugh_class') {
+    if (value === 'C') return 'danger';
+    if (value === 'B') return 'warning';
+    return 'normal';
+  }
+  // 2. ALBI Grade (3=Risk, 2=Warning)
+  if (key === 'albi_grade') {
+    // 문자열 "1", "2", "3" 비교
+    if (String(value) === '3') return 'danger';
+    if (String(value) === '2') return 'warning';
+    return 'normal';
+  }
+  // 3. 일반 수치 비교
+  const numVal = Number(value);
+  if (isNaN(numVal)) return 'normal';
   const conf = LAB_CONFIG[key];
-  if (conf.max && value > conf.max) return 'danger';
-  if (conf.min && value < conf.min) return 'danger';
+  if (!conf) return 'normal';
+  // ALBI Score는 높을수록(덜 음수일수록) 안좋음. 예: -0.5 > -1.39 (Risk)
+  // 일반적인 항목은 높으면 안좋거나 낮으면 안좋음
+  if (conf.max !== undefined && numVal > conf.max) return 'danger';
+  if (conf.min !== undefined && numVal < conf.min) return 'danger';
+
   return 'normal';
 }
