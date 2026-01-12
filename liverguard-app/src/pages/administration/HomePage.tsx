@@ -12,9 +12,13 @@ import {
   registerPatient,
   getPatientDetail,
   updatePatient,
+  getAppSyncRequests,
+  approveAppSyncRequest,
+  rejectAppSyncRequest,
+  getAdministrationWaitingQueue,
   type PatientRegistrationData,
   type PatientUpdateData,
-  getAdministrationWaitingQueue
+  type AppSyncRequest
 } from "../../api/administrationApi";
 import {
   createEncounter,
@@ -105,6 +109,7 @@ export default function AdministrationHomePage() {
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [contentTab, setContentTab] = useState<ContentTabType>('search');
   const [receptionTab, setReceptionTab] = useState<ReceptionTabType>('reception');
+  const [adminStaffId, setAdminStaffId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   // 신규 환자 등록은 PatientRegistrationForm 컴포넌트에서 처리
@@ -190,6 +195,12 @@ export default function AdministrationHomePage() {
   // 수납 결제 모달
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedPaymentPatient, setSelectedPaymentPatient] = useState<any>(null);
+
+  // 앱 연동 신청 목록
+  const [appSyncRequests, setAppSyncRequests] = useState<AppSyncRequest[]>([]);
+  const [isAppSyncLoading, setIsAppSyncLoading] = useState(false);
+  const [appSyncError, setAppSyncError] = useState<string | null>(null);
+  const [appSyncRefreshKey, setAppSyncRefreshKey] = useState(0);
 
   // WebSocket for Notifications
   const { lastMessage } = useWebSocketContext();
@@ -365,6 +376,21 @@ export default function AdministrationHomePage() {
     }
   }, []);
 
+  const fetchAppSyncRequests = useCallback(async () => {
+    setIsAppSyncLoading(true);
+    setAppSyncError(null);
+    try {
+      const response = await getAppSyncRequests('PENDING');
+      setAppSyncRequests(response.results || []);
+    } catch (error) {
+      console.error('앱 연동 신청 목록 조회 실패:', error);
+      setAppSyncError('앱 연동 신청 인원이 없습니다.');
+    } finally {
+      setIsAppSyncLoading(false);
+    }
+  }, []);
+
+
   // WebSocket은 useWaitingQueue와 useDashboardStats 내부에서 이미 연결되므로
   // 여기서는 중복 연결하지 않음
 
@@ -382,17 +408,46 @@ export default function AdministrationHomePage() {
     // }
   };
 
+  const handleApproveAppSync = async (request: AppSyncRequest) => {
+    try {
+      await approveAppSyncRequest(request.request_id, undefined, adminStaffId ?? undefined);
+      setAppSyncRequests((prev) => prev.filter((item) => item.request_id !== request.request_id));
+      setAppSyncRefreshKey(prev => prev + 1);
+    } catch (error: any) {
+      console.error('앱 연동 승인 실패:', error);
+      alert(error.response?.data?.message || '앱 연동 승인에 실패했습니다.');
+    }
+  };
+
+  const handleRejectAppSync = async (request: AppSyncRequest) => {
+    const confirmed = window.confirm('이 연동 신청을 거절하시겠습니까?');
+    if (!confirmed) {
+      return;
+    }
+    try {
+      await rejectAppSyncRequest(request.request_id, adminStaffId ?? undefined);
+      setAppSyncRequests((prev) => prev.filter((item) => item.request_id !== request.request_id));
+      setAppSyncRefreshKey(prev => prev + 1);
+    } catch (error: any) {
+      console.error('앱 연동 거절 실패:', error);
+      alert(error.response?.data?.message || '앱 연동 거절에 실패했습니다.');
+    }
+  };
+
   useEffect(() => {
     // 관리자 정보 로드 (있으면)
     const storedAdmin = localStorage.getItem('administration');
     if (storedAdmin) {
       try {
-        const adminStaff = JSON.parse(storedAdmin) as { name?: string; department?: string };
+        const adminStaff = JSON.parse(storedAdmin) as { staff_id?: number; name?: string; department?: string };
         if (adminStaff.name) {
           setStaffName(adminStaff.name);
         }
         if (adminStaff.department) {
           setDepartmentName(adminStaff.department);
+        }
+        if (typeof adminStaff.staff_id === 'number') {
+          setAdminStaffId(adminStaff.staff_id);
         }
       } catch (error) {
         console.error('Failed to parse administration info from storage', error);
@@ -415,6 +470,12 @@ export default function AdministrationHomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 빈 배열: 컴포넌트 마운트 시 한 번만 실행
 
+  useEffect(() => {
+    if (receptionTab === 'appSync') {
+      fetchAppSyncRequests();
+    }
+  }, [receptionTab, fetchAppSyncRequests, appSyncRefreshKey]);
+
   const handleLogout = () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
@@ -431,6 +492,7 @@ export default function AdministrationHomePage() {
     alert(`환자 등록 완료: ${response.patient.name} (${response.patient.patient_id})`);
     setContentTab('search');
     fetchPatients(); // 목록 갱신
+    return response;
   };
 
   // 검색어 변경 시 환자 목록 갱신
@@ -1603,9 +1665,96 @@ export default function AdministrationHomePage() {
                           <div className={styles.sectionTitle} style={{ marginBottom: '10px', fontSize: '14px', color: '#555' }}>
                             앱 연동 대기 환자
                           </div>
-                          <div style={{ textAlign: 'center', padding: '20px', color: '#999', fontSize: '14px' }}>
-                            앱 연동 대기 환자가 없습니다.
-                          </div>
+                          {isAppSyncLoading ? (
+                            <div style={{ textAlign: 'center', padding: '20px', color: '#999', fontSize: '14px' }}>
+                              목록을 불러오는 중입니다...
+                            </div>
+                          ) : appSyncError ? (
+                            <div style={{ textAlign: 'center', padding: '20px', color: '#999', fontSize: '14px' }}>
+                              {appSyncError}
+                            </div>
+                          ) : appSyncRequests.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '20px', color: '#999', fontSize: '14px' }}>
+                              앱 연동 신청 인원이 없습니다.
+                            </div>
+                          ) : (
+                            <div
+                              style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                                gap: '12px'
+                              }}
+                            >
+                              {appSyncRequests.map((request, index) => {
+                                const palette = [
+                                  { bg: '#E3F2FD', border: '#90CAF9' },
+                                  { bg: '#F1F8E9', border: '#AED581' },
+                                  { bg: '#FFF3E0', border: '#FFCC80' },
+                                  { bg: '#FCE4EC', border: '#F48FB1' },
+                                ];
+                                const styleSet = palette[index % palette.length];
+
+                                return (
+                                  <div
+                                    key={request.request_id}
+                                    style={{
+                                      backgroundColor: styleSet.bg,
+                                      border: `1px solid ${styleSet.border}`,
+                                      borderRadius: '10px',
+                                      padding: '12px',
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center',
+                                      gap: '12px',
+                                      minHeight: '90px'
+                                    }}
+                                  >
+                                    <div style={{ fontSize: '13px' }}>
+                                      <div style={{ fontWeight: 'bold', fontSize: '15px', marginBottom: '6px' }}>
+                                        {request.profile_nickname}
+                                      </div>
+                                      <div style={{ color: '#555' }}>
+                                        생년월일: {request.profile_birth_date}
+                                      </div>
+                                      <div style={{ color: '#555' }}>
+                                        전화번호: {request.profile_phone_number}
+                                      </div>
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '120px' }}>
+                                      <button
+                                        onClick={() => handleApproveAppSync(request)}
+                                        style={{
+                                          padding: '6px 12px',
+                                          borderRadius: '6px',
+                                          border: 'none',
+                                          backgroundColor: '#2E7D32',
+                                          color: '#fff',
+                                          fontSize: '12px',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        승인
+                                      </button>
+                                      <button
+                                        onClick={() => handleRejectAppSync(request)}
+                                        style={{
+                                          padding: '6px 12px',
+                                          borderRadius: '6px',
+                                          border: 'none',
+                                          backgroundColor: '#C62828',
+                                          color: '#fff',
+                                          fontSize: '12px',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        거절
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

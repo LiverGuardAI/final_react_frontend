@@ -5,9 +5,13 @@ import {
   getPatientCtSeries,
   getPatientLabResults,
   getPatientGenomicData,
+  getPatientHCCDiagnosis,
+  getPatientProfile,
   type CtSeriesItem,
   type LabResult,
   type GenomicDataItem,
+  type HCCDiagnosis,
+  type PatientProfile,
 } from '../../api/doctorApi';
 
 interface FeatureSelectRowProps {
@@ -17,9 +21,16 @@ interface FeatureSelectRowProps {
   selectedRadioId: string;
   selectedClinicalId: string;
   selectedGenomicId?: string;
+  selectedHccId?: string;
   onRadioChange: (value: string) => void;
   onClinicalChange: (value: string) => void;
   onGenomicChange?: (value: string) => void;
+  onHccChange?: (value: string) => void;
+  onCtSeriesSelect?: (value: CtSeriesItem | null) => void;
+  onPatientProfileSelect?: (value: PatientProfile | null) => void;
+  onLabResultSelect?: (value: LabResult | null) => void;
+  onGenomicDataSelect?: (value: GenomicDataItem | null) => void;
+  onHccDiagnosisSelect?: (value: HCCDiagnosis | null) => void;
   formatDate: (dateStr?: string | null) => string;
   disabled?: boolean;
 }
@@ -31,9 +42,16 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
   selectedRadioId,
   selectedClinicalId,
   selectedGenomicId,
+  selectedHccId,
   onRadioChange,
   onClinicalChange,
   onGenomicChange,
+  onHccChange,
+  onCtSeriesSelect,
+  onPatientProfileSelect,
+  onLabResultSelect,
+  onGenomicDataSelect,
+  onHccDiagnosisSelect,
   formatDate,
   disabled = false,
 }) => {
@@ -41,6 +59,8 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
   const [ctSeriesList, setCtSeriesList] = useState<CtSeriesItem[]>([]);
   const [labResults, setLabResults] = useState<LabResult[]>([]);
   const [genomicData, setGenomicData] = useState<GenomicDataItem[]>([]);
+  const [hccDiagnoses, setHccDiagnoses] = useState<HCCDiagnosis[]>([]);
+  const [patientProfile, setPatientProfile] = useState<PatientProfile | null>(null);
 
   useEffect(() => {
     const loadCtSeries = async () => {
@@ -55,6 +75,22 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
 
     loadCtSeries();
   }, [patientId]);
+
+  useEffect(() => {
+    const loadPatientProfile = async () => {
+      try {
+        const data = await getPatientProfile(patientId);
+        setPatientProfile(data);
+        onPatientProfileSelect?.(data);
+      } catch (error) {
+        console.error('Failed to fetch patient profile:', error);
+        setPatientProfile(null);
+        onPatientProfileSelect?.(null);
+      }
+    };
+
+    loadPatientProfile();
+  }, [onPatientProfileSelect, patientId]);
 
   useEffect(() => {
     const loadLabResults = async () => {
@@ -84,23 +120,89 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
     loadGenomicData();
   }, [patientId]);
 
+  useEffect(() => {
+    const loadHccDiagnosis = async () => {
+      try {
+        const data = await getPatientHCCDiagnosis(patientId);
+        setHccDiagnoses(data.results || []);
+      } catch (error) {
+        console.error('Failed to fetch HCC diagnosis list:', error);
+        setHccDiagnoses([]);
+      }
+    };
+
+    loadHccDiagnosis();
+  }, [patientId]);
+
+  useEffect(() => {
+    if (!onLabResultSelect) return;
+    if (!selectedClinicalId || !labResults.length) {
+      onLabResultSelect(null);
+      return;
+    }
+    const labId = Number(selectedClinicalId);
+    const match = Number.isNaN(labId)
+      ? null
+      : labResults.find((item) => item.lab_id === labId) || null;
+    onLabResultSelect(match);
+  }, [labResults, onLabResultSelect, selectedClinicalId]);
+
+  useEffect(() => {
+    if (!onCtSeriesSelect) return;
+    if (!selectedRadioId || !ctSeriesList.length) {
+      onCtSeriesSelect(null);
+      return;
+    }
+    const match = ctSeriesList.find((item) => item.series_uid === selectedRadioId) || null;
+    onCtSeriesSelect(match);
+  }, [ctSeriesList, onCtSeriesSelect, selectedRadioId]);
+
+  useEffect(() => {
+    if (!onPatientProfileSelect) return;
+    onPatientProfileSelect(patientProfile);
+  }, [onPatientProfileSelect, patientProfile]);
+
+  useEffect(() => {
+    if (!onGenomicDataSelect) return;
+    if (!selectedGenomicId || !genomicData.length) {
+      onGenomicDataSelect(null);
+      return;
+    }
+    const genomicId = Number(selectedGenomicId);
+    const match = Number.isNaN(genomicId)
+      ? null
+      : genomicData.find((item) => item.genomic_id === genomicId) || null;
+    onGenomicDataSelect(match);
+  }, [genomicData, onGenomicDataSelect, selectedGenomicId]);
+
+  useEffect(() => {
+    if (!onHccDiagnosisSelect) return;
+    if (!selectedHccId || !hccDiagnoses.length) {
+      onHccDiagnosisSelect(null);
+      return;
+    }
+    const hccId = Number(selectedHccId);
+    const match = Number.isNaN(hccId)
+      ? null
+      : hccDiagnoses.find((item) => item.hcc_id === hccId) || null;
+    onHccDiagnosisSelect(match);
+  }, [hccDiagnoses, onHccDiagnosisSelect, selectedHccId]);
+
   const hasCtSeries = ctSeriesList.length > 0;
   const hasLabResults = labResults.length > 0;
   const hasGenomicData = genomicData.length > 0;
+  const hasHccDiagnoses = hccDiagnoses.length > 0;
   const formatStudyDate = (value?: string) => {
     if (!value) return '';
     const dateOnly = value.split('T')[0];
     return dateOnly || '';
   };
   const formatSeriesLabel = (series: CtSeriesItem) => {
-    const numberLabel =
-      series.series_number !== undefined && series.series_number !== null
-        ? `Series #${series.series_number}`
-        : 'Series';
+    const studyDate = formatStudyDate(series.study__study_datetime || series.acquisition_datetime);
+    const dateLabel = studyDate ? `${studyDate}` : '날짜 미상';
+    const bodyPart = series.study__body_part ? ` ${series.study__body_part}` : '';
     const description = series.series_description ? ` - ${series.series_description}` : '';
-    const studyDate = formatStudyDate(series.study__study_datetime);
-    const dateLabel = studyDate ? ` (${studyDate})` : '';
-    return `${numberLabel}${description}${dateLabel}`;
+    return `${dateLabel}${bodyPart}${description}`;
   };
 
   return (
@@ -113,6 +215,9 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
           onChange={(e) => onRadioChange(e.target.value)}
           disabled={disabled}
         >
+          <option value="" disabled>
+            CT 데이터 선택
+          </option>
           {hasCtSeries
             ? ctSeriesList.map((series) => (
               <option key={series.series_uid} value={series.series_uid}>
@@ -135,6 +240,9 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
           onChange={(e) => onClinicalChange(e.target.value)}
           disabled={disabled}
         >
+          <option value="" disabled>
+            혈액 데이터 선택
+          </option>
           {hasLabResults
             ? labResults.map((lab) => (
               <option key={lab.lab_id} value={String(lab.lab_id)}>
@@ -158,6 +266,9 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
             onChange={(e) => onGenomicChange(e.target.value)}
             disabled={disabled}
           >
+            <option value="" disabled>
+              유전체 데이터 선택
+            </option>
             {hasGenomicData
               ? genomicData.map((item) => (
                 <option key={item.genomic_id} value={String(item.genomic_id)}>
@@ -169,6 +280,29 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
                   {genomic.sample_date}
                 </option>
               ))}
+          </select>
+        </div>
+      ) : null}
+
+      {onHccChange ? (
+        <div className={styles.selectWrapper}>
+          <span className={styles.selectLabel}>HCC 진단:</span>
+          <select
+            className={styles.selectInput}
+            value={selectedHccId}
+            onChange={(e) => onHccChange(e.target.value)}
+            disabled={disabled}
+          >
+            <option value="" disabled>
+              HCC 진단 선택
+            </option>
+            {hasHccDiagnoses
+              ? hccDiagnoses.map((diagnosis) => (
+                  <option key={diagnosis.hcc_id} value={String(diagnosis.hcc_id)}>
+                    {formatDate(diagnosis.measured_at || diagnosis.hcc_diagnosis_date)}
+                  </option>
+                ))
+              : null}
           </select>
         </div>
       ) : null}

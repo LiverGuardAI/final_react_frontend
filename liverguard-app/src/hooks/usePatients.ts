@@ -27,18 +27,21 @@ export const usePatients = () => {
     try {
       const response = await getPatientList(searchQuery);
 
-      const formattedPatients: Patient[] = response.results.map((p: any) => ({
-        id: p.patient_id,
-        name: p.name,
-        birthDate: p.date_of_birth || 'N/A',
-        age: p.age || 0,
-        gender: p.gender === 'M' ? '남' : p.gender === 'F' ? '여' : 'N/A',
-        phone: p.phone || 'N/A',
-        emergencyContact: 'N/A',
-        address: 'N/A',
-        registrationDate: p.created_at ? new Date(p.created_at).toLocaleDateString('ko-KR') : 'N/A',
-        lastVisit: p.updated_at ? new Date(p.updated_at).toLocaleDateString('ko-KR') : 'N/A',
-      }));
+      const formattedPatients: Patient[] = response.results.map((p: any) => {
+        const hasAppProfile = Boolean(p.profile);
+        return {
+          id: p.patient_id,
+          name: p.name,
+          birthDate: p.date_of_birth || 'N/A',
+          age: p.age || 0,
+          gender: p.gender === 'M' ? '남' : p.gender === 'F' ? '여' : 'N/A',
+          phone: p.phone || 'N/A',
+          emergencyContact: 'N/A',
+          address: 'N/A',
+          registrationDate: p.created_at ? new Date(p.created_at).toLocaleDateString('ko-KR') : 'N/A',
+          lastVisit: hasAppProfile ? 'N/A' : (p.updated_at ? new Date(p.updated_at).toLocaleDateString('ko-KR') : 'N/A'),
+        };
+      });
 
       setPatients(formattedPatients);
       setCurrentPage(page);
