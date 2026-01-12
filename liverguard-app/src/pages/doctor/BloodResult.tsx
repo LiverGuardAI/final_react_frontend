@@ -7,6 +7,7 @@ import {
 } from 'recharts';
 import styles from './BloodResult.module.css';
 import { getPatientLabResults, type LabResult } from '../../api/doctorApi';
+
 // 설정: 각 검사 항목의 라벨, 단위, 정상 범위
 const LAB_CONFIG: Record<string, { label: string; unit: string; min?: number; max?: number }> = {
   afp: { label: 'AFP (Alpha-fetoprotein)', unit: 'ng/mL', max: 7 },
@@ -16,27 +17,35 @@ const LAB_CONFIG: Record<string, { label: string; unit: string; min?: number; ma
   pt_inr: { label: 'PT (INR)', unit: '', min: 0.8, max: 1.2 },
   creatinine: { label: 'Creatinine', unit: 'mg/dL', min: 0.6, max: 1.2 },
 };
+
 export default function BloodResultPage() {
   const { patientId } = useParams<{ patientId: string }>();
   const [results, setResults] = useState<LabResult[]>([]);
   const [selectedMetric, setSelectedMetric] = useState<string>('afp'); // 기본 선택: AFP
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+
   useEffect(() => {
-    if (!patientId) return;
+    if (!patientId) {
+      setResults([]);
+      return;
+    }
+    setLoading(true);
     getPatientLabResults(patientId).then(data => {
       // 과거 -> 최신 순으로 정렬 (그래프용)
       const sorted = data.results.sort((a, b) =>
         new Date(a.test_date).getTime() - new Date(b.test_date).getTime()
       );
       setResults(sorted);
-      setLoading(false);
     }).catch(err => {
       console.error(err);
+      setResults([]);
+    }).finally(() => {
       setLoading(false);
     });
   }, [patientId]);
-  // 최신 결과 데이터 (가장 마지막 항목)
-  const latest = results[results.length - 1];
+
+  // 최신 결과 데이터 (데이터가 없으면 undefined)
+  const latest = results.length > 0 ? results[results.length - 1] : undefined;
 
   // 그래프용 데이터 변환
   const chartData = useMemo(() => {
@@ -45,24 +54,27 @@ export default function BloodResultPage() {
       value: r[selectedMetric as keyof LabResult] as number || 0,
     }));
   }, [results, selectedMetric]);
+
   // 현재 선택된 항목의 설정 값
   const config = LAB_CONFIG[selectedMetric];
-  if (loading) return <div className={styles.loading}>Loading data...</div>;
-  if (!latest) return <div className={styles.empty}>No lab results found.</div>;
+
   return (
     <div className={styles.container}>
       <header className={styles.header}>
         <h2 className={styles.pageTitle}>BLOOD RESULT ANALYSIS</h2>
         <div className={styles.patientInfo}>
-          Patient ID: {patientId} <span className={styles.divider}>|</span> Last Update: {latest.test_date.split('T')[0]}
+          Patient ID: {patientId || '-'} <span className={styles.divider}>|</span> Last Update: {latest?.test_date?.split('T')[0] || '-'}
         </div>
       </header>
+
       {/* 1. Summary Cards Section */}
       <div className={styles.cardsGrid}>
         {Object.entries(LAB_CONFIG).map(([key, conf]) => {
-          const value = latest[key as keyof LabResult] as number;
+          // 데이터가 없으면 '-' 처리
+          const value = latest ? (latest[key as keyof LabResult] as number) : undefined;
           const status = getStatus(key, value);
           const isSelected = selectedMetric === key;
+
           return (
             <div
               key={key}
@@ -74,7 +86,10 @@ export default function BloodResultPage() {
                 {status === 'danger' && <span className={styles.riskDot} />}
               </div>
               <div className={styles.cardBody}>
-                <span className={styles.value}>{value ?? '-'}</span>
+                {/* 로딩 중이면 ... 표시, 아니면 값 또는 - */}
+                <span className={styles.value}>
+                  {loading ? '...' : (value ?? '-')}
+                </span>
                 <span className={styles.unit}>{conf.unit}</span>
               </div>
               <div className={styles.cardFooter}>
@@ -89,6 +104,7 @@ export default function BloodResultPage() {
           );
         })}
       </div>
+
       {/* 2. Trend Graph Section */}
       <div className={styles.chartSection}>
         <h3 className={styles.sectionTitle}>{config.label} Trend Analysis</h3>
@@ -128,8 +144,15 @@ export default function BloodResultPage() {
               />
             </LineChart>
           </ResponsiveContainer>
+          {/* 데이터가 없을 때 안내 메시지 (그래프 위에 겹쳐서 표시) */}
+          {!loading && chartData.length === 0 && (
+            <div style={{ textAlign: 'center', marginTop: '-180px', color: '#9ca3af', position: 'relative', zIndex: 10 }}>
+              No trend data
+            </div>
+          )}
         </div>
       </div>
+
       {/* 3. Historical Table Section */}
       <div className={styles.tableSection}>
         <h3 className={styles.sectionTitle}>Historical Test Results (Latest 10)</h3>
@@ -145,29 +168,34 @@ export default function BloodResultPage() {
               </tr>
             </thead>
             <tbody>
-              {/* 전체 히스토리 중 현재 선택된 메트릭만 보여주거나, 혹은 모든 항목을 보여줄 수 있음. 
-                                여기서는 사용자가 더 많은 데이터를 보길 원할 수 있으므로, 
-                                최근 결과들에서 선택된 메트릭의 변화를 보여주는 식으로 구성 */}
-              {[...results].reverse().slice(0, 10).map((row, idx) => {
-                const val = row[selectedMetric as keyof LabResult] as number;
-                const status = getStatus(selectedMetric, val);
+              {results.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: 'center', padding: '24px', color: '#9ca3af' }}>
+                    {loading ? 'Loading history...' : 'No result history found.'}
+                  </td>
+                </tr>
+              ) : (
+                [...results].reverse().slice(0, 10).map((row, idx) => {
+                  const val = row[selectedMetric as keyof LabResult] as number;
+                  const status = getStatus(selectedMetric, val);
 
-                return (
-                  <tr key={idx}>
-                    <td>{row.test_date.split('T')[0]}</td>
-                    <td className={styles.cellTestName}>{config.label}</td>
-                    <td className={styles.cellValue}>{val ?? '-'} {config.unit}</td>
-                    <td className={styles.cellRef}>
-                      {config.min ? `${config.min} - ` : ''}{config.max} {config.unit}
-                    </td>
-                    <td>
-                      <span className={`${styles.statusBadge} ${styles[status]}`}>
-                        {status === 'normal' ? 'Normal' : 'Risk'}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
+                  return (
+                    <tr key={idx}>
+                      <td>{row.test_date.split('T')[0]}</td>
+                      <td className={styles.cellTestName}>{config.label}</td>
+                      <td className={styles.cellValue}>{val ?? '-'} {config.unit}</td>
+                      <td className={styles.cellRef}>
+                        {config.min ? `${config.min} - ` : ''}{config.max} {config.unit}
+                      </td>
+                      <td>
+                        <span className={`${styles.statusBadge} ${styles[status]}`}>
+                          {status === 'normal' ? 'Normal' : 'Risk'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -175,6 +203,7 @@ export default function BloodResultPage() {
     </div>
   );
 }
+
 // ---------------------------
 // Helper Functions
 // ---------------------------
