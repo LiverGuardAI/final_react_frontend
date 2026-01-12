@@ -71,7 +71,6 @@ export default function BloodResultPage() {
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <h2 className={styles.pageTitle}>BLOOD RESULT ANALYSIS</h2>
         <div className={styles.patientInfo}>
           Patient ID : {patientId || '-'} <span className={styles.divider}>|</span> Last Update : {latest?.test_date?.split('T')[0] || '-'}
         </div>
@@ -178,7 +177,7 @@ export default function BloodResultPage() {
 
       {/* 3. Historical Table Section */}
       <div className={styles.tableSection}>
-        <h3 className={styles.sectionTitle}>Historical Test Results</h3>
+        <h3 className={styles.sectionTitle}>Historical Test Results (Latest 10)</h3>
         <div className={styles.tableResponsive}>
           <table className={styles.historyTable}>
             <thead>
