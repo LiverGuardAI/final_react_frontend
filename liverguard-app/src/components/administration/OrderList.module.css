@@ -91,65 +91,106 @@
 .actionButtons {
     display: flex;
     gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+/* 기본 버튼 스타일 */
+.confirmButton,
+.dischargeButton,
+.externalButton,
+.vitalButton,
+.imagingButton,
+.assignButton,
+.cancelButton {
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.2s;
+    white-space: nowrap;
 }
 
 .confirmButton {
     background-color: #3f51b5;
     color: white;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.8em;
-}
-
-.dischargeButton {
-    background-color: #e91e63;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.8em;
 }
 
 .confirmButton:hover {
     background-color: #303f9f;
 }
 
+.dischargeButton {
+    background-color: #e91e63;
+    color: white;
+}
+
 .dischargeButton:hover {
     background-color: #c2185b;
 }
 
-.actionButtons {
+/* 외부 요청 버튼 (유전체/혈액검사) */
+.externalButton {
+    background-color: #FF9800;
+    color: white;
+}
+
+.externalButton:hover {
+    background-color: #F57C00;
+}
+
+/* 검사 입력 버튼 (바이탈/신체계측) */
+.vitalButton {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.vitalButton:hover {
+    background-color: #388E3C;
+}
+
+/* 의사 배정 버튼 (영상의학과) */
+.imagingButton {
+    background-color: #9C27B0;
+    color: white;
+}
+
+.imagingButton:hover {
+    background-color: #7B1FA2;
+}
+
+/* 의사 선택 컨테이너 */
+.doctorSelectContainer {
     display: flex;
-    gap: 8px;
+    gap: 6px;
+    align-items: center;
 }
 
-.confirmButton {
-    background-color: #3f51b5;
-    color: white;
-    border: none;
-    padding: 6px 12px;
+.doctorSelect {
+    padding: 4px 8px;
+    border: 1px solid #ddd;
     border-radius: 4px;
+    font-size: 12px;
     cursor: pointer;
-    font-size: 0.8em;
+    background-color: white;
 }
 
-.dischargeButton {
-    background-color: #e91e63;
+.assignButton {
+    background-color: #2196F3;
     color: white;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.8em;
 }
 
-.confirmButton:hover {
-    background-color: #303f9f;
+.assignButton:hover {
+    background-color: #1976D2;
 }
 
-.dischargeButton:hover {
-    background-color: #c2185b;
+.cancelButton {
+    background-color: #9E9E9E;
+    color: white;
+}
+
+.cancelButton:hover {
+    background-color: #757575;
 }

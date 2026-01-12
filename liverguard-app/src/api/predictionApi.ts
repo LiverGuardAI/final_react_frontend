@@ -39,7 +39,6 @@ export interface GenomicFeature {
   genomic_id: string;
   pathway_scores: number[];
   sample_date: string;
-  sample_id: string;
   created_at: string;
 }
 
@@ -201,7 +200,7 @@ export const checkDateMismatch = (
 ): { mismatch: boolean; maxDays: number; warning: string | null } => {
   const dates = [radioDate, clinicalDate, genomicDate].filter(Boolean) as string[];
   if (dates.length < 2) return { mismatch: false, maxDays: 0, warning: null };
-  
+
   let maxDiff = 0;
   for (let i = 0; i < dates.length; i++) {
     for (let j = i + 1; j < dates.length; j++) {
@@ -210,7 +209,7 @@ export const checkDateMismatch = (
       if (diff > maxDiff) maxDiff = diff;
     }
   }
-  
+
   if (maxDiff > thresholdDays) {
     return {
       mismatch: true,

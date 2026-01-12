@@ -59,7 +59,7 @@ export default function DoctorLayout() {
   const { waitingQueueData, fetchWaitingQueue } = useDoctorWaitingQueue(doctorId);
   const { stats, fetchStats } = useDoctorDashboardStats(doctorId);
 
-  // 환자 목록을 상태별로 분류
+  // 환자 목록을 상태별로 분류 (환자당 최신 encounter만 표시)
   const { waitingPatients, inProgressPatients, completedPatients } = useMemo(() => {
     if (!waitingQueueData?.queue) {
       return { waitingPatients: [], inProgressPatients: [], completedPatients: [] };
@@ -73,28 +73,54 @@ export default function DoctorLayout() {
       return { waitingPatients: [], inProgressPatients: [], completedPatients: [] };
     }
 
+    // 환자별 최신 encounter만 필터링
+    const patientMap = new Map<string, any>();
     waitingQueueData.queue.forEach((item: any) => {
-      const status = mapWorkflowStateToStatus(item.workflow_state);
+      const patientObj = (typeof item.patient === 'object' && item.patient !== null) ? item.patient : null;
+      const patientId = patientObj?.patient_id || item.patient_id || 'N/A';
+
+      const existing = patientMap.get(patientId);
+      if (!existing || new Date(item.created_at || item.queued_at) > new Date(existing.created_at || existing.queued_at)) {
+        patientMap.set(patientId, item);
+      }
+    });
+
+    // 최신 encounter만 처리
+    patientMap.forEach((item: any) => {
+      // workflow_state 직접 사용하여 분류
+      const workflowState = item.workflow_state;
+
+      // EncounterSerializer provides 'patient' as nested object
+      const patientObj = (typeof item.patient === 'object' && item.patient !== null) ? item.patient : null;
+
+      // Status mapping for display
+      const status = mapWorkflowStateToStatus(workflowState);
 
       const patient: Patient = {
         encounterId: item.encounter_id,
-        patientId: item.patient_id || item.patient || 'N/A',
-        name: item.patient_name || '이름 없음',
-        birthDate: item.date_of_birth || 'N/A',
-        age: item.age || 0,
-        gender: item.gender === 'M' ? '남' : item.gender === 'F' ? '여' : 'N/A',
+        // patient_id is inside the nested patient object
+        patientId: patientObj?.patient_id || 'N/A',
+        name: item.patient_name || patientObj?.name || '이름 없음',
+        birthDate: patientObj?.date_of_birth || 'N/A',
+        age: patientObj?.age || 0,
+        gender: patientObj?.gender === 'M' ? '남' : patientObj?.gender === 'F' ? '여' : 'N/A',
         status: status,
         queuedAt: item.created_at || item.queued_at,
-        phone: item.phone || 'N/A',
+        phone: patientObj?.phone || 'N/A',
         questionnaireStatus: item.questionnaire_status || 'NOT_STARTED',
         questionnaireData: item.questionnaire_data || null,
       };
 
-      if (status === 'COMPLETED') {
+      // 진료 완료: 수납 대기, 결과 대기, 촬영 대기/중
+      if (['WAITING_PAYMENT', 'WAITING_RESULTS', 'WAITING_IMAGING', 'IN_IMAGING'].includes(workflowState)) {
         completed.push(patient);
-      } else if (status === 'IN_PROGRESS') {
+      }
+      // 진료 중
+      else if (workflowState === 'IN_CLINIC') {
         inProgress.push(patient);
-      } else {
+      }
+      // 진료 대기
+      else if (workflowState === 'WAITING_CLINIC') {
         waiting.push(patient);
       }
     });
@@ -103,9 +129,9 @@ export default function DoctorLayout() {
   }, [waitingQueueData]);
 
   const patientStatus = {
-    waiting: stats.clinic_waiting,
-    inProgress: stats.clinic_in_progress,
-    completed: stats.completed_today,
+    waiting: stats.clinic_waiting + stats.clinic_in_progress, // 진료 대기 + 진료 중
+    inProgress: stats.clinic_in_progress, // 진료 중
+    completed: stats.completed_today, // 수납 대기, 결과 대기, 촬영 대기/중
   };
 
   // 환자 카드 클릭 핸들러 - 바로 상세 정보 모달 열기
@@ -118,21 +144,31 @@ export default function DoctorLayout() {
   // 진료 시작 핸들러
   const handleStartConsultation = useCallback(async (patient: Patient, event: React.MouseEvent) => {
     event.stopPropagation(); // 카드 클릭 이벤트 전파 방지
-    try {
-      await updateEncounter(patient.encounterId, {
-        encounter_status: 'IN_CLINIC'
-      });
+    console.log(`[DoctorLayout] Starting consultation for patient: ${patient.name} (${patient.patientId})`);
 
-      // 대기열 및 통계 새로고침
+    try {
+      // 1. 상태 업데이트
+      await updateEncounter(patient.encounterId, {
+        workflow_state: 'IN_CLINIC'
+      });
+      console.log('[DoctorLayout] Encounter status updated to IN_CLINIC');
+
+      // 2. 대기열 및 통계 새로고침 (병렬 처리)
       await Promise.all([
         fetchWaitingQueue(),
         fetchStats()
       ]);
+      console.log('[DoctorLayout] Queue and stats refreshed');
 
-      // 선택된 encounter ID 및 Patient ID 설정 및 진료 페이지로 이동
+      // 3. 선택된 encounter ID 및 Patient ID 설정
       setSelectedEncounterId(patient.encounterId);
       setSelectedPatientId(patient.patientId);
+      console.log(`[DoctorLayout] Set context - EncounterId: ${patient.encounterId}, PatientId: ${patient.patientId}`);
+
+      // 4. 진료 페이지로 이동
+      console.log('[DoctorLayout] Navigating to /doctor/treatment');
       navigate('/doctor/treatment');
+
     } catch (error: any) {
       console.error('진료 시작 실패:', error);
       alert(error.response?.data?.message || '진료 시작에 실패했습니다.');
@@ -185,7 +221,7 @@ export default function DoctorLayout() {
         departmentName={departmentName}
         sidebarTab={sidebarTab}
         setSidebarTab={setSidebarTab}
-        patientStatus={patientStatus}
+        stats={stats}
         waitingPatients={waitingPatients}
         inProgressPatients={inProgressPatients}
         completedPatients={completedPatients}
@@ -205,7 +241,12 @@ export default function DoctorLayout() {
               waitingQueueData,
               stats,
               fetchWaitingQueue,
-              fetchStats
+              fetchStats,
+              uniquePatientCounts: {
+                waiting: waitingPatients.length + inProgressPatients.length,
+                inProgress: inProgressPatients.length,
+                completed: completedPatients.length
+              }
             }}
           >
             <Outlet />

@@ -96,7 +96,7 @@ const EncounterDetailModal: React.FC<EncounterDetailModalProps> = ({
                             {/* 주증상 & 상세내용 */}
                             <div>
                                 <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#2c3e50', borderBottom: '2px solid #3498db', paddingBottom: '8px' }}>
-                                    📋 진료 소견 & 기록
+                                    진료 소견 & 기록
                                 </h3>
                                 <div style={{ marginTop: '15px' }}>
                                     <div style={{ marginBottom: '10px' }}>
@@ -118,7 +118,7 @@ const EncounterDetailModal: React.FC<EncounterDetailModalProps> = ({
                             {/* 진단 검사 오더 (Lab) */}
                             <div>
                                 <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#8e44ad', borderBottom: '2px solid #9b59b6', paddingBottom: '8px' }}>
-                                    🩸 진단 검사 오더 (Lab)
+                                    진단 검사 오더 (Lab)
                                 </h3>
                                 {labOrders.length > 0 ? (
                                     <table className={styles.patientTable} style={{ marginTop: '10px', width: '100%', borderCollapse: 'collapse' }}>
@@ -165,7 +165,7 @@ const EncounterDetailModal: React.FC<EncounterDetailModalProps> = ({
                             {/* 처방/오더 내역 (영상검사) */}
                             <div>
                                 <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#27ae60', borderBottom: '2px solid #2ecc71', paddingBottom: '8px' }}>
-                                    🎥 영상 검사 오더 (Imaging)
+                                    영상 검사 오더 (Imaging)
                                 </h3>
                                 {imagingOrders.length > 0 ? (
                                     <table className={styles.patientTable} style={{ marginTop: '10px', width: '100%', borderCollapse: 'collapse' }}>

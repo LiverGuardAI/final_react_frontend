@@ -4,43 +4,40 @@
   padding: 20px;
   height: 100%;
   box-sizing: border-box;
-  zoom: 0.7;
+  zoom: 0.75;
 }
 
 .mainLayout {
   display: grid;
-  grid-template-columns: 400px 1fr;
+  grid-template-columns: 320px 1fr 380px;
   gap: 20px;
   height: 100%;
 }
 
-/* 왼쪽: 달력 섹션 */
-.calendarSection {
+/* 왼쪽: 달력 + 의사 선택 섹션 */
+.leftSection {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 15px;
+  overflow-y: auto;
 }
 
 .calendarCard {
   background: #FFF;
-  border-radius: 15px;
-  padding: 30px;
+  border-radius: 12px;
+  padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
 }
 
 .calendarHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 25px;
+  margin-bottom: 20px;
 }
 
 .monthTitle {
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 700;
   margin: 0;
 }
@@ -48,10 +45,10 @@
 .navButton {
   background: none;
   border: none;
-  font-size: 32px;
+  font-size: 28px;
   cursor: pointer;
   color: #666;
-  padding: 0 10px;
+  padding: 0 8px;
   line-height: 1;
 }
 
@@ -66,22 +63,22 @@
 .weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 6px;
+  margin-bottom: 10px;
 }
 
 .weekday {
   text-align: center;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   color: #999;
-  padding: 10px 0;
+  padding: 8px 0;
 }
 
 .daysGrid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 8px;
+  gap: 6px;
 }
 
 .day {
@@ -89,8 +86,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
-  border-radius: 10px;
+  font-size: 14px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -120,110 +117,33 @@
   font-weight: 600;
 }
 
-/* 왼쪽 하단: 당일 일정 카드 */
-.dailyScheduleCard {
+/* 의사 선택 카드 */
+.doctorSelectionCard {
   background: #FFF;
-  border-radius: 15px;
-  padding: 25px;
+  border-radius: 12px;
+  padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
 }
 
-.dailyScheduleHeader {
-  margin-bottom: 15px;
+.doctorSelectionHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.dailyScheduleTitle {
-  font-size: 18px;
-  font-weight: 700;
-  margin: 0;
-  color: #000;
-}
-
-.addEventButton {
-  padding: 8px 16px;
-  background: #52759C;
-  color: #FFF;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.addEventButton:hover {
-  background: #405F7F;
-}
-
-.scheduleTabButtons {
-  display: flex;
-  gap: 8px;
   margin-bottom: 15px;
-  padding-bottom: 15px;
+  padding-bottom: 12px;
   border-bottom: 2px solid #E0E0E0;
 }
 
-.scheduleTabButton {
-  padding: 8px 16px;
-  background: #F5F7FA;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.2s;
+.doctorSelectionTitle {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
 }
 
-.scheduleTabButton:hover {
-  background: #E0E5EB;
-}
-
-.scheduleTabButton.active {
+.selectAllButton {
+  padding: 6px 12px;
   background: #52759C;
   color: #FFF;
-}
-
-.dailyScheduleList {
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.scheduleItem {
-  display: flex;
-  gap: 12px;
-  padding: 12px;
-  background: #F8F9FA;
-  border-radius: 8px;
-  border-left: 4px solid #64B5F6;
-  transition: all 0.2s;
-  align-items: center;
-}
-
-.scheduleItem:hover {
-  background: #EDF1F5;
-  transform: translateX(2px);
-}
-
-.scheduleActions {
-  display: flex;
-  gap: 6px;
-  margin-left: auto;
-}
-
-.editScheduleButton,
-.deleteScheduleButton {
-  padding: 6px 12px;
   border: none;
   border-radius: 6px;
   font-size: 12px;
@@ -232,108 +152,46 @@
   transition: all 0.2s;
 }
 
-.editScheduleButton {
-  background: #52759C;
-  color: #FFF;
-}
-
-.editScheduleButton:hover {
+.selectAllButton:hover {
   background: #405F7F;
 }
 
-.deleteScheduleButton {
-  background: #FF5252;
-  color: #FFF;
-}
-
-.deleteScheduleButton:hover {
-  background: #E53935;
-}
-
-.scheduleTime {
-  font-size: 14px;
-  font-weight: 700;
-  color: #52759C;
-  min-width: 50px;
-}
-
-.scheduleContent {
-  flex: 1;
-}
-
-.scheduleItemTitle {
-  font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 4px;
-  color: #000;
-}
-
-.scheduleDuration {
-  font-size: 13px;
-  color: #666;
-}
-
-.noSchedule {
-  text-align: center;
-  padding: 40px 20px;
-  color: #999;
-  font-size: 14px;
-}
-
-/* 예약 섹션 */
-.appointmentSection {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 2px solid #E0E0E0;
-}
-
-.appointmentSectionTitle {
-  font-size: 16px;
-  font-weight: 700;
-  margin-bottom: 12px;
-  color: #000;
-}
-
-.appointmentItem {
+.doctorList {
   display: flex;
-  gap: 12px;
-  padding: 12px;
-  background: #FFF8E1;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.doctorCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: #F8F9FA;
   border-radius: 8px;
-  border-left: 4px solid #FFA726;
-  margin-bottom: 8px;
+  cursor: pointer;
   transition: all 0.2s;
 }
 
-.appointmentItem:hover {
-  background: #FFF3CD;
-  transform: translateX(2px);
+.doctorCheckbox:hover {
+  background: #E8EDF2;
 }
 
-.appointmentTime {
+.doctorCheckbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.doctorName {
   font-size: 14px;
-  font-weight: 700;
-  color: #F57C00;
-  min-width: 50px;
+  font-weight: 500;
+  color: #333;
 }
 
-.appointmentContent {
-  flex: 1;
-}
-
-.appointmentPatient {
-  font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 4px;
-  color: #000;
-}
-
-.appointmentType {
-  font-size: 13px;
-  color: #666;
-}
-
-/* 오른쪽: 주간 캘린더 섹션 */
+/* 중앙: 주간 일정표 */
 .weekCalendarSection {
   display: flex;
   flex-direction: column;
@@ -342,7 +200,7 @@
 
 .weekCalendarCard {
   background: #FFF;
-  border-radius: 15px;
+  border-radius: 12px;
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   height: 100%;
@@ -354,52 +212,22 @@
 .weekHeader {
   display: flex;
   align-items: center;
-  gap: 15px;
-  margin-bottom: 20px;
-  padding-bottom: 15px;
+  gap: 10px;
+  margin-bottom: 15px;
+  padding-bottom: 12px;
   border-bottom: 2px solid #E0E0E0;
 }
 
-.weekNavButton {
-  background: none;
-  border: none;
-  font-size: 28px;
-  cursor: pointer;
-  color: #666;
-  padding: 0 5px;
-  line-height: 1;
-}
-
-.weekNavButton:hover {
-  color: #000;
-}
-
 .weekTitle {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   margin: 0;
 }
 
-.todayButton {
-  margin-left: auto;
-  padding: 8px 16px;
-  background: #52759C;
-  color: #FFF;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.todayButton:hover {
-  background: #405F7F;
-}
-
-/* 요일 헤더 */
+/* 의사별 컬럼 헤더 */
 .weekDaysHeader {
   display: grid;
-  grid-template-columns: 80px repeat(7, 1fr);
+  grid-template-columns: 70px repeat(auto-fit, minmax(100px, 1fr));
   gap: 1px;
   background: #E0E0E0;
   border: 1px solid #E0E0E0;
@@ -408,265 +236,362 @@
 }
 
 .timeColumn {
-  background: #FFF;
-}
-
-.dayHeader {
   background: #F8F9FA;
   padding: 12px 8px;
   text-align: center;
-}
-
-.dayName {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   color: #666;
-  margin-bottom: 4px;
 }
 
-.dayDate {
-  font-size: 18px;
+.doctorColumn {
+  background: #F8F9FA;
+  padding: 10px 6px;
+  text-align: center;
+}
+
+.doctorInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.doctorNameHeader {
+  font-size: 13px;
   font-weight: 700;
   color: #000;
 }
 
-/* 주간 그리드 */
-.weekGrid {
-  display: grid;
-  grid-template-columns: 80px 1fr;
+.doctorDeptHeader {
+  font-size: 11px;
+  color: #666;
+}
+
+/* 스케줄 그리드 */
+.scheduleGrid {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
   border: 1px solid #E0E0E0;
   border-top: none;
   border-radius: 0 0 8px 8px;
   background: #FFF;
 }
 
-.timeLabels {
-  display: flex;
-  flex-direction: column;
-  background: #F8F9FA;
-  border-right: 1px solid #E0E0E0;
+.timeSlotRow {
+  display: grid;
+  grid-template-columns: 70px repeat(auto-fit, minmax(100px, 1fr));
+  gap: 1px;
+  background: #E0E0E0;
+  min-height: 50px;
 }
 
 .timeLabel {
-  height: 80px;
+  background: #F8F9FA;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding-top: 4px;
   font-size: 11px;
   font-weight: 600;
   color: #666;
-  border-bottom: 1px solid #E0E0E0;
+  padding: 8px 4px;
 }
 
-.daysGrid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  position: relative;
-}
-
-.dayColumn {
-  position: relative;
-  border-right: 1px solid #E0E0E0;
-}
-
-.dayColumn:last-child {
-  border-right: none;
-}
-
-.hourCell {
-  height: 80px;
-  border-bottom: 1px solid #E0E0E0;
-}
-
-/* 이벤트 블록 */
-.eventBlock {
-  position: absolute;
-  left: 2px;
-  right: 2px;
-  border-radius: 6px;
-  padding: 6px 8px;
-  overflow: hidden;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-  color: #FFF;
-}
-
-.eventBlock:hover {
-  transform: scale(1.02);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
-  z-index: 10;
-}
-
-.eventBlock .eventTime {
-  font-size: 10px;
-  font-weight: 600;
-  opacity: 0.9;
-  margin-bottom: 2px;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-}
-
-.eventBlock .eventTime::before {
-  content: '●';
-  font-size: 8px;
-}
-
-.eventBlock .eventTitle {
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.3;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-/* 모달 스타일 */
-.modalOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+.appointmentCell {
+  background: #FFF;
+  padding: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  position: relative;
+  min-height: 50px;
 }
 
-.modalContent {
-  background: #FFF;
-  border-radius: 15px;
-  padding: 30px;
-  width: 500px;
-  max-width: 90%;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+.appointmentCell.grayedOut {
+  background: #F0F0F0;
+  cursor: not-allowed;
 }
 
-.modalTitle {
-  font-size: 22px;
+.appointmentBlock {
+  width: 100%;
+  height: 100%;
+  background: #E3F2FD;
+  border: 2px solid #2196F3;
+  border-radius: 6px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.appointmentBlock:hover {
+  background: #BBDEFB;
+  transform: scale(1.03);
+}
+
+.appointmentPatient {
+  font-size: 12px;
   font-weight: 700;
-  margin: 0 0 25px 0;
-  color: #000;
+  color: #1565C0;
+  text-align: center;
+  margin-bottom: 2px;
 }
 
-.modalForm {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+.appointmentStatus {
+  font-size: 10px;
+  color: #666;
+  text-align: center;
 }
 
-.modalFormGroup {
+.emptySlot {
+  color: #CCC;
+  font-size: 12px;
+}
+
+/* 오른쪽: 예약 관리 패널 */
+.rightSection {
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+}
+
+.rightPanelCard {
+  background: #FFF;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.rightPanelTabs {
+  display: flex;
   gap: 8px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #E0E0E0;
+  padding-bottom: 12px;
 }
 
-.modalFormRow {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+.rightPanelTab {
+  flex: 1;
+  padding: 10px 16px;
+  background: #F5F7FA;
+  border: none;
+  border-radius: 8px 8px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rightPanelTab:hover {
+  background: #E0E5EB;
+}
+
+.rightPanelTab.active {
+  background: #52759C;
+  color: #FFF;
+}
+
+.rightPanelContent {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* 현장 예약 등록 폼 */
+.onsiteForm {
+  display: flex;
+  flex-direction: column;
   gap: 15px;
 }
 
-.modalLabel {
-  font-size: 14px;
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.formLabel {
+  font-size: 13px;
   font-weight: 600;
   color: #333;
 }
 
-.modalInput {
+.formInput,
+.formTextarea {
   padding: 10px 12px;
-  font-size: 15px;
+  font-size: 14px;
   border: 1px solid #DDD;
   border-radius: 8px;
   transition: all 0.2s;
 }
 
-.modalInput:focus {
+.formInput:focus,
+.formTextarea:focus {
   outline: none;
   border-color: #52759C;
   box-shadow: 0 0 0 3px rgba(82, 117, 156, 0.1);
 }
 
-.timeInputGroup {
+.formTextarea {
+  resize: vertical;
+  font-family: inherit;
+}
+
+.submitButton {
+  padding: 12px 20px;
+  background: #52759C;
+  color: #FFF;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 10px;
+}
+
+.submitButton:hover {
+  background: #405F7F;
+}
+
+/* 앱 예약 승인 목록 */
+.appAppointmentsList {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 15px;
 }
 
-.timeInputGroup input {
-  flex: 1;
-}
-
-.timeInputGroup span {
-  font-size: 18px;
+.listTitle {
+  font-size: 16px;
   font-weight: 700;
+  margin: 0;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #E0E0E0;
+}
+
+.emptyList {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+  font-size: 14px;
+}
+
+.appointmentItems {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.appointmentItem {
+  padding: 12px;
+  background: #F8F9FA;
+  border-radius: 8px;
+  border-left: 4px solid #FF9800;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.appointmentItem:hover {
+  background: #E8EDF2;
+  transform: translateX(2px);
+}
+
+.appointmentItemHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.appointmentItemPatient {
+  font-size: 14px;
+  font-weight: 700;
+  color: #000;
+}
+
+.appointmentItemDate {
+  font-size: 12px;
   color: #666;
 }
 
-.colorPicker {
+.appointmentItemDetails {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 6px;
+}
+
+.appointmentItemNotes {
+  font-size: 12px;
+  color: #888;
+  font-style: italic;
+}
+
+/* 예약 승인 섹션 */
+.approvalSection {
+  margin-top: 20px;
+  padding: 15px;
+  background: #E8F5E9;
+  border-radius: 8px;
+  border: 2px solid #4CAF50;
+}
+
+.approvalTitle {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+  color: #2E7D32;
+}
+
+.approvalDetails {
+  margin-bottom: 15px;
+  font-size: 13px;
+  color: #333;
+}
+
+.approvalDetails p {
+  margin: 6px 0;
+}
+
+.approvalActions {
   display: flex;
   gap: 10px;
 }
 
-.colorOption {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: 3px solid transparent;
-}
-
-.colorOption:hover {
-  transform: scale(1.1);
-}
-
-.colorOptionSelected {
-  border-color: #000;
-  transform: scale(1.1);
-}
-
-.modalButtons {
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  margin-top: 10px;
-}
-
-.modalCancelButton,
-.modalSaveButton {
-  padding: 12px 24px;
-  font-size: 16px;
-  font-weight: 600;
+.approveButton,
+.cancelButton {
+  flex: 1;
+  padding: 10px 16px;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.modalCancelButton {
-  background: #F5F7FA;
-  color: #666;
-}
-
-.modalCancelButton:hover {
-  background: #E0E5EB;
-}
-
-.modalSaveButton {
-  background: #52759C;
+.approveButton {
+  background: #4CAF50;
   color: #FFF;
 }
 
-.modalSaveButton:hover {
-  background: #405F7F;
+.approveButton:hover {
+  background: #45A049;
+}
+
+.cancelButton {
+  background: #F44336;
+  color: #FFF;
+}
+
+.cancelButton:hover {
+  background: #E53935;
 }

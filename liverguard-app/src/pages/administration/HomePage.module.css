@@ -86,7 +86,6 @@
 /* 사이드바 대기 현황 섹션 */
 .waitingSection {
   flex: 1;
-  padding: 15px;
   background: #D7E8FB;
   overflow-y: auto;
 }
@@ -96,6 +95,77 @@
   font-size: 15px;
   color: #000000;
   margin-bottom: 12px;
+  padding: 15px 15px 0 15px;
+}
+
+/* 환자 리스트 탭 (의사 사이드바와 통일) */
+.patientListTabs {
+  display: flex;
+  border-bottom: 1px solid rgba(107, 88, 177, 0.2);
+  background: #D7E8FB;
+  padding: 0 15px;
+}
+
+.patientListTab {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: #52759C;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.patientListTab.active {
+  color: #000000;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.patientListTab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #6B58B1;
+}
+
+.patientListContent {
+  padding: 10px;
+}
+
+.patientCard {
+  background: #FFFFFF;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.patientCard.inProgress {
+  border-left: 4px solid #6C5CE7;
+}
+
+.patientHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.genderIcon {
+  font-size: 14px;
+}
+
+.patientDetails {
+  font-size: 12px;
+  color: #666666;
+  margin-bottom: 10px;
 }
 
 .waitingList {
@@ -496,6 +566,9 @@
 .patientName {
   font-weight: 700;
   color: #000000 !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .assignSelect {

@@ -8,7 +8,7 @@ export type PatientStatus = 'WAITING' | 'IN_PROGRESS' | 'COMPLETED';
 export const mapWorkflowStateToStatus = (workflowState: string): PatientStatus => {
     if (workflowState === 'WAITING_CLINIC') {
         return 'WAITING';
-    } else if (workflowState === 'IN_CLINIC' || workflowState === 'IN_IMAGING') {
+    } else if (workflowState === 'IN_CLINIC' || workflowState === 'WAITING_RESULTS' || workflowState === 'WAITING_PAYMENT' || workflowState === 'WAITING_IMAGING' || workflowState === 'IN_IMAGING') {
         return 'IN_PROGRESS';
     } else if (workflowState === 'COMPLETED') {
         return 'COMPLETED';

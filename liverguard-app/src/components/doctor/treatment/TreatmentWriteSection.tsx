@@ -17,7 +17,6 @@ interface TreatmentWriteSectionProps {
     hccDetails: any;
     setHccDetails: (value: any) => void;
     onComplete: () => void;
-    onWaitResult: () => void;
     disabled?: boolean;
 }
 
@@ -37,7 +36,6 @@ export default function TreatmentWriteSection({
     hccDetails,
     setHccDetails,
     onComplete,
-    onWaitResult,
     disabled = false
 }: TreatmentWriteSectionProps) {
 
@@ -274,23 +272,6 @@ export default function TreatmentWriteSection({
                                     disabled={disabled}
                                 >
                                     진료완료
-                                </button>
-                                <button
-                                    className={styles.waitButton}
-                                    onClick={onWaitResult}
-                                    disabled={disabled}
-                                    style={{
-                                        backgroundColor: '#f39c12',
-                                        color: 'white',
-                                        border: 'none',
-                                        padding: '10px 20px',
-                                        borderRadius: '4px',
-                                        cursor: 'pointer',
-                                        marginLeft: '8px',
-                                        fontWeight: 600
-                                    }}
-                                >
-                                    검사대기
                                 </button>
                             </div>
                         </div>

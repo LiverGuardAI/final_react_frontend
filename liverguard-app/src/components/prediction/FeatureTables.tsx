@@ -21,7 +21,7 @@ export const RadioFeatureTable: React.FC<RadioFeatureTableProps> = ({
 }) => {
   if (loading) return <TableSkeleton title="CT 특징 벡터" />;
   if (!features.length) return <EmptyTable title="CT 특징 벡터" icon="🩻" message="CT 영상에서 추출된 특징 벡터가 없습니다" />;
-  
+
   return (
     <div className="bg-white rounded-lg shadow-sm border">
       <div className="px-4 py-3 border-b bg-gray-50">
@@ -41,7 +41,7 @@ export const RadioFeatureTable: React.FC<RadioFeatureTableProps> = ({
           </thead>
           <tbody>
             {features.map((f) => (
-              <tr 
+              <tr
                 key={f.radio_vector_id}
                 className={`border-t cursor-pointer hover:bg-blue-50 ${selectedId === f.radio_vector_id ? 'bg-blue-100' : ''}`}
                 onClick={() => onSelect(f.radio_vector_id)}
@@ -77,7 +77,7 @@ export const ClinicalFeatureTable: React.FC<ClinicalFeatureTableProps> = ({
 }) => {
   if (loading) return <TableSkeleton title="임상 특징 벡터" />;
   if (!features.length) return <EmptyTable title="임상 특징 벡터" icon="🩺" message="등록된 임상 데이터가 없습니다" />;
-  
+
   return (
     <div className="bg-white rounded-lg shadow-sm border">
       <div className="px-4 py-3 border-b bg-gray-50">
@@ -98,7 +98,7 @@ export const ClinicalFeatureTable: React.FC<ClinicalFeatureTableProps> = ({
           </thead>
           <tbody>
             {features.map((f) => (
-              <tr 
+              <tr
                 key={f.clinical_vector_id}
                 className={`border-t cursor-pointer hover:bg-blue-50 ${selectedId === f.clinical_vector_id ? 'bg-blue-100' : ''}`}
                 onClick={() => onSelect(f.clinical_vector_id)}
@@ -135,7 +135,7 @@ export const GenomicFeatureTable: React.FC<GenomicFeatureTableProps> = ({
 }) => {
   if (loading) return <TableSkeleton title="유전체 특징 벡터" />;
   if (!features.length) return <EmptyTable title="유전체 특징 벡터" icon="🧬" message="등록된 유전체 데이터가 없습니다" />;
-  
+
   return (
     <div className="bg-white rounded-lg shadow-sm border">
       <div className="px-4 py-3 border-b bg-gray-50">
@@ -153,7 +153,7 @@ export const GenomicFeatureTable: React.FC<GenomicFeatureTableProps> = ({
             </tr>
           </thead>
           <tbody>
-            <tr 
+            <tr
               className={`border-t cursor-pointer hover:bg-gray-50 ${selectedId === null ? 'bg-gray-100' : ''}`}
               onClick={() => onSelect(null)}
             >
@@ -161,7 +161,7 @@ export const GenomicFeatureTable: React.FC<GenomicFeatureTableProps> = ({
               <td colSpan={3} className="px-3 py-2 text-gray-500 italic">mRNA 사용 안 함 (Stage만 예측)</td>
             </tr>
             {features.map((f) => (
-              <tr 
+              <tr
                 key={f.genomic_id}
                 className={`border-t cursor-pointer hover:bg-purple-50 ${selectedId === f.genomic_id ? 'bg-purple-100' : ''}`}
                 onClick={() => onSelect(f.genomic_id)}
@@ -170,7 +170,6 @@ export const GenomicFeatureTable: React.FC<GenomicFeatureTableProps> = ({
                   <input type="radio" checked={selectedId === f.genomic_id} onChange={() => onSelect(f.genomic_id)} />
                 </td>
                 <td className="px-3 py-2">{f.sample_date}</td>
-                <td className="px-3 py-2">{f.sample_id}</td>
               </tr>
             ))}
           </tbody>

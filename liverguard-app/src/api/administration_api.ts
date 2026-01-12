@@ -111,7 +111,7 @@ export const createEncounter = async (encounterData: {
 
 export const cancelEncounter = async (encounterId: number) => {
   const res = await apiClient.patch(`administration/encounters/${encounterId}/`, {
-    encounter_status: 'CANCELLED'
+    workflow_state: 'CANCELLED'
   });
   return res.data;
 };

@@ -9,7 +9,7 @@ export default function DoctorHomePage() {
 
   // Shared Data from DoctorLayout (via Context)
   // WebSocket updates in Layout will automatically update these values here.
-  const { waitingQueueData, stats } = useDoctorData();
+  const { waitingQueueData, stats, uniquePatientCounts } = useDoctorData();
 
   useEffect(() => {
     // 의사 정보 로드
@@ -24,29 +24,37 @@ export default function DoctorHomePage() {
     }
   }, []);
 
-  // 대기 중인 환자 목록 추출
+  // 대기 중인 환자 목록 추출 (진료 대기 + 진료 중)
   const waitingPatients = useMemo(() => {
     if (!waitingQueueData?.queue) return [];
 
     return waitingQueueData.queue
-      .filter((item: any) => mapWorkflowStateToStatus(item.workflow_state) === 'WAITING')
-      .map((item: any) => ({
-        encounterId: item.encounter_id,
-        patientId: item.patient_id || item.patient,
-        name: item.patient_name || '이름 없음',
-        birthDate: item.date_of_birth || 'N/A',
-        age: item.age || 0,
-        gender: item.gender === 'M' ? '남' : item.gender === 'F' ? '여' : 'N/A',
-        status: 'WAITING',
-      }));
+      .filter((item: any) =>
+        item.workflow_state === 'WAITING_CLINIC' ||
+        item.workflow_state === 'IN_CLINIC'
+      )
+      .map((item: any) => {
+        const patientObj: any = (typeof item.patient === 'object' && item.patient !== null) ? item.patient : null;
+        return {
+          encounterId: item.encounter_id,
+          patientId: patientObj?.patient_id || 'N/A',
+          name: item.patient_name || patientObj?.name || '이름 없음',
+          birthDate: patientObj?.date_of_birth || 'N/A',
+          age: patientObj?.age || 0,
+          gender: patientObj?.gender === 'M' ? '남' : patientObj?.gender === 'F' ? '여' : 'N/A',
+          status: 'WAITING',
+        };
+      });
   }, [waitingQueueData]);
 
-  // 최근 완료된 환자 (가장 최근 1명)
+  // 최근 완료된 환자 (가장 최근 1명) - 수납 대기, 결과 대기, 촬영 대기/중 포함
   const recentCompletedPatient = useMemo(() => {
     if (!waitingQueueData?.queue) return null;
 
     const completed = waitingQueueData.queue
-      .filter((item: any) => item.workflow_state === 'COMPLETED')
+      .filter((item: any) =>
+        ['WAITING_PAYMENT', 'WAITING_RESULTS', 'WAITING_IMAGING', 'IN_IMAGING'].includes(item.workflow_state)
+      )
       .sort((a: any, b: any) => {
         const dateA = new Date(a.updated_at || a.created_at);
         const dateB = new Date(b.updated_at || b.created_at);
@@ -56,25 +64,24 @@ export default function DoctorHomePage() {
     if (completed.length === 0) return null;
 
     const item = completed[0];
+    const patientObj: any = (typeof item.patient === 'object' && item.patient !== null) ? item.patient : null;
+
     return {
       encounterId: item.encounter_id,
-      patientId: item.patient_id || item.patient,
-      name: item.patient_name || '이름 없음',
-      birthDate: item.date_of_birth || 'N/A',
-      age: item.age || 0,
-      gender: item.gender === 'M' ? '남' : item.gender === 'F' ? '여' : 'N/A',
+      patientId: patientObj?.patient_id || 'N/A',
+      name: item.patient_name || patientObj?.name || '이름 없음',
+      birthDate: patientObj?.date_of_birth || 'N/A',
+      age: patientObj?.age || 0,
+      gender: patientObj?.gender === 'M' ? '남' : patientObj?.gender === 'F' ? '여' : 'N/A',
       chiefComplaint: item.chief_complaint || '미기재',
       diagnosis: item.diagnosis || '미기재',
     };
   }, [waitingQueueData]);
 
-  const patientStatus = {
-    waiting: stats.clinic_waiting,
-    inProgress: stats.clinic_in_progress,
-    completed: stats.completed_today,
-  };
+  // 프론트엔드 표시용: Context에서 받은 고유 환자 수 사용 (중복 계산 제거)
+  const patientStatus = uniquePatientCounts || { waiting: 0, inProgress: 0, completed: 0 };
 
-  const totalPatients = patientStatus.waiting + patientStatus.inProgress + patientStatus.completed;
+  const totalPatients = patientStatus.waiting + patientStatus.completed;
   const waitingPercentage = totalPatients > 0 ? (patientStatus.waiting / totalPatients) * 100 : 0;
   const inProgressPercentage = totalPatients > 0 ? (patientStatus.inProgress / totalPatients) * 100 : 0;
   const completedPercentage = totalPatients > 0 ? (patientStatus.completed / totalPatients) * 100 : 0;

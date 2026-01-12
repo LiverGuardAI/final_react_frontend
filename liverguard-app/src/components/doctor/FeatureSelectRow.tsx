@@ -115,15 +115,15 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
         >
           {hasCtSeries
             ? ctSeriesList.map((series) => (
-                <option key={series.series_uid} value={series.series_uid}>
-                  {formatSeriesLabel(series)}
-                </option>
-              ))
+              <option key={series.series_uid} value={series.series_uid}>
+                {formatSeriesLabel(series)}
+              </option>
+            ))
             : radioList.map((radio) => (
-                <option key={radio.radio_vector_id} value={radio.radio_vector_id}>
-                  {formatDate(radio.study_date)} ({radio.model_name})
-                </option>
-              ))}
+              <option key={radio.radio_vector_id} value={radio.radio_vector_id}>
+                {formatDate(radio.study_date)} ({radio.model_name})
+              </option>
+            ))}
         </select>
       </div>
 
@@ -137,15 +137,15 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
         >
           {hasLabResults
             ? labResults.map((lab) => (
-                <option key={lab.lab_id} value={String(lab.lab_id)}>
-                  {formatDate(lab.test_date)}
-                </option>
-              ))
+              <option key={lab.lab_id} value={String(lab.lab_id)}>
+                {formatDate(lab.test_date)}
+              </option>
+            ))
             : clinicalList.map((clinical) => (
-                <option key={clinical.clinical_vector_id} value={clinical.clinical_vector_id}>
-                  {formatDate(clinical.lab_date)}
-                </option>
-              ))}
+              <option key={clinical.clinical_vector_id} value={clinical.clinical_vector_id}>
+                {formatDate(clinical.lab_date)}
+              </option>
+            ))}
         </select>
       </div>
 
@@ -160,15 +160,15 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
           >
             {hasGenomicData
               ? genomicData.map((item) => (
-                  <option key={item.genomic_id} value={String(item.genomic_id)}>
-                    {formatDate(item.sample_date)}
-                  </option>
-                ))
+                <option key={item.genomic_id} value={String(item.genomic_id)}>
+                  {formatDate(item.sample_date)}
+                </option>
+              ))
               : genomicList.map((genomic) => (
-                  <option key={genomic.genomic_id} value={genomic.genomic_id}>
-                    {genomic.sample_date} ({genomic.sample_id})
-                  </option>
-                ))}
+                <option key={genomic.genomic_id} value={genomic.genomic_id}>
+                  {genomic.sample_date}
+                </option>
+              ))}
           </select>
         </div>
       ) : null}

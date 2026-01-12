@@ -44,13 +44,18 @@ export const getDoctorWaitingQueue = async (
   doctorId: number,
   limit: number = 50
 ): Promise<WaitingQueueResponse> => {
-  const response = await apiClient.get('/administration/queue/', {
+  const response = await apiClient.get('/doctor/queue/', {
     params: {
       doctor_id: doctorId,
+      status: 'ALL', // Fetch Waiting, InProgress, and Completed (including Waiting Results)
       limit,
     },
   });
-  return response.data;
+
+  return {
+    queue: response.data.encounters,
+    total_waiting: response.data.stats?.waiting || 0
+  };
 };
 
 // ===========================
@@ -84,7 +89,7 @@ export const getDoctorInProgressEncounter = async (
 ): Promise<QueueItem | null> => {
   const response = await getDoctorWaitingQueue(doctorId, 50);
   const inProgressEncounter = response.queue.find(
-    (item: any) => item.workflow_state === 'IN_CLINIC' || item.status === 'IN_PROGRESS'
+    (item: any) => item.workflow_state === 'IN_CLINIC'
   );
   return inProgressEncounter || null;
 };
@@ -94,7 +99,8 @@ export const getDoctorInProgressEncounter = async (
 // ===========================
 
 export interface EncounterUpdateData {
-  encounter_status?: 'WAITING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'IN_CLINIC' | 'WAITING_RESULTS';
+  workflow_state?: 'WAITING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'IN_CLINIC' | 'WAITING_RESULTS' | 'WAITING_PAYMENT';
+  status?: string; // Backward compatibility
   questionnaire_data?: any;
   questionnaire_status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
   chief_complaint?: string;

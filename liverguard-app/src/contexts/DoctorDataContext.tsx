@@ -6,6 +6,12 @@ interface DoctorDataContextType {
     stats: DoctorDashboardStats;
     fetchWaitingQueue: () => Promise<WaitingQueueResponse | null>;
     fetchStats: () => Promise<DoctorDashboardStats | null>;
+    // 고유 환자 리스트 (DoctorLayout에서 계산됨)
+    uniquePatientCounts?: {
+        waiting: number;
+        inProgress: number;
+        completed: number;
+    };
 }
 
 const DoctorDataContext = createContext<DoctorDataContextType | undefined>(undefined);

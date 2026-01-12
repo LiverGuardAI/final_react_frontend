@@ -202,7 +202,7 @@ export default function TreatmentPage() {
     );
   };
 
-  const handleCompleteTreatment = async (status: 'COMPLETED' | 'WAITING_RESULTS' = 'COMPLETED') => {
+  const handleCompleteTreatment = async () => {
     if (!currentEncounter || !selectedEncounterId) return;
 
     // 의사 정보 (localStorage or context)
@@ -216,6 +216,10 @@ export default function TreatmentPage() {
 
     try {
       setLoading(true);
+
+      // 결정 로직: 오더가 하나라도 있으면 'WAITING_RESULTS', 아니면 'WAITING_PAYMENT' (수납 대기)
+      // 의사가 완료 누르면 바로 수납 대기로 넘어감 (COMPLETED는 원무과 수납 후)
+      const status = selectedOrders.length > 0 ? 'WAITING_RESULTS' : 'WAITING_PAYMENT';
 
       // 1. 오더 생성
       const promises = [];
@@ -283,16 +287,18 @@ export default function TreatmentPage() {
 
       // 2. Encounter 상태 업데이트 (COMPLETED or WAITING_RESULTS)
       await updateEncounter(selectedEncounterId, {
-        encounter_status: status,
+        workflow_state: status, // status 변수 사용
         treatment_plan: clinicalNotes,
         diagnosis: diagnosisName
       });
 
-      alert(status === 'WAITING_RESULTS' ? '검사 대기 처리되었습니다.' : '진료가 완료되었습니다.');
+      alert(status === 'WAITING_RESULTS' ? '오더가 전송되고 검사 대기(결과 대기) 상태로 전환되었습니다.' : '진료가 완료되었습니다. (수납 대기 상태로 전환)');
       // 목록 리프레시 혹은 초기화
       setSelectedEncounterId(null);
       setCurrentEncounter(null);
       clearForm();
+
+      // 필요한 경우 목록 페이지로 이동하거나 대기열 새로고침 로직 추가 가능
 
     } catch (error) {
       console.error('진료 완료 처리 중 오류:', error);
@@ -302,9 +308,7 @@ export default function TreatmentPage() {
     }
   };
 
-  const handleWaitResult = async () => {
-    await handleCompleteTreatment('WAITING_RESULTS');
-  };
+
 
   return (
     <div className={styles.treatmentContainer}>
@@ -336,8 +340,7 @@ export default function TreatmentPage() {
           setOrderRequests={setOrderRequests}
           hccDetails={hccDetails}
           setHccDetails={setHccDetails}
-          onComplete={() => handleCompleteTreatment('COMPLETED')}
-          onWaitResult={handleWaitResult}
+          onComplete={handleCompleteTreatment}
           disabled={!selectedEncounterId || currentEncounter?.encounter_status === 'COMPLETED'}
         />
       </div>

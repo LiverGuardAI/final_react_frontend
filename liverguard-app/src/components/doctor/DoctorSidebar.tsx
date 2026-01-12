@@ -15,16 +15,14 @@ interface Patient {
   questionnaireData?: any;
 }
 
+import type { DoctorDashboardStats } from '../../api/doctorApi';
+
 interface DoctorSidebarProps {
   doctorName: string;
   departmentName: string;
   sidebarTab: 'waiting' | 'completed';
   setSidebarTab: (tab: 'waiting' | 'completed') => void;
-  patientStatus: {
-    waiting: number;
-    inProgress: number;
-    completed: number;
-  };
+  stats: DoctorDashboardStats;
   waitingPatients: Patient[];
   inProgressPatients: Patient[];
   completedPatients: Patient[];
@@ -37,7 +35,7 @@ const DoctorSidebar = memo(function DoctorSidebar({
   departmentName,
   sidebarTab,
   setSidebarTab,
-  patientStatus,
+  stats,
   waitingPatients,
   inProgressPatients,
   completedPatients,
@@ -66,13 +64,13 @@ const DoctorSidebar = memo(function DoctorSidebar({
               className={`${styles.patientListTab} ${sidebarTab === 'waiting' ? styles.active : ''}`}
               onClick={() => setSidebarTab('waiting')}
             >
-              진료대기 ({patientStatus.waiting + patientStatus.inProgress}명)
+              진료대기 ({waitingPatients.length + inProgressPatients.length}명)
             </button>
             <button
               className={`${styles.patientListTab} ${sidebarTab === 'completed' ? styles.active : ''}`}
               onClick={() => setSidebarTab('completed')}
             >
-              진료완료 ({patientStatus.completed}명)
+              진료완료 ({completedPatients.length}명)
             </button>
           </div>
 
