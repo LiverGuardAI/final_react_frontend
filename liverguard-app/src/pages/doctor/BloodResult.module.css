@@ -1,0 +1,232 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+.container {
+    padding: 32px;
+    background-color: #f3f4f6;
+    /* Soft gray background */
+    height: 100%;
+    overflow-y: auto;
+    font-family: 'Inter', sans-serif;
+    color: #1f2937;
+}
+
+/* Header */
+.header {
+    margin-bottom: 24px;
+}
+
+.pageTitle {
+    font-size: 24px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 8px 0;
+    letter-spacing: -0.02em;
+}
+
+.patientInfo {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.divider {
+    margin: 0 8px;
+    color: #d1d5db;
+}
+
+/* Cards Grid */
+.cardsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    /* Subtle shadow */
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Selected State */
+.card.selected {
+    border-color: #3b82f6;
+    /* Blue border */
+    background-color: #eff6ff;
+    /* Very light blue bg */
+}
+
+/* Card Content */
+.cardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.cardLabel {
+    font-size: 13px;
+    font-weight: 600;
+    color: #4b5563;
+    line-height: 1.4;
+}
+
+.riskDot {
+    width: 8px;
+    height: 8px;
+    background-color: #ef4444;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px #fee2e2;
+}
+
+.cardBody {
+    margin-bottom: 12px;
+}
+
+.value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #111827;
+    letter-spacing: -0.03em;
+}
+
+.unit {
+    font-size: 13px;
+    color: #9ca3af;
+    margin-left: 4px;
+    font-weight: 500;
+}
+
+.cardFooter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #f3f4f6;
+    /* Light separator inside card */
+    padding-top: 12px;
+}
+
+.refRange {
+    font-size: 11px;
+    color: #9ca3af;
+}
+
+/* Status Badges within Card */
+.badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.badge.normal {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.badge.danger {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+/* Card Selection Highlighting based on status (Optional overwrite) */
+.card.selected.danger {
+    border-color: #ef4444;
+    background-color: #fef2f2;
+}
+
+/* Chart Section */
+.chartSection {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    margin-bottom: 24px;
+}
+
+.sectionTitle {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 20px 0;
+}
+
+.chartWrapper {
+    width: 100%;
+}
+
+/* Table Section */
+.tableSection {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.historyTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.historyTable th {
+    text-align: left;
+    padding: 12px 16px;
+    color: #6b7280;
+    font-weight: 600;
+    border-bottom: 1px solid #e5e7eb;
+    background-color: #f9fafb;
+}
+
+.historyTable td {
+    padding: 16px;
+    border-bottom: 1px solid #f3f4f6;
+    color: #374151;
+}
+
+.historyTable tr:last-child td {
+    border-bottom: none;
+}
+
+.cellValue {
+    font-weight: 600;
+    color: #111827;
+}
+
+.cellRef {
+    color: #9ca3af;
+    font-size: 13px;
+}
+
+/* Table Status Badges */
+.statusBadge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.statusBadge.normal {
+    background-color: #dcfce7;
+    color: #15803d;
+}
+
+.statusBadge.danger {
+    background-color: #fee2e2;
+    color: #b91c1c;
+}
