@@ -177,7 +177,7 @@ export default function BloodResultPage() {
 
       {/* 3. Historical Table Section */}
       <div className={styles.tableSection}>
-        <h3 className={styles.sectionTitle}>Historical Test Results (Latest 10)</h3>
+        <h3 className={styles.sectionTitle}>Historical Test Results</h3>
         <div className={styles.tableResponsive}>
           <table className={styles.historyTable}>
             <thead>
