@@ -89,7 +89,7 @@ interface Doctor {
 
 type TabType = 'home' | 'schedule' | 'appointments' | 'patients';
 type ContentTabType = 'search' | 'newPatient' | 'appointments';
-type ReceptionTabType = 'reception' | 'additional' | 'payment';
+type ReceptionTabType = 'reception' | 'additional' | 'payment' | 'appSync';
 
 export default function AdministrationHomePage() {
   const navigate = useNavigate();
@@ -1138,6 +1138,12 @@ export default function AdministrationHomePage() {
                       >
                         수납대기
                       </button>
+                      <button
+                        className={`${styles.rightTab} ${receptionTab === 'appSync' ? styles.rightTabActive : ''}`}
+                        onClick={() => setReceptionTab('appSync')}
+                      >
+                        앱 연동
+                      </button>
                     </div>
                     <div className={styles.tableContainer}>
                       {receptionTab === 'reception' && (
@@ -1200,6 +1206,16 @@ export default function AdministrationHomePage() {
                       )}
                       {receptionTab === 'payment' && (
                         <div className={styles.emptyState}>수납대기 목록이 없습니다.</div>
+                      )}
+                      {receptionTab === 'appSync' && (
+                        <div style={{ padding: '10px' }}>
+                          <div className={styles.sectionTitle} style={{ marginBottom: '10px', fontSize: '14px', color: '#555' }}>
+                            앱 연동 대기 환자
+                          </div>
+                          <div style={{ textAlign: 'center', padding: '20px', color: '#999', fontSize: '14px' }}>
+                            앱 연동 대기 환자가 없습니다.
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
