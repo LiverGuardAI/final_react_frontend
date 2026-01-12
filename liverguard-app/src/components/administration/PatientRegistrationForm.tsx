@@ -3,13 +3,12 @@ import styles from '../../pages/administration/HomePage.module.css';
 import type { PatientRegistrationData } from '../../api/administrationApi';
 
 interface PatientRegistrationFormProps {
-  onSubmit: (data: PatientRegistrationData) => Promise<void>;
+  onSubmit: (data: PatientRegistrationData) => Promise<{ patient?: { patient_id?: string } }>;
   onCancel: () => void;
 }
 
 const PatientRegistrationForm: React.FC<PatientRegistrationFormProps> = ({ onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
-    patient_id: '',
     name: '',
     date_of_birth: '',
     gender: '' as '' | 'M' | 'F',
@@ -29,14 +28,13 @@ const PatientRegistrationForm: React.FC<PatientRegistrationFormProps> = ({ onSub
     setIsSubmitting(true);
 
     try {
-      if (!formData.patient_id || !formData.name || !formData.date_of_birth || !formData.gender) {
+      if (!formData.name || !formData.date_of_birth || !formData.gender) {
         setFormError('필수 항목을 모두 입력해주세요.');
         setIsSubmitting(false);
         return;
       }
 
       const data: PatientRegistrationData = {
-        patient_id: formData.patient_id.trim(),
         name: formData.name.trim(),
         date_of_birth: formData.date_of_birth,
         gender: formData.gender,
@@ -47,7 +45,6 @@ const PatientRegistrationForm: React.FC<PatientRegistrationFormProps> = ({ onSub
 
       // 폼 초기화
       setFormData({
-        patient_id: '',
         name: '',
         date_of_birth: '',
         gender: '',
@@ -77,18 +74,6 @@ const PatientRegistrationForm: React.FC<PatientRegistrationFormProps> = ({ onSub
       <h3>신규 환자 등록</h3>
 
       {formError && <div className={styles.errorMessage}>{formError}</div>}
-
-      <div className={styles.formGroup}>
-        <label className={styles.formLabel}>환자 ID <span className={styles.required}>*</span></label>
-        <input
-          type="text"
-          className={styles.formInput}
-          value={formData.patient_id}
-          onChange={(e) => handleChange('patient_id', e.target.value)}
-          placeholder="P2024001"
-          required
-        />
-      </div>
 
       <div className={styles.formGroup}>
         <label className={styles.formLabel}>이름 <span className={styles.required}>*</span></label>

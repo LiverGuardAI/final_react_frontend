@@ -3,7 +3,7 @@ import apiClient from "./axiosConfig";
 
 // 환자 등록 데이터 타입
 export interface PatientRegistrationData {
-  patient_id: string;
+  patient_id?: string;
   name: string;
   date_of_birth: string;  // YYYY-MM-DD
   gender: "M" | "F";
@@ -131,6 +131,63 @@ export const submitVitalOrPhysicalData = async (
 // Encounter 업데이트 API
 export const updateEncounter = async (encounterId: number, data: { workflow_state?: string }) => {
   const response = await apiClient.patch(`/administration/encounters/${encounterId}/`, data);
+  return response.data;
+};
+
+// ===========================
+// App Sync Request API
+// ===========================
+
+export interface AppSyncRequest {
+  request_id: number;
+  status: string;
+  status_display: string;
+  requested_at: string;
+  processed_at?: string | null;
+  processed_by?: number | null;
+  processed_by_name?: string | null;
+  profile: number;
+  profile_nickname: string;
+  profile_phone_number: string;
+  profile_birth_date: string;
+  profile_gender: string;
+  assigned_patient_id?: string | null;
+}
+
+export const getAppSyncRequests = async (status?: string): Promise<{ count: number; results: AppSyncRequest[] }> => {
+  const params: Record<string, string> = {};
+  if (status) {
+    params.status = status;
+  }
+  const response = await apiClient.get('patients/app-sync-requests/list/', { params });
+  return response.data;
+};
+
+export const approveAppSyncRequest = async (
+  requestId: number,
+  patientId?: string,
+  adminId?: number
+) => {
+  const payload: Record<string, string | number> = {};
+  if (patientId) {
+    payload.patient_id = patientId;
+  }
+  if (adminId !== undefined) {
+    payload.admin_id = adminId;
+  }
+  const response = await apiClient.post(`patients/app-sync-requests/${requestId}/approve/`, payload);
+  return response.data;
+};
+
+export const rejectAppSyncRequest = async (
+  requestId: number,
+  adminId?: number
+) => {
+  const payload: Record<string, number> = {};
+  if (adminId !== undefined) {
+    payload.admin_id = adminId;
+  }
+  const response = await apiClient.post(`patients/app-sync-requests/${requestId}/reject/`, payload);
   return response.data;
 };
 
