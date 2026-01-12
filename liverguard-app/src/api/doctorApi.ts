@@ -264,6 +264,21 @@ export interface LabResult {
   measured_at?: string;
 }
 
+export interface PatientProfile {
+  patient_id: string;
+  name: string;
+  age?: number | null;
+  gender?: string | null;
+  height?: number | string | null;
+  weight?: number | string | null;
+  measured_at?: string | null;
+}
+
+export const getPatientProfile = async (patientId: string): Promise<PatientProfile> => {
+  const response = await apiClient.get(`/doctor/patient/${patientId}/profile/`);
+  return response.data;
+};
+
 /**
  * 특정 환자의 혈액 검사 결과 목록 조회
  * @param patientId - 환자 ID
@@ -364,6 +379,7 @@ export interface HCCDiagnosis {
   hcc_id: number;
   patient_name: string;
   hcc_diagnosis_date: string;
+  measured_at?: string | null;
   ajcc_stage?: string;
   ajcc_t?: string;
   ajcc_n?: string;
@@ -396,6 +412,12 @@ export interface CtSeriesItem {
   series_number?: number;
   modality?: string;
   study__study_datetime?: string;
+  study__body_part?: string;
+  acquisition_datetime?: string;
+  image_count?: number;
+  slice_thickness?: number | string;
+  pixel_spacing?: string;
+  protocol_name?: string;
 }
 
 export const getPatientCtSeries = async (
@@ -409,6 +431,9 @@ export interface GenomicDataItem {
   genomic_id: number;
   sample_date?: string;
   created_at?: string;
+  measured_at?: string | null;
+  patient?: string;
+  pathway_scores?: Record<string, number> | number[] | null;
 }
 
 export const getPatientGenomicData = async (
@@ -482,4 +507,3 @@ export const createImagingOrder = async (data: CreateImagingOrderRequest) => {
   const response = await apiClient.post('/doctor/doctor-to-radiology-orders/', data);
   return response.data;
 };
-
