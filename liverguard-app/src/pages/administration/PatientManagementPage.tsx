@@ -365,15 +365,34 @@ const PatientManagementPage: React.FC = () => {
             className={styles.searchInput}
             placeholder="환자명, 환자번호, 연락처로 검색"
             value={searchTerm}
-            onChange={e => {
-              setSearchTerm(e.target.value);
-              if (e.target.value.length > 0) {
-                fetchPatientList(e.target.value);
-              } else {
-                fetchPatientList();
+            onChange={e => setSearchTerm(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                fetchPatientList(searchTerm);
               }
             }}
           />
+          {searchTerm && (
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                fetchPatientList("");
+              }}
+              style={{
+                position: 'absolute',
+                right: '10px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                fontSize: '16px',
+                cursor: 'pointer',
+                color: '#999'
+              }}
+            >
+              ✕
+            </button>
+          )}
         </div>
       </div>
 

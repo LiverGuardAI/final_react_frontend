@@ -37,6 +37,11 @@ export const getPendingOrders = async (): Promise<{ count: number; results: Pend
   return response.data;
 };
 
+export const getInProgressOrders = async (): Promise<{ count: number; results: PendingOrder[] }> => {
+  const response = await apiClient.get('/administration/orders/in-progress/');
+  return response.data;
+};
+
 // 환자 목록 조회 API
 export const getPatientList = async (search?: string, page: number = 1, pageSize: number = 20) => {
   const params: any = { page, page_size: pageSize };
@@ -131,6 +136,14 @@ export const submitVitalOrPhysicalData = async (
 // Encounter 업데이트 API
 export const updateEncounter = async (encounterId: number, data: { workflow_state?: string }) => {
   const response = await apiClient.patch(`/administration/encounters/${encounterId}/`, data);
+  return response.data;
+};
+
+// 원무과 전용 대기열 조회 API
+export const getAdministrationWaitingQueue = async (type: 'clinic' | 'imaging' = 'clinic') => {
+  const response = await apiClient.get('/administration/queue/admin/', {
+    params: { type }
+  });
   return response.data;
 };
 

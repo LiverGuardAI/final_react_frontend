@@ -45,13 +45,35 @@ const PatientSearchPanel: React.FC<PatientSearchPanelProps> = ({
     <div>
       {/* 검색 바 */}
       <div className={styles.searchBar}>
-        <input
-          type="text"
-          placeholder="환자 이름 또는 ID로 검색..."
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className={styles.searchInput}
-        />
+        <div style={{ position: 'relative', width: '100%' }}>
+          <input
+            type="text"
+            placeholder="환자 이름 또는 ID로 검색..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className={styles.searchInput}
+            style={{ paddingRight: '30px', width: '100%' }}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => onSearchChange('')}
+              style={{
+                position: 'absolute',
+                right: '10px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#999',
+                fontSize: '16px',
+                padding: '0',
+              }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 환자 테이블 */}

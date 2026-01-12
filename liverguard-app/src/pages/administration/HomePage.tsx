@@ -13,7 +13,8 @@ import {
   getPatientDetail,
   updatePatient,
   type PatientRegistrationData,
-  type PatientUpdateData
+  type PatientUpdateData,
+  getAdministrationWaitingQueue
 } from "../../api/administrationApi";
 import {
   createEncounter,
@@ -36,7 +37,7 @@ import PatientActionModal from '../../components/administration/PatientActionMod
 import EncounterDetailModal from '../../components/administration/EncounterDetailModal';
 import OrderList from '../../components/administration/OrderList';
 import VitalMeasurementModal, { type VitalOrPhysicalData } from '../../components/administration/VitalMeasurementModal';
-import { submitVitalOrPhysicalData, type PendingOrder } from '../../api/administrationApi';
+import { submitVitalOrPhysicalData, type PendingOrder, getInProgressOrders } from '../../api/administrationApi';
 
 
 
@@ -92,11 +93,13 @@ interface Doctor {
 
 type TabType = 'home' | 'schedule' | 'appointments' | 'patients';
 type ContentTabType = 'search' | 'newPatient' | 'appointments';
-type ReceptionTabType = 'reception' | 'additional' | 'payment' | 'appSync';
+type ReceptionTabType = 'reception' | 'testWaiting' | 'additional' | 'payment' | 'appSync';
 
 export default function AdministrationHomePage() {
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const [additionalPage, setAdditionalPage] = useState(1);
+  const itemsPerPage = 5;
   const [staffName, setStaffName] = useState<string>('원무과');
   const [departmentName, setDepartmentName] = useState<string>('부서');
   const [activeTab, setActiveTab] = useState<TabType>('home');
@@ -115,19 +118,18 @@ export default function AdministrationHomePage() {
   const {
     waitingQueueData: queueData,
     dashboardStats,
-    fetchWaitingQueue,
     fetchDashboardStats,
     doctors: sidebarDoctors,
     fetchDoctors,
     refreshPatientsTrigger
   } = useAdministrationData();
 
-  // 환자 목록 리프레시 트리거 감지
+  // 환자 목록 리프레시 트리거 감지 (검색어 변경에는 반응하지 않음 - 핸들러에서 직접 처리)
   useEffect(() => {
-    if (currentPage === 1) { // Only refresh if on first page to avoid jumping
+    if (currentPage === 1) {
       fetchPatients(searchQuery, 1);
     }
-  }, [refreshPatientsTrigger, fetchPatients, searchQuery, currentPage]);
+  }, [refreshPatientsTrigger]); // searchQuery 제거
 
   // 환자 상세 모달
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -183,6 +185,11 @@ export default function AdministrationHomePage() {
   // 바이탈/신체계측 모달
   const [isVitalCheckModalOpen, setIsVitalCheckModalOpen] = useState(false);
   const [selectedVitalOrder, setSelectedVitalOrder] = useState<PendingOrder | null>(null);
+  const [isLastVitalOrder, setIsLastVitalOrder] = useState(false);
+
+  // 수납 결제 모달
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [selectedPaymentPatient, setSelectedPaymentPatient] = useState<any>(null);
 
   // WebSocket for Notifications
   const { lastMessage } = useWebSocketContext();
@@ -229,8 +236,8 @@ export default function AdministrationHomePage() {
     return sortedDoctors.map((doctor) => {
       // 현재 이 의사에게 배정된 환자 찾기
       const myPatients = waitingQueueData?.queue?.filter((q: any) =>
-        // 주의: API 응답의 doctor_id 필드명 확인 필요 (보통 doctor_id 또는 doctor)
-        q.doctor_id === doctor.doctor_id || q.doctor === doctor.doctor_id
+        // 주의: API 응답의 doctor_id 필드명 확인 필요 
+        q.doctor_id === doctor.doctor_id || q.doctor === doctor.doctor_id || q.assigned_doctor === doctor.doctor_id
       ) || [];
 
       // 환자 정보 매핑 및 정렬 (진료중 환자가 맨 위로)
@@ -275,12 +282,17 @@ export default function AdministrationHomePage() {
     return waitingQueueData.queue.map((q: any) => q.patient_id || q.patient).filter(Boolean);
   }, [waitingQueueData]);
 
-  // 대기열 데이터 업데이트
-  useEffect(() => {
-    if (queueData) {
-      setWaitingQueueData(queueData);
+  // 대기열 및 통계 데이터 가져오기
+  const fetchWaitingQueue = useCallback(async () => {
+    try {
+      // 원무과 전용 분리형 대기열 API 호출 (진료/영상 탭에 따라)
+      // administrationApi.ts에 새로 추가할 함수 사용
+      const response = await getAdministrationWaitingQueue(administrationSidebarTab);
+      setWaitingQueueData(response);
+    } catch (error) {
+      console.error('대기열 조회 실패:', error);
     }
-  }, [queueData]);
+  }, [administrationSidebarTab]);
 
   // 유틸리티 함수: 환자별 최신 encounter만 필터링
   const getUniquePatients = useCallback((encounters: any[]) => {
@@ -437,6 +449,7 @@ export default function AdministrationHomePage() {
   // 페이지 변경 핸들러
   const handlePageChange = (pageNumber: number) => {
     setCurrentPage(pageNumber);
+    fetchPatients(searchQuery, pageNumber);
   };
 
   // 환자 클릭 핸들러 (상세 정보 모달 열기)
@@ -577,7 +590,13 @@ export default function AdministrationHomePage() {
   };
 
   // 대기 취소 핸들러
-  const handleCancelWaiting = async (encounterId: number, patientName: string) => {
+  const handleCancelWaiting = async (encounterId: number, patientName: string, workflowState: string) => {
+    // 진료중인 환자는 취소 불가
+    if (workflowState === 'IN_CLINIC') {
+      alert('진료 중인 환자는 취소할 수 없습니다.');
+      return;
+    }
+
     const confirmed = window.confirm(`${patientName} 환자의 대기를 취소하시겠습니까?`);
 
     if (!confirmed) return;
@@ -709,8 +728,9 @@ export default function AdministrationHomePage() {
   };
 
   // 바이탈/신체계측 모달 열기
-  const handleOpenVitalCheckModal = (order: PendingOrder) => {
+  const handleOpenVitalCheckModal = (order: PendingOrder, isLastOrder: boolean = false) => {
     setSelectedVitalOrder(order);
+    setIsLastVitalOrder(isLastOrder);
     setIsVitalCheckModalOpen(true);
   };
 
@@ -722,22 +742,27 @@ export default function AdministrationHomePage() {
       const orderType = selectedVitalOrder.order_type as 'VITAL' | 'PHYSICAL';
       await submitVitalOrPhysicalData(selectedVitalOrder.id, orderType, data);
 
-      // 워크플로우 확인 모달
-      const shouldAddToQueue = window.confirm('대기열에 추가하시겠습니까?\n\n예: 추가 진료 대기\n아니오: 수납 대기');
-
-      // encounter_id를 selectedVitalOrder에서 가져옴
       const encounterId = selectedVitalOrder.encounter_id;
 
-      if (encounterId) {
-        try {
-          // 워크플로우 상태 변경
-          const newWorkflowState = shouldAddToQueue ? 'WAITING_CLINIC' : 'WAITING_PAYMENT';
-          await updateEncounter(encounterId, { workflow_state: newWorkflowState });
-
-          alert(`검사 데이터가 저장되었으며, 환자가 ${shouldAddToQueue ? '진료 대기' : '수납 대기'}로 이동되었습니다.`);
-        } catch (error) {
-          console.error('워크플로우 상태 변경 실패:', error);
-          alert('검사 데이터는 저장되었으나, 환자 상태 변경에 실패했습니다.');
+      // 1. 남은 오더가 있는 경우: 저장만 하고 현 상태 유지
+      if (!isLastVitalOrder) {
+        alert('검사 데이터가 저장되었습니다. 다음 오더를 진행해주세요.');
+      }
+      // 2. 마지막 오더인 경우: 향후 처리 방식 선택
+      else if (encounterId) {
+        // 수납 대기 여부 확인 (가장 일반적인 케이스)
+        if (window.confirm('모든 오더가 처리되었습니다.\n환자를 수납(귀가) 대기로 이동시키겠습니까?')) {
+          await updateEncounter(encounterId, { workflow_state: 'WAITING_PAYMENT' });
+          alert('환자가 수납 대기 상태로 이동되었습니다.');
+        }
+        // 진료 대기 여부 확인 (추가 진료)
+        else if (window.confirm('그럼 환자를 진료실 대기(추가 진료)로 이동시키겠습니까?')) {
+          await updateEncounter(encounterId, { workflow_state: 'WAITING_CLINIC' });
+          alert('환자가 진료 대기 상태로 이동되었습니다.');
+        }
+        // 둘 다 취소 시: 저장만 하고 상태 유지 (필요 시 나중에 처리)
+        else {
+          alert('검사 데이터가 저장되었습니다.');
         }
       } else {
         alert('검사 데이터가 저장되었습니다.');
@@ -745,6 +770,7 @@ export default function AdministrationHomePage() {
 
       setIsVitalCheckModalOpen(false);
       setSelectedVitalOrder(null);
+      setIsLastVitalOrder(false); // Reset
 
       // 오더 목록 새로고침
       setOrderRefreshTrigger(prev => prev + 1);
@@ -756,6 +782,32 @@ export default function AdministrationHomePage() {
       console.error('검사 데이터 제출 실패:', error);
       alert(error.response?.data?.message || '검사 데이터 제출 중 오류가 발생했습니다.');
       throw error;
+    }
+  };
+
+  // 수납 결제 처리
+  const handlePaymentSubmit = async () => {
+    if (!selectedPaymentPatient) return;
+
+    const confirmed = window.confirm(`${selectedPaymentPatient.patient_name} 환자의 결제를 진행하시겠습니까?`);
+    if (!confirmed) return;
+
+    try {
+      // 환자 상태를 COMPLETED로 변경
+      await updateEncounter(selectedPaymentPatient.encounter_id, {
+        workflow_state: 'COMPLETED'
+      });
+
+      alert('수납이 완료되었습니다.');
+      setIsPaymentModalOpen(false);
+      setSelectedPaymentPatient(null);
+
+      // 대기열 새로고침
+      fetchWaitingQueue();
+      fetchDashboardStats();
+    } catch (error: any) {
+      console.error('수납 처리 실패:', error);
+      alert(error.response?.data?.message || '수납 처리 중 오류가 발생했습니다.');
     }
   };
 
@@ -1023,10 +1075,17 @@ export default function AdministrationHomePage() {
             </button>
 
             <button
+              className={`${styles.tabButton} ${activeTab === 'schedule' ? styles.active : ''}`}
+              onClick={() => handleTabClick('schedule')}
+            >
+              <span>예약 관리</span>
+            </button>
+
+            <button
               className={`${styles.tabButton} ${activeTab === 'appointments' ? styles.active : ''}`}
               onClick={() => handleTabClick('appointments')}
             >
-              <span>예약관리</span>
+              <span>환자 현황</span>
             </button>
 
             <button
@@ -1036,12 +1095,6 @@ export default function AdministrationHomePage() {
               <span>환자 관리</span>
             </button>
 
-            <button
-              className={`${styles.tabButton} ${activeTab === 'schedule' ? styles.active : ''}`}
-              onClick={() => handleTabClick('schedule')}
-            >
-              <span>일정 관리</span>
-            </button>
           </div>
 
           {/* 우측 아이콘 */}
@@ -1118,16 +1171,41 @@ export default function AdministrationHomePage() {
                         {/* 환자 검색 섹션 */}
                         <div className={styles.searchSection}>
                           <div className={styles.searchBar}>
-                            <input
-                              type="text"
-                              placeholder="이름, 환자 ID, 생년월일 검색"
-                              className={styles.searchInput}
-                              value={searchQuery}
-                              onChange={(e) => handleSearchChange(e.target.value)}
-                            />
+                            <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
+                              <input
+                                type="text"
+                                placeholder="이름, 환자 ID, 생년월일 검색"
+                                className={styles.searchInput}
+                                value={searchQuery}
+                                onChange={(e) => handleSearchChange(e.target.value)}
+                                style={{ paddingRight: '30px', width: '100%' }}
+                              />
+                              {searchQuery && (
+                                <button
+                                  onClick={() => handleSearchChange('')}
+                                  style={{
+                                    position: 'absolute',
+                                    right: '10px',
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    color: '#000',
+                                    fontWeight: 'bold',
+                                    fontSize: '18px',
+                                    padding: '5px',
+                                    zIndex: 100,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                  }}
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
                             <button
                               className={styles.searchButton}
-                              onClick={() => fetchPatients()}
+                              onClick={() => fetchPatients(searchQuery, 1)}
                             >
                               검색
                             </button>
@@ -1308,6 +1386,12 @@ export default function AdministrationHomePage() {
                         오더 대기
                       </button>
                       <button
+                        className={`${styles.rightTab} ${receptionTab === 'testWaiting' ? styles.rightTabActive : ''}`}
+                        onClick={() => setReceptionTab('testWaiting')}
+                      >
+                        검사결과 대기
+                      </button>
+                      <button
                         className={`${styles.rightTab} ${receptionTab === 'additional' ? styles.rightTabActive : ''}`}
                         onClick={() => setReceptionTab('additional')}
                       >
@@ -1334,60 +1418,117 @@ export default function AdministrationHomePage() {
                         />
                       )}
 
-                      {receptionTab === 'additional' && (
-                        <div style={{ padding: '10px' }}>
-                          <div className={styles.sectionTitle} style={{ marginBottom: '10px', fontSize: '14px', color: '#555' }}>
-                            추가 진료 대기 환자 (결과 대기)
-                          </div>
-                          {/* 추가 진료 대기 환자 목록 (WAITING_RESULTS) */}
-                          {waitingQueueData?.queue?.filter((p: any) => p.workflow_state === 'WAITING_RESULTS').length === 0 ? (
-                            <div style={{ textAlign: 'center', padding: '20px', color: '#999', fontSize: '14px' }}>
-                              추가 진료가 필요한 환자가 없습니다.
-                            </div>
-                          ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                              {waitingQueueData?.queue
-                                ?.filter((p: any) => p.workflow_state === 'WAITING_RESULTS')
-                                .map((patient: any) => (
-                                  <div
-                                    key={patient.encounter_id}
-                                    style={{
-                                      padding: '12px',
-                                      backgroundColor: '#FFF3E0',
-                                      borderLeft: '4px solid #FF9800',
-                                      borderRadius: '4px',
-                                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                                      display: 'flex',
-                                      justifyContent: 'space-between',
-                                      alignItems: 'center'
-                                    }}
-                                  >
-                                    <div>
-                                      <div style={{ fontWeight: 'bold', fontSize: '15px' }}>{patient.patient_name} <span style={{ fontSize: '12px', color: '#666' }}>({patient.patient_id})</span></div>
-                                      <div style={{ fontSize: '12px', color: '#777', marginTop: '4px' }}>
-                                        {patient.doctor_name} ({patient.department_name})
-                                      </div>
-                                    </div>
-                                    <div style={{ textAlign: 'right' }}>
-                                      <span style={{
-                                        fontSize: '12px',
-                                        padding: '3px 8px',
-                                        borderRadius: '12px',
-                                        backgroundColor: '#FFE0B2',
-                                        color: '#EF6C00',
-                                        fontWeight: 'bold'
-                                      }}>결과대기</span>
-                                      <div style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>
-                                        {patient.checkin_time ? new Date(patient.checkin_time).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : ''}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))
-                              }
-                            </div>
-                          )}
-                        </div>
+                      {receptionTab === 'testWaiting' && (
+                        <OrderList
+                          refreshTrigger={orderRefreshTrigger}
+                          onOpenVitalCheckModal={handleOpenVitalCheckModal}
+                          showInProgressOnly={true}
+                        />
                       )}
+
+                      {receptionTab === 'additional' && (() => {
+                        const filteredList = waitingQueueData?.queue?.filter((p: any) => p.workflow_state === 'WAITING_CLINIC' && p.is_returning_patient) || [];
+                        const totalPages = Math.ceil(filteredList.length / itemsPerPage);
+                        const currentList = filteredList.slice((additionalPage - 1) * itemsPerPage, additionalPage * itemsPerPage);
+
+                        return (
+                          <div style={{ padding: '10px' }}>
+                            {filteredList.length === 0 ? (
+                              <div style={{ textAlign: 'center', padding: '20px', color: '#999', fontSize: '14px' }}>
+                                추가 진료가 필요한 환자가 없습니다.
+                              </div>
+                            ) : (
+                              <>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                  {currentList.map((patient: any) => (
+                                    <div
+                                      key={patient.encounter_id}
+                                      style={{
+                                        padding: '15px',
+                                        backgroundColor: '#FFFFFF',
+                                        border: '1px solid #eee',
+                                        borderRadius: '8px',
+                                        display: 'flex',
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        gap: '15px',
+                                        cursor: 'pointer'
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = '#fafafa';
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = '#FFFFFF';
+                                      }}
+                                    >
+                                      {/* 1. 환자 이름 (ID) */}
+                                      <div style={{ minWidth: '150px', fontSize: '15px', fontWeight: 'bold', color: '#333' }}>
+                                        {patient.patient_name} <span style={{ fontSize: '13px', color: '#666', fontWeight: 'normal' }}>({patient.patient_id})</span>
+                                      </div>
+
+                                      {/* 2. 완료된 검사 목록 */}
+                                      <div style={{
+                                        flex: 1,
+                                        fontSize: '14px',
+                                        color: '#333',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis'
+                                      }}>
+                                        {patient.orders_status && patient.orders_status.length > 0 ? (
+                                          patient.orders_status
+                                            .filter((order: any) => order.status === 'COMPLETED')
+                                            .map((order: any) => order.name)
+                                            .join(', ')
+                                        ) : (
+                                          <span style={{ color: '#999' }}>-</span>
+                                        )}
+                                      </div>
+
+                                      {/* 3. 의사 이름 */}
+                                      <div style={{ width: '80px', fontSize: '13px', color: '#666', textAlign: 'center' }}>
+                                        {patient.doctor_name}
+                                      </div>
+
+                                      {/* 4. 시간 (날짜 포함) */}
+                                      <div style={{ width: '140px', fontSize: '13px', color: '#888', textAlign: 'right' }}>
+                                        {patient.updated_at ? new Date(patient.updated_at).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : ''} {patient.updated_at ? new Date(patient.updated_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-'}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                                {/* 페이지네이션 버튼 */}
+                                <div className={styles.pagination}>
+                                  <button
+                                    className={styles.pageButton}
+                                    onClick={() => setAdditionalPage(prev => Math.max(1, prev - 1))}
+                                    disabled={additionalPage === 1}
+                                  >
+                                    이전
+                                  </button>
+                                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => (
+                                    <button
+                                      key={pageNumber}
+                                      className={`${styles.pageButton} ${additionalPage === pageNumber ? styles.activePage : ''}`}
+                                      onClick={() => setAdditionalPage(pageNumber)}
+                                    >
+                                      {pageNumber}
+                                    </button>
+                                  ))}
+                                  <button
+                                    className={styles.pageButton}
+                                    onClick={() => setAdditionalPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={additionalPage === totalPages || totalPages === 0}
+                                  >
+                                    다음
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })()}
                       {receptionTab === 'payment' && (
                         <div style={{ padding: '10px' }}>
                           <div className={styles.sectionTitle} style={{ marginBottom: '10px', fontSize: '14px', color: '#555' }}>
@@ -1406,32 +1547,48 @@ export default function AdministrationHomePage() {
                                     key={patient.encounter_id}
                                     style={{
                                       padding: '12px',
-                                      backgroundColor: '#E8F5E9',
-                                      borderLeft: '4px solid #4CAF50',
+                                      backgroundColor: '#FFF9C4',
+                                      borderLeft: '4px solid #FBC02D',
                                       borderRadius: '4px',
                                       boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                                       display: 'flex',
-                                      justifyContent: 'space-between',
-                                      alignItems: 'center'
+                                      flexDirection: 'column',
+                                      gap: '10px',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.2s'
+                                    }}
+                                    onClick={() => {
+                                      setSelectedPaymentPatient(patient);
+                                      setIsPaymentModalOpen(true);
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.backgroundColor = '#FFF59D';
+                                      e.currentTarget.style.transform = 'translateX(3px)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.backgroundColor = '#FFF9C4';
+                                      e.currentTarget.style.transform = 'translateX(0)';
                                     }}
                                   >
-                                    <div>
-                                      <div style={{ fontWeight: 'bold', fontSize: '15px' }}>{patient.patient_name} <span style={{ fontSize: '12px', color: '#666' }}>({patient.patient_id})</span></div>
-                                      <div style={{ fontSize: '12px', color: '#777', marginTop: '4px' }}>
-                                        {patient.doctor_name} ({patient.department_name})
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                      <div>
+                                        <div style={{ fontWeight: 'bold', fontSize: '15px' }}>{patient.patient_name} <span style={{ fontSize: '12px', color: '#666' }}>({patient.patient_id})</span></div>
+                                        <div style={{ fontSize: '12px', color: '#777', marginTop: '4px' }}>
+                                          {patient.doctor_name} ({patient.department_name})
+                                        </div>
                                       </div>
-                                    </div>
-                                    <div style={{ textAlign: 'right' }}>
-                                      <span style={{
-                                        fontSize: '12px',
-                                        padding: '3px 8px',
-                                        borderRadius: '12px',
-                                        backgroundColor: '#C8E6C9',
-                                        color: '#2E7D32',
-                                        fontWeight: 'bold'
-                                      }}>수납대기</span>
-                                      <div style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>
-                                        {patient.checkin_time ? new Date(patient.checkin_time).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                                      <div style={{ textAlign: 'right' }}>
+                                        <span style={{
+                                          fontSize: '12px',
+                                          padding: '4px 10px',
+                                          borderRadius: '12px',
+                                          backgroundColor: '#FFE082',
+                                          color: '#F57F17',
+                                          fontWeight: 'bold'
+                                        }}>💳 수납대기</span>
+                                        <div style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>
+                                          {patient.checkin_time ? new Date(patient.checkin_time).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
@@ -1520,10 +1677,10 @@ export default function AdministrationHomePage() {
                                   >
                                     {patient.status}
                                   </span>
-                                  {!isCompletedMode && (
+                                  {!isCompletedMode && patient.status !== '진료중' && (
                                     <button
                                       className={styles.cancelWaitingBtn}
-                                      onClick={() => handleCancelWaiting(patient.encounterId, patient.name)}
+                                      onClick={() => handleCancelWaiting(patient.encounterId, patient.name, patient.status)}
                                       title="대기 취소"
                                     >
                                       취소
@@ -1843,6 +2000,158 @@ export default function AdministrationHomePage() {
         }}
         onSubmit={handleVitalCheckSubmit}
       />
+
+      {/* 수납 결제 모달 */}
+      {isPaymentModalOpen && selectedPaymentPatient && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: '#fff',
+            borderRadius: '12px',
+            padding: '30px',
+            width: '480px',
+            maxWidth: '90%',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)'
+          }}>
+            <h2 style={{
+              margin: '0 0 25px 0',
+              fontSize: '22px',
+              fontWeight: 'bold',
+              color: '#333',
+              borderBottom: '2px solid #FBC02D',
+              paddingBottom: '15px'
+            }}>
+              💳 수납 결제
+            </h2>
+
+            <div style={{
+              backgroundColor: '#FFF9C4',
+              borderRadius: '8px',
+              padding: '20px',
+              marginBottom: '25px',
+              border: '1px solid #FBC02D'
+            }}>
+              <div style={{ marginBottom: '15px' }}>
+                <div style={{ fontSize: '13px', color: '#666', marginBottom: '5px' }}>환자 정보</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#333' }}>
+                  {selectedPaymentPatient.patient_name} <span style={{ fontSize: '14px', color: '#666' }}>({selectedPaymentPatient.patient_id})</span>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '10px', display: 'flex', gap: '20px' }}>
+                <div>
+                  <div style={{ fontSize: '12px', color: '#666', marginBottom: '3px' }}>담당 의사</div>
+                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#333' }}>
+                    {selectedPaymentPatient.doctor_name}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: '#666', marginBottom: '3px' }}>진료과</div>
+                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#333' }}>
+                    {selectedPaymentPatient.department_name}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: '12px', color: '#666', marginBottom: '3px' }}>접수 시간</div>
+                <div style={{ fontSize: '14px', fontWeight: '600', color: '#333' }}>
+                  {selectedPaymentPatient.checkin_time ? new Date(selectedPaymentPatient.checkin_time).toLocaleString('ko-KR') : '-'}
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              backgroundColor: '#F5F5F5',
+              borderRadius: '8px',
+              padding: '15px',
+              marginBottom: '25px'
+            }}>
+              <div style={{ fontSize: '13px', color: '#666', marginBottom: '8px' }}>진행 상태</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{
+                  fontSize: '14px',
+                  padding: '6px 12px',
+                  borderRadius: '12px',
+                  backgroundColor: '#FFE082',
+                  color: '#F57F17',
+                  fontWeight: 'bold'
+                }}>
+                  진료 완료 → 수납 대기
+                </span>
+              </div>
+            </div>
+
+            <div style={{
+              marginBottom: '25px',
+              padding: '15px',
+              backgroundColor: '#E3F2FD',
+              borderRadius: '8px',
+              border: '1px solid #90CAF9'
+            }}>
+              <div style={{ fontSize: '13px', color: '#1565C0', marginBottom: '5px', fontWeight: '600' }}>안내</div>
+              <div style={{ fontSize: '13px', color: '#555', lineHeight: '1.6' }}>
+                • 수납 완료 후 환자의 진료 상태가 '완료'로 변경됩니다.<br />
+                • 완료된 진료는 당일 대기 현황에서 확인할 수 있습니다.
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => {
+                  setIsPaymentModalOpen(false);
+                  setSelectedPaymentPatient(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px 20px',
+                  fontSize: '15px',
+                  fontWeight: 'bold',
+                  border: 'none',
+                  borderRadius: '8px',
+                  backgroundColor: '#E0E0E0',
+                  color: '#666',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#BDBDBD'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#E0E0E0'}
+              >
+                취소
+              </button>
+              <button
+                onClick={handlePaymentSubmit}
+                style={{
+                  flex: 2,
+                  padding: '12px 20px',
+                  fontSize: '15px',
+                  fontWeight: 'bold',
+                  border: 'none',
+                  borderRadius: '8px',
+                  backgroundColor: '#FBC02D',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9A825'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FBC02D'}
+              >
+                💳 수납 완료
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Notification Toast */}
       {notification && (

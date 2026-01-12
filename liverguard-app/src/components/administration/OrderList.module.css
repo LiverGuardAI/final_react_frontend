@@ -133,17 +133,17 @@
 
 /* 외부 요청 버튼 (유전체/혈액검사) */
 .externalButton {
-    background-color: #FF9800;
+    background-color: #5884be;
     color: white;
 }
 
 .externalButton:hover {
-    background-color: #F57C00;
+    background-color: #0277BD;
 }
 
 /* 검사 입력 버튼 (바이탈/신체계측) */
 .vitalButton {
-    background-color: #4CAF50;
+    background-color: #82b2f0;
     color: white;
 }
 
@@ -193,4 +193,48 @@
 
 .cancelButton:hover {
     background-color: #757575;
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding: 15px 0;
+    margin-top: 10px;
+}
+
+.pageButton {
+    padding: 8px 14px;
+    border: 1px solid #DDD;
+    background: #FFFFFF;
+    color: #333333;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 40px;
+}
+
+.pageButton:hover:not(:disabled) {
+    background: #F8F9FA;
+    border-color: #52759C;
+    color: #52759C;
+}
+
+.pageButton:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.activePage {
+    background: #52759C;
+    color: #FFFFFF;
+    border-color: #52759C;
+}
+
+.activePage:hover {
+    background: #405F7F;
+    border-color: #405F7F;
 }

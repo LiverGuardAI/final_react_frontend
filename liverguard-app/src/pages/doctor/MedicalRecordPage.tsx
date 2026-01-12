@@ -15,13 +15,13 @@ export default function MedicalRecordPage() {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
 
-    const fetchRecords = useCallback(async () => {
+    const fetchRecords = useCallback(async (search?: string, start?: string, end?: string) => {
         setLoading(true);
         try {
             const response = await getDoctorMedicalRecords({
-                search: searchText,
-                start_date: startDate || undefined,
-                end_date: endDate || undefined
+                search: search !== undefined ? search : searchText,
+                start_date: start !== undefined ? start : startDate,
+                end_date: end !== undefined ? end : endDate
             });
             setRecords(response.results);
         } catch (error) {
@@ -31,15 +31,16 @@ export default function MedicalRecordPage() {
         }
     }, [searchText, startDate, endDate]);
 
-    // 초기 로드 및 필터 변경 시 조회 (디바운스 필요할 수 있으나 일단 버튼 혹은 엔터로 처리하는게 좋을수도? 
-    // 여기서는 useEffect로 즉시 반영 - 요구사항: 리스트 및 검색창)
+    // 초기 로드만 실행
     useEffect(() => {
-        // 디바운스 처리 (500ms)
-        const timer = setTimeout(() => {
+        fetchRecords();
+    }, []);
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
             fetchRecords();
-        }, 500);
-        return () => clearTimeout(timer);
-    }, [fetchRecords]);
+        }
+    };
 
     const { setSelectedEncounterId, setSelectedPatientId } = useTreatment();
 
@@ -54,28 +55,63 @@ export default function MedicalRecordPage() {
             <div className={styles.header}>
                 <h1 className={styles.title}>진료 기록</h1>
                 <div className={styles.filters}>
-                    <input
-                        type="text"
-                        placeholder="환자명 또는 ID 검색"
-                        value={searchText}
-                        onChange={(e) => setSearchText(e.target.value)}
-                        className={styles.searchInput}
-                    />
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <input
+                            type="text"
+                            placeholder="환자명 또는 ID 검색"
+                            value={searchText}
+                            onChange={(e) => setSearchText(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            className={styles.searchInput}
+                            style={{ paddingRight: '30px' }}
+                        />
+                        {searchText && (
+                            <button
+                                onClick={() => {
+                                    setSearchText('');
+                                    fetchRecords('', undefined, undefined);
+                                }}
+                                style={{
+                                    position: 'absolute',
+                                    right: '8px',
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    color: '#999',
+                                    fontSize: '16px',
+                                    padding: '0',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    height: '100%'
+                                }}
+                            >
+                                ✕
+                            </button>
+                        )}
+                    </div>
                     <div className={styles.dateRange}>
                         <input
                             type="date"
                             value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
+                            onChange={(e) => {
+                                setStartDate(e.target.value);
+                                fetchRecords(undefined, e.target.value, undefined);
+                            }}
                             className={styles.dateInput}
                         />
                         <span className={styles.dateSeparator}>~</span>
                         <input
                             type="date"
                             value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
+                            onChange={(e) => {
+                                setEndDate(e.target.value);
+                                fetchRecords(undefined, undefined, e.target.value);
+                            }}
                             className={styles.dateInput}
                         />
                     </div>
+
                 </div>
             </div>
 
