@@ -143,7 +143,7 @@
 
 .barListGrid {
   display: grid;
-  grid-template-columns: repeat(10, minmax(0, 1fr));
+  grid-template-columns: repeat(10, minmax(72px, 1fr));
   gap: 14px;
   align-items: end;
 }
@@ -151,7 +151,7 @@
 .barGroup {
   display: flex;
   gap: 16px;
-  align-items: center;
+  align-items: stretch;
 }
 
 .barSide {
@@ -160,7 +160,9 @@
   gap: 10px;
   align-items: center;
   min-width: 180px;
-  align-self: center;
+  align-self: stretch;
+  height: 100%;
+  justify-content: center;
 }
 
 .barBadge {
@@ -298,4 +300,246 @@
   background: #cbd5e1;
   cursor: not-allowed;
   transform: none;
+}
+
+.resultArea {
+  margin-top: 20px;
+}
+
+.resultGrid {
+  display: grid;
+  gap: 16px;
+}
+
+.resultCard {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  padding: 16px;
+}
+
+.resultHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.resultTitle {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.resultMeta {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.summaryRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.summaryItem {
+  padding: 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.summaryLabel {
+  font-size: 12px;
+  color: #64748b;
+  display: block;
+}
+
+.summaryValue {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 4px;
+  display: block;
+}
+
+.summaryNote {
+  margin-top: 12px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.riskBadge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.riskLow {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.riskMedium {
+  background: #fef9c3;
+  color: #92400e;
+}
+
+.riskHigh {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.riskNeutral {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.chartCard {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.chartHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.chartLegendRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.legendSwatch {
+  width: 18px;
+  height: 3px;
+  border-radius: 999px;
+}
+
+.legendLabel {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.chartTitle {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.chartMeta {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.lineChart {
+  width: 100%;
+  height: 240px;
+  display: block;
+}
+
+.chartGridLine {
+  stroke: #e2e8f0;
+  stroke-dasharray: 4 4;
+  stroke-width: 0.8;
+}
+
+.chartAxisLine {
+  stroke: #cbd5f5;
+  stroke-width: 1;
+}
+
+.chartAxisText {
+  fill: #94a3b8;
+  font-size: 7px;
+}
+
+.chartPoint {
+  stroke: #ffffff;
+  stroke-width: 1.4;
+}
+
+.chartAxisLabel {
+  fill: #64748b;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.chartLegend {
+  margin-top: 8px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.chartEmpty {
+  padding: 24px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5f5;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #94a3b8;
+  display: grid;
+  gap: 4px;
+  text-align: center;
+}
+
+.hrTable {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hrHeader {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.hrBody {
+  display: grid;
+  gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.hrRow {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  font-size: 12px;
+  color: #0f172a;
+}
+
+.hrFeature {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.hrValue {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.hrFooter {
+  font-size: 12px;
+  color: #94a3b8;
+  text-align: right;
 }

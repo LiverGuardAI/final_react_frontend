@@ -3,7 +3,7 @@
  * Location: src/api/predictionApi.ts
  */
 
-import axios, { type AxiosInstance } from 'axios';
+import apiClient from './axiosConfig';
 
 // ============================================================
 // Types
@@ -96,39 +96,24 @@ export interface PredictionResult {
 }
 
 // ============================================================
-// API Client
-// ============================================================
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
-const apiClient: AxiosInstance = axios.create({
-  baseURL: `${API_BASE_URL}/api/ai`,
-  timeout: 30000,
-  headers: { 'Content-Type': 'application/json' },
-});
-
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
-
-// ============================================================
 // API Functions
 // ============================================================
 
+// Using apiClient from axiosConfig with base URL /api/
+// AI endpoints will be prefixed with 'ai/' (e.g., /api/ai/patients/:id/radio-features/)
+
 export const fetchRadioFeatures = async (patientId: string): Promise<RadioFeature[]> => {
-  const response = await apiClient.get(`/patients/${patientId}/radio-features/`);
+  const response = await apiClient.get(`ai/patients/${patientId}/radio-features/`);
   return response.data;
 };
 
 export const fetchClinicalFeatures = async (patientId: string): Promise<ClinicalFeature[]> => {
-  const response = await apiClient.get(`/patients/${patientId}/clinical-features/`);
+  const response = await apiClient.get(`ai/patients/${patientId}/clinical-features/`);
   return response.data;
 };
 
 export const fetchGenomicFeatures = async (patientId: string): Promise<GenomicFeature[]> => {
-  const response = await apiClient.get(`/patients/${patientId}/genomic-features/`);
+  const response = await apiClient.get(`ai/patients/${patientId}/genomic-features/`);
   return response.data;
 };
 
@@ -146,7 +131,7 @@ export const runPredictionByIds = async (
   clinicalVectorId: string,
   genomicId?: string
 ): Promise<PredictionResult> => {
-  const response = await apiClient.post('/predict/by-ids/', {
+  const response = await apiClient.post('ai/predict/by-ids/', {
     radio_vector_id: radioVectorId,
     clinical_vector_id: clinicalVectorId,
     genomic_id: genomicId || null,
@@ -161,7 +146,7 @@ export const saveAnalysisResult = async (
   clinicalVectorId?: string,
   genomicVectorId?: string
 ): Promise<{ analysis_id: string; message: string }> => {
-  const response = await apiClient.post('/analysis/save/', {
+  const response = await apiClient.post('ai/analysis/save/', {
     patient_id: patientId,
     radio_vector_id: radioVectorId,
     clinical_vector_id: clinicalVectorId,
@@ -175,7 +160,7 @@ export const saveAnalysisResult = async (
 };
 
 export const checkHealth = async () => {
-  const response = await apiClient.get('/health/');
+  const response = await apiClient.get('ai/health/');
   return response.data;
 };
 
@@ -219,3 +204,4 @@ export const checkDateMismatch = (
   }
   return { mismatch: false, maxDays: maxDiff, warning: null };
 };
+
