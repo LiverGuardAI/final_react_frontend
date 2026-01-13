@@ -138,6 +138,17 @@ export const getDashboardStats = async () => {
   return res.data;
 };
 
+// ==================== 근무 일정 (Schedule) ====================
+export const getDutySchedules = async (startDate?: string, endDate?: string, doctorId?: number) => {
+  const params: any = {};
+  if (startDate) params.start_date = startDate;
+  if (endDate) params.end_date = endDate;
+  if (doctorId) params.doctor_id = doctorId;
+
+  const res = await apiClient.get("auth/schedules/public/", { params });
+  return res.data;
+};
+
 // ==================== 문진표 관리 ====================
 export const createQuestionnaire = async (questionnaireData: any) => {
   // 임시: chief_complaint에 JSON 문자열로 저장

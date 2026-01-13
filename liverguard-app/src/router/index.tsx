@@ -36,6 +36,9 @@ const LisLabResultFormPage = lazy(() => import("../pages/lis/LabResultFormPage")
 const ProtectedRoute = lazy(() => import("../components/auth/ProtectedRoute"));
 const ErrorPage = lazy(() => import("../pages/ErrorPage"));
 
+// Manager Pages
+const ManagerSchedulePage = lazy(() => import("../pages/manager/ScheduleManagementPage"));
+
 // Loading fallback component
 const LoadingFallback = () => (
   <div style={{
@@ -97,6 +100,9 @@ const router = createBrowserRouter(
         <Route path="patientstatus" element={<Suspense fallback={<LoadingFallback />}><PatientStatusPage /></Suspense>} />
         <Route path="patients" element={<Suspense fallback={<LoadingFallback />}><PatientManagementPage /></Suspense>} />
       </Route>
+
+      {/* manager */}
+      <Route path="/manager/schedule-management" element={<Suspense fallback={<LoadingFallback />}><ManagerSchedulePage /></Suspense>} />
 
       {/* radiology */}
       <Route path="/radiology/login" element={<Suspense fallback={<LoadingFallback />}><UnifiedLoginPage initialRole="radiology" /></Suspense>} />

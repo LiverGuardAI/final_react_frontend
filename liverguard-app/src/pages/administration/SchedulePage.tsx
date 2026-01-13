@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import styles from './SchedulePage.module.css';
 import { getAvailableDoctors } from '../../api/receptionApi';
-import { getAppointments, createAppointment, updateAppointment } from '../../api/receptionApi';
+import { getAppointments, createAppointment, updateAppointment, getDutySchedules } from '../../api/receptionApi';
 import { usePatients } from '../../hooks/usePatients';
 
 interface Doctor {
@@ -25,6 +25,15 @@ interface Appointment {
   notes?: string;
 }
 
+interface DutySchedule {
+  schedule_id: number;
+  user: number; // doctor_id
+  start_time: string;
+  end_time: string;
+  schedule_status: string;
+  work_role: string;
+}
+
 interface TimeSlot {
   time: string;
   hour: number;
@@ -38,6 +47,7 @@ export default function SchedulePage() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [selectedDoctors, setSelectedDoctors] = useState<number[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [dutySchedules, setDutySchedules] = useState<DutySchedule[]>([]);
   const [loading, setLoading] = useState(false);
 
   // 오른쪽 패널 탭 상태
@@ -62,7 +72,6 @@ export default function SchedulePage() {
   // 초기 데이터 로드
   useEffect(() => {
     fetchDoctors();
-    fetchAppointmentsForDate(selectedDate);
     fetchPendingAppointments();
     fetchPatients();
   }, []);
@@ -70,6 +79,7 @@ export default function SchedulePage() {
   // 날짜 변경 시 예약 데이터 로드
   useEffect(() => {
     fetchAppointmentsForDate(selectedDate);
+    fetchSchedulesForDate(selectedDate);
   }, [selectedDate]);
 
   const fetchDoctors = async () => {
@@ -105,10 +115,20 @@ export default function SchedulePage() {
     }
   };
 
-  // 30분 단위 타임슬롯 생성 (09:00 ~ 18:00)
+  const fetchSchedulesForDate = async (date: Date) => {
+    try {
+      const dateStr = date.toISOString().split('T')[0];
+      const response = await getDutySchedules(dateStr, dateStr);
+      setDutySchedules(response);
+    } catch (error) {
+      console.error('근무 일정 조회 실패:', error);
+    }
+  };
+
+  // 30분 단위 타임슬롯 생성 (00:00 ~ 24:00) - 24시간 전체 표시
   const generateTimeSlots = (): TimeSlot[] => {
     const slots: TimeSlot[] = [];
-    for (let hour = 9; hour < 18; hour++) {
+    for (let hour = 0; hour < 24; hour++) {
       for (let minute = 0; minute < 60; minute += 30) {
         const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
         slots.push({
@@ -170,8 +190,29 @@ export default function SchedulePage() {
   };
 
   // 근무시간 외 여부 확인
-  const isOutsideWorkingHours = (hour: number) => {
-    return hour < 9 || hour >= 18;
+  // 근무시간 외 여부 확인 (Updated to use Duty Schedules)
+  const isDoctorOffDuty = (doctorId: number, date: Date, hour: number) => {
+    // Find schedules for this doctor on this day
+    // Note: dutySchedules are already filtered for the day by fetch call
+    const doctorSchedules = dutySchedules.filter(s => s.user === doctorId && s.schedule_status === 'CONFIRMED');
+
+    if (doctorSchedules.length === 0) return true; // No schedule = Off duty
+
+    // Check if hour is within any schedule
+    // Create time for the slot
+    const slotTime = new Date(date);
+    slotTime.setHours(hour, 0, 0, 0);
+    const slotEndTime = new Date(date);
+    slotEndTime.setHours(hour + 1, 0, 0, 0);
+
+    const isOnDuty = doctorSchedules.some(s => {
+      const start = new Date(s.start_time);
+      const end = new Date(s.end_time);
+      // Check overlap: Start < SlotEnd AND End > SlotStart
+      return start < slotEndTime && end > slotTime;
+    });
+
+    return !isOnDuty;
   };
 
   // 달력 관련 함수들
@@ -414,13 +455,14 @@ export default function SchedulePage() {
             {/* 시간 그리드 */}
             <div className={styles.scheduleGrid}>
               {slotsWithAppointments.map((slot, index) => {
-                const isGrayed = isHoliday(selectedDate) || isOutsideWorkingHours(slot.hour);
+
 
                 return (
                   <div key={index} className={styles.timeSlotRow}>
                     <div className={styles.timeLabel}>{slot.time}</div>
                     {selectedDoctors.map(doctorId => {
                       const appointment = slot.appointments[doctorId];
+                      const isGrayed = isDoctorOffDuty(doctorId, selectedDate, slot.hour);
 
                       return (
                         <div
