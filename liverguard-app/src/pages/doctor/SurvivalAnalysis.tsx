@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import * as api from '../../api/predictionApi';
 import * as adminApi from '../../api/administration_api';
+import * as aiApi from '../../api/ai_api';
 import FeatureSelectRow from '../../components/doctor/FeatureSelectRow';
 import type { CtSeriesItem, GenomicDataItem, HCCDiagnosis, LabResult, PatientProfile } from '../../api/doctorApi';
 import styles from './AIAnalysis.module.css';
@@ -28,6 +29,12 @@ const SurvivalAnalysis: React.FC = () => {
   const [selectedGenomicData, setSelectedGenomicData] = useState<GenomicDataItem | null>(null);
   const [selectedHccDiagnosis, setSelectedHccDiagnosis] = useState<HCCDiagnosis | null>(null);
   const [patientProfile, setPatientProfile] = useState<PatientProfile | null>(null);
+
+  // Prediction task management
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const [predictionResult, setPredictionResult] = useState<any>(null);
+  const [predictionError, setPredictionError] = useState<string | null>(null);
+  const [isPolling, setIsPolling] = useState(false);
   const pathwayScoreLabels = [
     'Myc Targets V1',
     'G2-M Checkpoint',
@@ -154,6 +161,213 @@ const SurvivalAnalysis: React.FC = () => {
     );
   };
 
+  const formatNumber = (value: unknown, digits = 3) => {
+    const num = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(num)) return '-';
+    return num.toFixed(digits);
+  };
+
+  const getRiskTone = (group?: string) => {
+    const label = (group || '').toLowerCase();
+    if (label.includes('high')) return styles.riskHigh;
+    if (label.includes('medium')) return styles.riskMedium;
+    if (label.includes('low')) return styles.riskLow;
+    return styles.riskNeutral;
+  };
+
+  const renderLineChart = (
+    title: string,
+    timeline: number[] | undefined,
+    values: number[] | undefined,
+    color: string,
+    options?: { legendLabel?: string; xLabel?: string; yLabel?: string }
+  ) => {
+    if (!timeline || !values || !timeline.length || !values.length) {
+      return (
+        <div className={styles.chartEmpty}>
+          <span>{title}</span>
+          <span>데이터 없음</span>
+        </div>
+      );
+    }
+
+    const length = Math.min(timeline.length, values.length);
+    const xValues = timeline.slice(0, length);
+    const yValues = values.slice(0, length);
+
+    const width = 520;
+    const height = 240;
+    const padding = 36;
+    const minX = Math.min(...xValues);
+    const maxX = Math.max(...xValues);
+    const minY = Math.min(...yValues);
+    const maxY = Math.max(...yValues);
+    const xRange = maxX - minX || 1;
+    const yRange = maxY - minY || 1;
+    const tickCount = 8;
+    const xLabelDigits = xRange >= 100 ? 0 : 1;
+    const yLabelDigits = yRange < 0.1 ? 3 : 2;
+    const legendLabel = options?.legendLabel ?? title;
+    const xAxisLabel = options?.xLabel ?? 'Time';
+    const yAxisLabel = options?.yLabel ?? 'Value';
+
+    const xTicks = Array.from({ length: tickCount + 1 }, (_, index) => {
+      const value = minX + (xRange * index) / tickCount;
+      const x = padding + ((value - minX) / xRange) * (width - padding * 2);
+      return { value, x };
+    });
+
+    const yTicks = Array.from({ length: tickCount + 1 }, (_, index) => {
+      const value = minY + (yRange * index) / tickCount;
+      const y = height - padding - ((value - minY) / yRange) * (height - padding * 2);
+      return { value, y };
+    });
+
+    const points = xValues.map((x, index) => {
+      const y = yValues[index];
+      const px = padding + ((x - minX) / xRange) * (width - padding * 2);
+      const py = height - padding - ((y - minY) / yRange) * (height - padding * 2);
+      return [px, py];
+    });
+
+    const path = points
+      .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point[0].toFixed(2)} ${point[1].toFixed(2)}`)
+      .join(' ');
+    const lastPoint = points[points.length - 1];
+    const areaPath = `${path} L ${lastPoint[0].toFixed(2)} ${(height - padding).toFixed(2)} L ${points[0][0].toFixed(2)} ${(height - padding).toFixed(2)} Z`;
+    const markerStep = Math.max(1, Math.floor(points.length / 12));
+    const markerPoints = points.filter((_, index) => index % markerStep === 0);
+    const gradientId = `${title.replace(/\s+/g, '-').toLowerCase()}-area`;
+
+    return (
+      <div className={styles.chartCard}>
+        <div className={styles.chartHeader}>
+          <span className={styles.chartTitle}>{title}</span>
+          <span className={styles.chartMeta}>{length} pts</span>
+        </div>
+        <div className={styles.chartLegendRow}>
+          <span className={styles.legendSwatch} style={{ backgroundColor: color }} />
+          <span className={styles.legendLabel}>{legendLabel}</span>
+        </div>
+        <svg viewBox={`0 0 ${width} ${height}`} className={styles.lineChart}>
+          <defs>
+            <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+              <stop offset="100%" stopColor={color} stopOpacity="0.04" />
+            </linearGradient>
+          </defs>
+          <rect x={0} y={0} width={width} height={height} rx={12} fill="#f8fafc" />
+          <g>
+            {yTicks.map((tick, index) => (
+              <g key={`y-${index}`}>
+                <line
+                  x1={padding}
+                  y1={tick.y}
+                  x2={width - padding}
+                  y2={tick.y}
+                  className={styles.chartGridLine}
+                />
+                <text
+                  x={padding - 6}
+                  y={tick.y}
+                  textAnchor="end"
+                  dominantBaseline="middle"
+                  className={styles.chartAxisText}
+                >
+                  {formatNumber(tick.value, yLabelDigits)}
+                </text>
+              </g>
+            ))}
+            {xTicks.map((tick, index) => (
+              <g key={`x-${index}`}>
+                <line
+                  x1={tick.x}
+                  y1={padding}
+                  x2={tick.x}
+                  y2={height - padding}
+                  className={styles.chartGridLine}
+                />
+                <text
+                  x={tick.x}
+                  y={height - padding + 16}
+                  textAnchor="middle"
+                  className={styles.chartAxisText}
+                >
+                  {formatNumber(tick.value, xLabelDigits)}
+                </text>
+              </g>
+            ))}
+          </g>
+          <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} className={styles.chartAxisLine} />
+          <line x1={padding} y1={padding} x2={padding} y2={height - padding} className={styles.chartAxisLine} />
+          <path d={areaPath} fill={`url(#${gradientId})`} />
+          <path d={path} fill="none" stroke={color} strokeWidth={1.8} />
+          {markerPoints.map((point, index) => (
+            <circle key={`point-${index}`} cx={point[0]} cy={point[1]} r={2.6} fill={color} opacity={0.85} />
+          ))}
+          {lastPoint && (
+            <circle cx={lastPoint[0]} cy={lastPoint[1]} r={4} fill={color} className={styles.chartPoint} />
+          )}
+          <text
+            x={width / 2}
+            y={height - 8}
+            textAnchor="middle"
+            className={styles.chartAxisLabel}
+          >
+            {xAxisLabel}
+          </text>
+          <text
+            x={16}
+            y={height / 2}
+            textAnchor="middle"
+            className={styles.chartAxisLabel}
+            transform={`rotate(-90 16 ${height / 2})`}
+          >
+            {yAxisLabel}
+          </text>
+        </svg>
+        <div className={styles.chartLegend}>
+          <span>{`Min ${formatNumber(minY, 3)}`}</span>
+          <span>{`Max ${formatNumber(maxY, 3)}`}</span>
+        </div>
+      </div>
+    );
+  };
+
+  const renderHazardTable = (rows: Array<{ feature?: string; hazard_ratio?: number; coef?: number; p_value?: number }>) => {
+    if (!rows.length) {
+      return <div className={styles.chartEmpty}>HR 데이터 없음</div>;
+    }
+    const sortable = rows
+      .filter((row) => Number.isFinite(row.hazard_ratio))
+      .sort((a, b) => (b.hazard_ratio ?? 0) - (a.hazard_ratio ?? 0));
+    const displayRows = sortable.slice(0, 12);
+
+    return (
+      <div className={styles.hrTable}>
+        <div className={styles.hrHeader}>
+          <span>Feature</span>
+          <span>HR</span>
+          <span>Coef</span>
+          <span>p</span>
+        </div>
+        <div className={styles.hrBody}>
+          {displayRows.map((row, index) => (
+            <div className={styles.hrRow} key={`${row.feature ?? 'feature'}-${index}`}>
+              <span className={styles.hrFeature}>{row.feature ?? '-'}</span>
+              <span className={styles.hrValue}>{formatNumber(row.hazard_ratio, 3)}</span>
+              <span className={styles.hrValue}>{formatNumber(row.coef, 3)}</span>
+              <span className={styles.hrValue}>{formatNumber(row.p_value, 4)}</span>
+            </div>
+          ))}
+        </div>
+        {sortable.length > displayRows.length && (
+          <div className={styles.hrFooter}>{`상위 ${displayRows.length}개 / 전체 ${sortable.length}개`}</div>
+        )}
+      </div>
+    );
+  };
+
 
   const getPatientInfoItems = (profile: PatientProfile | null) => {
     if (!profile) return [];
@@ -207,13 +421,100 @@ const SurvivalAnalysis: React.FC = () => {
     loadFeatures();
   }, [selectedPatient]);
 
+  // Poll task status
+  useEffect(() => {
+    if (!taskId || !isPolling) return;
 
-  const handleRunAnalysis = () => {
-    if (!selectedRadioId || !selectedClinicalId || !selectedGenomicId) {
+    const pollInterval = setInterval(async () => {
+      try {
+        const statusResponse = await aiApi.getPredictionTaskStatus(taskId);
+
+        if (statusResponse.status === 'SUCCESS') {
+          const taskResult: any = statusResponse.result;
+          if (taskResult?.status === 'failed') {
+            setPredictionError(taskResult.error || 'Prediction failed');
+          } else {
+            setPredictionResult(taskResult?.result ?? taskResult);
+          }
+          setIsPolling(false);
+          clearInterval(pollInterval);
+        } else if (statusResponse.status === 'FAILURE') {
+          setPredictionError(statusResponse.error || 'Prediction failed');
+          setIsPolling(false);
+          clearInterval(pollInterval);
+        }
+        // PENDING or PROGRESS - continue polling
+      } catch (error) {
+        console.error('Failed to poll task status:', error);
+        setPredictionError('Failed to check task status');
+        setIsPolling(false);
+        clearInterval(pollInterval);
+      }
+    }, 2000);
+
+    return () => clearInterval(pollInterval);
+  }, [taskId, isPolling]);
+
+
+  const handleRunAnalysis = async () => {
+    if (!selectedCtSeries || !selectedLabResult || !selectedGenomicData || !selectedHccDiagnosis || !patientProfile) {
       alert('데이터(CT, 혈액, 유전체)를 모두 선택해주세요.');
       return;
     }
-    console.log('생존 예측 요청:', { selectedRadioId, selectedClinicalId, selectedGenomicId });
+
+    setLoading(true);
+    setPredictionResult(null);
+    setPredictionError(null);
+
+    try {
+      // Build clinical array from selected data
+      const clinicalData = aiApi.buildClinicalArray({
+        age: patientProfile.age ?? undefined,
+        gender: patientProfile.gender ?? undefined,
+        grade: selectedHccDiagnosis.grade ?? undefined,
+        vascularInvasion: selectedHccDiagnosis.vascular_invasion ?? undefined,
+        ishakScore: selectedHccDiagnosis.ishak_score ?? undefined,
+        afp: selectedLabResult.afp ?? undefined,
+        albumin: selectedLabResult.albumin ?? undefined,
+        bilirubinTotal: selectedLabResult.bilirubin_total ?? undefined,
+        platelet: selectedLabResult.platelet ?? undefined,
+        inr: selectedLabResult.pt_inr ?? undefined,
+        creatinine: selectedLabResult.creatinine ?? undefined,
+      });
+
+      // Build mRNA array from selected genomic data
+      const mrnaData = aiApi.buildMRNAArray(selectedGenomicData.pathway_scores);
+
+      console.log('Clinical data array:', clinicalData);
+      console.log('mRNA data array:', mrnaData);
+
+      // Validate mRNA data
+      if (mrnaData.length !== 20) {
+        alert(`mRNA pathway scores must have 20 values, got ${mrnaData.length}`);
+        return;
+      }
+
+      // Get series_uid from selected CT series
+      const seriesUid = selectedCtSeries.series_uid;
+
+      if (!seriesUid) {
+        alert('CT Series UID가 없습니다.');
+        return;
+      }
+
+      // Call survival prediction API
+      const response = await aiApi.predictSurvival(clinicalData, mrnaData, seriesUid);
+
+      console.log('Survival prediction task started:', response);
+      setTaskId(response.task_id);
+      setIsPolling(true);
+
+    } catch (error: any) {
+      console.error('Failed to start survival prediction:', error);
+      setPredictionError(error.response?.data?.error || error.message || 'Failed to start prediction');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -298,11 +599,69 @@ const SurvivalAnalysis: React.FC = () => {
 
       <div className={styles.actionArea}>
         <button className={styles.predictBtn} onClick={handleRunAnalysis}
-          disabled={!selectedRadioId || !selectedClinicalId}>
-          분석 실행
+          disabled={loading || isPolling || !selectedCtSeries || !selectedLabResult || !selectedGenomicData || !selectedHccDiagnosis || !patientProfile}>
+          {isPolling ? '분석 중...' : '분석 실행'}
         </button>
       </div>
       <div className={styles.resultArea}>
+        {predictionError && (
+          <div style={{ color: 'red', padding: '10px', background: '#fee', borderRadius: '4px' }}>
+            오류: {predictionError}
+          </div>
+        )}
+        {predictionResult?.error && (
+          <div style={{ color: 'red', padding: '10px', background: '#fee', borderRadius: '4px' }}>
+            오류: {predictionResult.error}
+          </div>
+        )}
+        {predictionResult && (
+          <div className={styles.resultGrid}>
+            <div className={styles.resultCard}>
+              <div className={styles.resultHeader}>
+                <span className={styles.resultTitle}>생존 분석 요약</span>
+                <span className={`${styles.riskBadge} ${getRiskTone(predictionResult.risk_group)}`}>
+                  {predictionResult.risk_group || '-'}
+                </span>
+              </div>
+              <div className={styles.summaryRow}>
+                <div className={styles.summaryItem}>
+                  <span className={styles.summaryLabel}>Risk Score</span>
+                  <span className={styles.summaryValue}>{formatNumber(predictionResult.risk_score, 6)}</span>
+                </div>
+                <div className={styles.summaryItem}>
+                  <span className={styles.summaryLabel}>Risk Percentile</span>
+                  <span className={styles.summaryValue}>{formatNumber(predictionResult.risk_percentile, 1)}</span>
+                </div>
+                <div className={styles.summaryItem}>
+                  <span className={styles.summaryLabel}>모델</span>
+                  <span className={styles.summaryValue}>{predictionResult.model_version ?? '-'}</span>
+                </div>
+              </div>
+              <p className={styles.summaryNote}>{predictionResult.warning}</p>
+            </div>
+            {renderLineChart(
+              '생존곡선',
+              predictionResult.survival_curve?.timeline,
+              predictionResult.survival_curve?.survival,
+              '#2563eb',
+              { legendLabel: 'Survival Probability', xLabel: 'Time', yLabel: 'Probability' }
+            )}
+            {renderLineChart(
+              '누적 위험도 곡선',
+              predictionResult.hazard_curve?.timeline,
+              predictionResult.hazard_curve?.hazard,
+              '#ef4444',
+              { legendLabel: 'Cumulative Hazard', xLabel: 'Time', yLabel: 'Hazard' }
+            )}
+            <div className={styles.resultCard}>
+              <div className={styles.resultHeader}>
+                <span className={styles.resultTitle}>변수 위험도 (HR)</span>
+                <span className={styles.resultMeta}>상위 값 기준</span>
+              </div>
+              {renderHazardTable(Array.isArray(predictionResult.hazard_ratio) ? predictionResult.hazard_ratio : [])}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

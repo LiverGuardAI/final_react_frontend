@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import * as api from '../../api/predictionApi';
 import * as adminApi from '../../api/administration_api';
+import * as aiApi from '../../api/ai_api';
 import FeatureSelectRow from '../../components/doctor/FeatureSelectRow';
 import type { CtSeriesItem, HCCDiagnosis, LabResult, PatientProfile } from '../../api/doctorApi';
 import styles from './AIAnalysis.module.css';
@@ -27,6 +28,12 @@ const StagePrediction: React.FC = () => {
   const [selectedLabResult, setSelectedLabResult] = useState<LabResult | null>(null);
   const [selectedHccDiagnosis, setSelectedHccDiagnosis] = useState<HCCDiagnosis | null>(null);
   const [patientProfile, setPatientProfile] = useState<PatientProfile | null>(null);
+
+  // Prediction task management
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const [predictionResult, setPredictionResult] = useState<any>(null);
+  const [predictionError, setPredictionError] = useState<string | null>(null);
+  const [isPolling, setIsPolling] = useState(false);
 
   // 날짜 포맷팅 함수 (YYYY-MM-DD)
   const formatDate = (dateStr: string | null | undefined) => {
@@ -168,10 +175,83 @@ const StagePrediction: React.FC = () => {
   }, [selectedPatient]);
 
 
-  const handleRunAnalysis = () => {
-    if (!selectedRadioId || !selectedClinicalId) {
+  // Poll task status
+  useEffect(() => {
+    if (!taskId || !isPolling) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const statusResponse = await aiApi.getPredictionTaskStatus(taskId);
+
+        if (statusResponse.status === 'SUCCESS') {
+          setPredictionResult(statusResponse.result);
+          setIsPolling(false);
+          clearInterval(pollInterval);
+        } else if (statusResponse.status === 'FAILURE') {
+          setPredictionError(statusResponse.error || 'Prediction failed');
+          setIsPolling(false);
+          clearInterval(pollInterval);
+        }
+        // PENDING or PROGRESS - continue polling
+      } catch (error) {
+        console.error('Failed to poll task status:', error);
+        setPredictionError('Failed to check task status');
+        setIsPolling(false);
+        clearInterval(pollInterval);
+      }
+    }, 2000); // Poll every 2 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [taskId, isPolling]);
+
+  const handleRunAnalysis = async () => {
+    if (!selectedCtSeries || !selectedLabResult || !selectedHccDiagnosis || !patientProfile) {
       alert('데이터를 모두 선택해주세요.');
       return;
+    }
+
+    setLoading(true);
+    setPredictionResult(null);
+    setPredictionError(null);
+
+    try {
+      // Build clinical array from selected data
+      const clinicalData = aiApi.buildClinicalArray({
+        age: patientProfile.age ?? undefined,
+        gender: patientProfile.gender ?? undefined,
+        grade: selectedHccDiagnosis.grade ?? undefined,
+        vascularInvasion: selectedHccDiagnosis.vascular_invasion ?? undefined,
+        ishakScore: selectedHccDiagnosis.ishak_score ?? undefined,
+        afp: selectedLabResult.afp ?? undefined,
+        albumin: selectedLabResult.albumin ?? undefined,
+        bilirubinTotal: selectedLabResult.bilirubin_total ?? undefined,
+        platelet: selectedLabResult.platelet ?? undefined,
+        inr: selectedLabResult.pt_inr ?? undefined,
+        creatinine: selectedLabResult.creatinine ?? undefined,
+      });
+
+      console.log('Clinical data array:', clinicalData);
+
+      // Get series_uid from selected CT series
+      const seriesUid = selectedCtSeries.series_uid;
+
+      if (!seriesUid) {
+        alert('CT Series UID가 없습니다.');
+        return;
+      }
+
+      // Call stage prediction API
+      const response = await aiApi.predictStage(clinicalData, seriesUid);
+
+      console.log('Stage prediction task started:', response);
+      setTaskId(response.task_id);
+      setIsPolling(true);
+
+    } catch (error: any) {
+      console.error('Failed to start stage prediction:', error);
+      setPredictionError(error.response?.data?.error || error.message || 'Failed to start prediction');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -244,11 +324,22 @@ const StagePrediction: React.FC = () => {
 
       <div className={styles.actionArea}>
         <button className={styles.predictBtn} onClick={handleRunAnalysis}
-          disabled={!selectedRadioId || !selectedClinicalId}>
-          분석 실행
+          disabled={loading || isPolling || !selectedCtSeries || !selectedLabResult || !selectedHccDiagnosis || !patientProfile}>
+          {isPolling ? '분석 중...' : '분석 실행'}
         </button>
       </div>
       <div className={styles.resultArea}>
+        {predictionError && (
+          <div style={{ color: 'red', padding: '10px', background: '#fee', borderRadius: '4px' }}>
+            오류: {predictionError}
+          </div>
+        )}
+        {predictionResult && (
+          <div style={{ padding: '10px', background: '#efe', borderRadius: '4px' }}>
+            <h3>병기 예측 결과</h3>
+            <pre>{JSON.stringify(predictionResult, null, 2)}</pre>
+          </div>
+        )}
       </div>
     </div>
   );
