@@ -4,6 +4,7 @@ import {
   createBrowserRouter,
   createRoutesFromElements,
   Route,
+  Outlet
 } from "react-router-dom";
 
 // Lazy load all page components for code splitting
@@ -23,8 +24,8 @@ const MedicalRecordPage = lazy(() => import("../pages/doctor/MedicalRecordPage")
 const AdministrationLayout = lazy(() => import("../layouts/AdministrationLayout"));
 const AdministrationDashboard = lazy(() => import("../pages/administration/Dashboard"));
 const AdminSchedulePage = lazy(() => import("../pages/administration/SchedulePage"));
-const AppointmentManagementPage = lazy(() => import("../pages/administration/AppointmentManagementPage"));
 const PatientManagementPage = lazy(() => import("../pages/administration/PatientManagementPage"));
+const PatientStatusPage = lazy(() => import("../pages/administration/PatientStatusPage"));
 const RadiologyHomePage = lazy(() => import("../pages/radiology/HomePage"));
 const AcquisitionPage = lazy(() => import("../pages/radiology/AcquisitionPage"));
 const PostProcessingPage = lazy(() => import("../pages/radiology/PostProcessingPage"));
@@ -59,9 +60,15 @@ const router = createBrowserRouter(
 
       {/* doctor - nested routes with shared layout */}
       <Route path="/doctor/login" element={<Suspense fallback={<LoadingFallback />}><UnifiedLoginPage initialRole="doctor" /></Suspense>} />
-      <Route path="/doctor"
+      <Route
+        path="/doctor"
         errorElement={<Suspense fallback={<LoadingFallback />}><ErrorPage /></Suspense>}
-        element={<Suspense fallback={<LoadingFallback />}><DoctorLayout /></Suspense>}>
+        element={
+          <ProtectedRoute requiredRole="doctor">
+            <Suspense fallback={<LoadingFallback />}><DoctorLayout /></Suspense>
+          </ProtectedRoute>
+        }
+      >
         <Route path="home" element={<Suspense fallback={<LoadingFallback />}><DoctorHomePage /></Suspense>} />
         <Route path="schedule" element={<Suspense fallback={<LoadingFallback />}><SchedulePage /></Suspense>} />
         <Route path="treatment" element={<Suspense fallback={<LoadingFallback />}><TreatmentPage /></Suspense>} />
@@ -74,47 +81,37 @@ const router = createBrowserRouter(
         <Route path="ddi" element={<Suspense fallback={<LoadingFallback />}><DDIPage /></Suspense>} />
         <Route path="medical-record" element={<Suspense fallback={<LoadingFallback />}><MedicalRecordPage /></Suspense>} />
       </Route>
-      {/* 테스트용 - 나중에 ProtectedRoute 복원 필요 */}
-      {/* <Route
-        path="/doctor/home"
-        element={
-          <ProtectedRoute requiredRole="doctor">
-            <DoctorHomePage />
-          </ProtectedRoute>
-        }
-      /> */}
 
       {/* administration */}
       <Route path="/administration/login" element={<Suspense fallback={<LoadingFallback />}><UnifiedLoginPage initialRole="administration" /></Suspense>} />
-      <Route path="/administration" element={<Suspense fallback={<LoadingFallback />}><AdministrationLayout /></Suspense>}>
-        <Route path="home" element={<Suspense fallback={<LoadingFallback />}><AdministrationDashboard /></Suspense>} />
-        <Route path="schedule" element={<Suspense fallback={<LoadingFallback />}><AdminSchedulePage /></Suspense>} />
-        <Route path="appointments" element={<Suspense fallback={<LoadingFallback />}><AppointmentManagementPage /></Suspense>} />
-        <Route path="patients" element={<Suspense fallback={<LoadingFallback />}><PatientManagementPage /></Suspense>} />
-      </Route>
-      {/* 테스트용 - 나중에 ProtectedRoute 복원 필요 */}
-      {/* <Route
-        path="/administration/home"
+      <Route
+        path="/administration"
         element={
           <ProtectedRoute requiredRole="administration">
-            <AdministrationHomePage />
+            <Suspense fallback={<LoadingFallback />}><AdministrationLayout /></Suspense>
           </ProtectedRoute>
         }
-      /> */}
+      >
+        <Route path="home" element={<Suspense fallback={<LoadingFallback />}><AdministrationDashboard /></Suspense>} />
+        <Route path="appointments" element={<Suspense fallback={<LoadingFallback />}><AdminSchedulePage /></Suspense>} />
+        <Route path="patientstatus" element={<Suspense fallback={<LoadingFallback />}><PatientStatusPage /></Suspense>} />
+        <Route path="patients" element={<Suspense fallback={<LoadingFallback />}><PatientManagementPage /></Suspense>} />
+      </Route>
 
       {/* radiology */}
       <Route path="/radiology/login" element={<Suspense fallback={<LoadingFallback />}><UnifiedLoginPage initialRole="radiology" /></Suspense>} />
-      <Route path="/radiology/home" element={<Suspense fallback={<LoadingFallback />}><RadiologyHomePage /></Suspense>} />
-      <Route path="/radiology/acquisition" element={<Suspense fallback={<LoadingFallback />}><AcquisitionPage /></Suspense>} />
-      <Route path="/radiology/post-processing" element={<Suspense fallback={<LoadingFallback />}><PostProcessingPage /></Suspense>} />
-      {/* <Route
-        path="/radiology/home"
+      <Route
+        path="/radiology"
         element={
           <ProtectedRoute requiredRole="radiology">
-            <RadiologyHomePage />
+            <Outlet />
           </ProtectedRoute>
         }
-      /> */}
+      >
+        <Route path="home" element={<Suspense fallback={<LoadingFallback />}><RadiologyHomePage /></Suspense>} />
+        <Route path="acquisition" element={<Suspense fallback={<LoadingFallback />}><AcquisitionPage /></Suspense>} />
+        <Route path="post-processing" element={<Suspense fallback={<LoadingFallback />}><PostProcessingPage /></Suspense>} />
+      </Route>
 
       {/* lis */}
       <Route path="/lis/home" element={<Suspense fallback={<LoadingFallback />}><LisHomePage /></Suspense>} />
