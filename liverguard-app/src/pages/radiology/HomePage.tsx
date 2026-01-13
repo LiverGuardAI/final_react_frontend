@@ -1,7 +1,7 @@
-// src/pages/radiology/HomePage.tsx
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import "./HomePage.css";
+import { useState, useEffect } from "react";
 
 export default function RadiologyHomePage() {
   const navigate = useNavigate();
@@ -15,6 +15,44 @@ export default function RadiologyHomePage() {
 
     logout();
     navigate("/");
+  };
+
+  // 스케줄 확인 로직
+  const [pendingSchedules, setPendingSchedules] = useState([]);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const { user } = JSON.parse(localStorage.getItem('user') || '{}');
+
+  useEffect(() => {
+    const checkPendingSchedules = async () => {
+      if (!user || !user.id) return;
+      try {
+        const { getDutySchedules } = await import('../../api/administrationApi');
+        const data = await getDutySchedules(undefined, undefined, user.id);
+        const pending = data.filter((s: any) => s.schedule_status === 'PENDING');
+        if (pending.length > 0) {
+          setPendingSchedules(pending);
+          setIsScheduleModalOpen(true);
+        }
+      } catch (e) {
+        console.error("Failed to check schedules", e);
+      }
+    };
+    checkPendingSchedules();
+  }, [user?.id]);
+
+  const handleConfirmSchedule = async (scheduleId: number) => {
+    try {
+      const { confirmDutySchedule } = await import('../../api/administrationApi');
+      await confirmDutySchedule(scheduleId);
+      setPendingSchedules((prev: any[]) => prev.filter(s => s.schedule_id !== scheduleId));
+      if (pendingSchedules.length <= 1) {
+        setIsScheduleModalOpen(false);
+      }
+      alert("스케줄이 확정되었습니다.");
+    } catch (e) {
+      console.error("Failed to confirm schedule", e);
+      alert("스케줄 확정 실패");
+    }
   };
 
   return (
@@ -41,6 +79,61 @@ export default function RadiologyHomePage() {
           </div>
         </div>
       </div>
+
+      {/* 스케줄 확정 모달 */}
+      {isScheduleModalOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000
+        }}>
+          <div style={{ background: 'white', padding: '20px', borderRadius: '12px', width: '400px', color: '#333' }}>
+            <h3 style={{ margin: '0 0 15px' }}>📅 근무 일정 확인 요청</h3>
+            <p style={{ color: '#666', fontSize: '14px', marginBottom: '15px' }}>
+              관리자가 등록한 근무 일정이 있습니다. 확인해 주세요.
+            </p>
+            <div style={{ maxHeight: '300px', overflowY: 'auto', marginBottom: '20px' }}>
+              {pendingSchedules.map((sch: any) => (
+                <div key={sch.schedule_id} style={{
+                  border: '1px solid #eee', borderRadius: '8px', padding: '10px', marginBottom: '8px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 'bold' }}>
+                      {new Date(sch.start_time).toLocaleDateString()}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#555' }}>
+                      {new Date(sch.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -
+                      {new Date(sch.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      <br />
+                      ({sch.shift_type})
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleConfirmSchedule(sch.schedule_id)}
+                    style={{
+                      background: '#2196F3', color: 'white', border: 'none', padding: '6px 12px',
+                      borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold'
+                    }}
+                  >
+                    확정
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <button
+                onClick={() => setIsScheduleModalOpen(false)}
+                style={{
+                  background: '#f5f5f5', color: '#333', border: 'none', padding: '8px 16px',
+                  borderRadius: '6px', cursor: 'pointer'
+                }}
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
