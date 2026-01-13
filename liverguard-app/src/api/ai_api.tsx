@@ -429,3 +429,45 @@ export const buildMRNAArray = (
   // Record<string, number>인 경우 값들을 배열로 변환
   return Object.values(pathwayScores);
 };
+
+
+// ===========================
+// DDI (Drug-Drug Interaction) API
+// ===========================
+
+/**
+ * DDI 분석 결과 데이터 구조
+ */
+export interface DDIAnalysisResponse {
+  cases: {
+    standard_dur: {
+      found: boolean;
+      description: string;
+    };
+    ai_personalized: {
+      found: boolean;
+      description: string;
+      mechanism: string;
+      risk_level: 'RED' | 'YELLOW' | 'GREEN';
+      alternatives: string[];
+    };
+  };
+}
+
+/**
+ * DDI 상호작용 분석 요청
+ * POST /api/doctor/ddi/analyze/
+ */
+export const analyzeDDI = async (drugs: string[]): Promise<DDIAnalysisResponse> => {
+  try {
+    // apiClient는 내부적으로 'api/'를 base로 가질 것이므로 'doctor/ddi/analyze/'만 적습니다.
+    const response = await apiClient.post<DDIAnalysisResponse>(
+      "doctor/ddi/analyze/",
+      { drugs }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Failed to analyze DDI:", error);
+    throw error;
+  }
+};
