@@ -301,7 +301,7 @@ export default function AdministrationSidebar({
                             <div className={styles.profileName}>{staffName}</div>
                             <div className={styles.departmentTag}>{departmentName}</div>
                             <div className={styles.statusInfo}>
-                                상태: <span className={styles.statusBadge}>근무중</span>
+                                상태: <span className={styles.statusBadge}> 근무중 </span>
                             </div>
                         </div>
                     </div>

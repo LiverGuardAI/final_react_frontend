@@ -454,7 +454,7 @@ export default function OrderList({ refreshTrigger, onOpenVitalCheckModal, showI
                                                     style={{
                                                         padding: '8px 16px',
                                                         backgroundColor: '#B3E5FC',
-                                                        color: '#0277BD',
+                                                        color: '#ffffffff',
                                                         border: 'none',
                                                         borderRadius: '6px',
                                                         fontSize: '13px',
