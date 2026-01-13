@@ -18,7 +18,7 @@ export default function RadiologyHomePage() {
   };
 
   // 스케줄 확인 로직
-  const [pendingSchedules, setPendingSchedules] = useState([]);
+  const [pendingSchedules, setPendingSchedules] = useState<any[]>([]);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const { user } = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -26,7 +26,7 @@ export default function RadiologyHomePage() {
     const checkPendingSchedules = async () => {
       if (!user || !user.id) return;
       try {
-        const { getDutySchedules } = await import('../../api/administrationApi');
+        const { getDutySchedules } = await import('../../api/hospitalOpsApi');
         const data = await getDutySchedules(undefined, undefined, user.id);
         const pending = data.filter((s: any) => s.schedule_status === 'PENDING');
         if (pending.length > 0) {
@@ -42,7 +42,7 @@ export default function RadiologyHomePage() {
 
   const handleConfirmSchedule = async (scheduleId: number) => {
     try {
-      const { confirmDutySchedule } = await import('../../api/administrationApi');
+      const { confirmDutySchedule } = await import('../../api/hospitalOpsApi');
       await confirmDutySchedule(scheduleId);
       setPendingSchedules((prev: any[]) => prev.filter(s => s.schedule_id !== scheduleId));
       if (pendingSchedules.length <= 1) {

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { getWaitingQueue } from '../api/administration_api';
+import { getWaitingQueue } from '../api/receptionApi';
 
 interface QueueItem {
   encounter_id: number;

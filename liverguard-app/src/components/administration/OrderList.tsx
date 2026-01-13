@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getPendingOrders, getInProgressOrders, confirmOrder, assignDoctorToImagingOrder, updateEncounter, type PendingOrder } from '../../api/administrationApi';
+import { getPendingOrders, getInProgressOrders, confirmOrder, assignDoctorToImagingOrder, updateEncounter, type PendingOrder } from '../../api/hospitalOpsApi';
 import { useAdministrationData } from '../../contexts/AdministrationContext';
 import type { Doctor } from '../../hooks/useDoctors';
 import styles from './OrderList.module.css';

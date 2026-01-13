@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { getDashboardStats } from '../api/administration_api';
+import { getDashboardStats } from '../api/receptionApi';
 
 interface DashboardStats {
   total_patients: number;

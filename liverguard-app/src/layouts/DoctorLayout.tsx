@@ -229,7 +229,7 @@ export default function DoctorLayout() {
       // Let's fetch next 30 days or similar? Or just all.
       // Step 196: API takes startDate, endDate, userId.
       // If I pass nothing for dates, it returns all? Yes.
-      const { getDutySchedules } = await import('../api/administrationApi');
+      const { getDutySchedules } = await import('../api/hospitalOpsApi');
       const data = await getDutySchedules(undefined, undefined, user.id);
       const pending = data.filter((s: any) => s.schedule_status === 'PENDING');
       if (pending.length > 0) {
@@ -243,7 +243,7 @@ export default function DoctorLayout() {
 
   const handleConfirmSchedule = async (scheduleId: number) => {
     try {
-      const { confirmDutySchedule } = await import('../api/administrationApi');
+      const { confirmDutySchedule } = await import('../api/hospitalOpsApi');
       await confirmDutySchedule(scheduleId);
       setPendingSchedules(prev => prev.filter(s => s.schedule_id !== scheduleId));
       if (pendingSchedules.length <= 1) {

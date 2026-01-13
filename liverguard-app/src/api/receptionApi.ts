@@ -1,4 +1,4 @@
-// src/api/administration_api.ts
+// src/api/receptionApi.ts
 import apiClient from "./axiosConfig";
 
 // ==================== 대시보드 ====================

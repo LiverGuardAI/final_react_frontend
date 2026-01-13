@@ -18,15 +18,20 @@ import {
   type PatientRegistrationData,
   type PatientUpdateData,
   type AppSyncRequest
-} from "../../api/administrationApi";
+} from "../../api/hospitalOpsApi";
 import {
+  getAdministrationDashboard,
+  getWaitingQueue,
+  getEncounters,
   createEncounter,
   getAppointments,
+  getAppointmentDetail,
+  createAppointment,
   updateAppointment,
   cancelEncounter,
   updateEncounter,
   createQuestionnaire
-} from "../../api/administration_api";
+} from "../../api/receptionApi";
 import styles from './Dashboard.module.css';
 
 import CheckinModal from '../../components/administration/CheckinModal';
@@ -38,7 +43,7 @@ import QuestionnaireModal, { type QuestionnaireData } from '../../components/adm
 import EncounterDetailModal from '../../components/administration/EncounterDetailModal';
 import OrderList from '../../components/administration/OrderList';
 import VitalMeasurementModal, { type VitalOrPhysicalData } from '../../components/administration/VitalMeasurementModal';
-import { submitVitalOrPhysicalData, type PendingOrder, getInProgressOrders } from '../../api/administrationApi';
+import { submitVitalOrPhysicalData, type PendingOrder, getInProgressOrders } from '../../api/hospitalOpsApi';
 
 interface Patient {
   id: string;  // patient_id is a string like "P251230002"

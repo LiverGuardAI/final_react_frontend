@@ -4,8 +4,8 @@ import styles from '../../pages/administration/Dashboard.module.css';
 import PatientActionModal from './PatientActionModal';
 import QuestionnaireModal, { type QuestionnaireData } from './QuestionnaireModal';
 import PatientDetailModal from './PatientDetailModal';
-import { updateEncounter, createQuestionnaire, cancelEncounter } from '../../api/administration_api';
-import { getPatientDetail, updatePatient, type PatientUpdateData } from '../../api/administrationApi';
+import { updateEncounter, createQuestionnaire, cancelEncounter } from '../../api/receptionApi';
+import { getPatientDetail, updatePatient, type PatientUpdateData } from '../../api/hospitalOpsApi';
 
 interface AdministrationSidebarProps {
     staffName?: string;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import styles from "./PatientManagementPage.module.css";
-import { getPatients, getEncounters, getAppointments, createQuestionnaire } from "../../api/administration_api";
-import { updatePatient, type PatientUpdateData } from "../../api/administrationApi";
+import { getPatients, getEncounters, getAppointments, createQuestionnaire } from "../../api/receptionApi";
+import { updatePatient, type PatientUpdateData } from "../../api/hospitalOpsApi";
 import VitalMeasurementModal from "../../components/administration/VitalMeasurementModal";
 import PhysicalExamModal from "../../components/administration/PhysicalExamModal";
 import QuestionnaireModal from "../../components/administration/QuestionnaireModal";

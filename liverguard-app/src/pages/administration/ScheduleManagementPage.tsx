@@ -1,7 +1,7 @@
 // src/pages/administration/ScheduleManagementPage.tsx
 import React, { useState, useEffect } from 'react';
 import styles from './ScheduleManagement.module.css';
-import { getDutySchedules, createDutySchedule, confirmDutySchedule, deleteDutySchedule, type DutyScheduleData } from '../../api/administrationApi';
+import { getDutySchedules, createDutySchedule, confirmDutySchedule, deleteDutySchedule, type DutyScheduleData } from '../../api/hospitalOpsApi';
 import apiClient from '../../api/axiosConfig';
 
 // Types

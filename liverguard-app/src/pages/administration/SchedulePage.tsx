@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import styles from './SchedulePage.module.css';
-import { getAvailableDoctors } from '../../api/administration_api';
-import { getAppointments, createAppointment, updateAppointment } from '../../api/administration_api';
+import { getAvailableDoctors } from '../../api/receptionApi';
+import { getAppointments, createAppointment, updateAppointment } from '../../api/receptionApi';
 import { usePatients } from '../../hooks/usePatients';
 
 interface Doctor {
@@ -341,9 +341,8 @@ export default function SchedulePage() {
                 {currentMonthDays.map((day) => (
                   <div
                     key={day}
-                    className={`${styles.day} ${isToday(day) ? styles.today : ''} ${
-                      isSelected(day) ? styles.selected : ''
-                    }`}
+                    className={`${styles.day} ${isToday(day) ? styles.today : ''} ${isSelected(day) ? styles.selected : ''
+                      }`}
                     onClick={() => handleDateClick(day)}
                   >
                     {day}

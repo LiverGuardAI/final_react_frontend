@@ -1,4 +1,4 @@
-// src/api/administrationApi.tsx
+// src/api/hospitalOpsApi.ts
 import apiClient from "./axiosConfig";
 
 // 환자 등록 데이터 타입

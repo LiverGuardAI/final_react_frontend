@@ -20,7 +20,7 @@ const AdministrationLayout = () => {
         const checkPendingSchedules = async () => {
             if (!user || !user.id) return;
             try {
-                const { getDutySchedules } = await import('../api/administrationApi');
+                const { getDutySchedules } = await import('../api/hospitalOpsApi');
                 const data = await getDutySchedules(undefined, undefined, user.id);
                 // Filter for PENDING schedules
                 const pending = data.filter((s: any) => s.schedule_status === 'PENDING');
@@ -37,7 +37,7 @@ const AdministrationLayout = () => {
 
     const handleConfirmSchedule = async (scheduleId: number) => {
         try {
-            const { confirmDutySchedule } = await import('../api/administrationApi');
+            const { confirmDutySchedule } = await import('../api/hospitalOpsApi');
             await confirmDutySchedule(scheduleId);
             setPendingSchedules(prev => prev.filter(s => s.schedule_id !== scheduleId));
             if (pendingSchedules.length <= 1) {
