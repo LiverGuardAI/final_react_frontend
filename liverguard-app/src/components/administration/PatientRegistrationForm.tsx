@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import styles from '../../pages/administration/HomePage.module.css';
+import styles from "../../pages/administration/Dashboard.module.css";
 import type { PatientRegistrationData } from '../../api/administrationApi';
 
 interface PatientRegistrationFormProps {

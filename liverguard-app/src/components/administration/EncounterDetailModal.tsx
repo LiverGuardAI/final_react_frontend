@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import styles from '../../pages/administration/HomePage.module.css';
+import styles from "../../pages/administration/Dashboard.module.css";
 import { getEncounterDetail, getPatientImagingOrders, getPatientLabOrders, type EncounterDetail, type ImagingOrder, type LabOrder } from '../../api/doctorApi';
 
 interface EncounterDetailModalProps {

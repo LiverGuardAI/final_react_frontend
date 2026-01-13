@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import styles from '../../pages/administration/HomePage.module.css';
+import styles from "../../pages/administration/Dashboard.module.css";
 
 interface QuestionnaireModalProps {
   isOpen: boolean;
@@ -221,10 +221,10 @@ const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
                 jaundice: '황달',
                 fever: '발열',
               }).map(([key, label]) => (
-                <label key={key} htmlFor={`symptom_${key}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <label key={key} htmlFor={`symptom_${key} `} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                   <input
-                    id={`symptom_${key}`}
-                    name={`symptom_${key}`}
+                    id={`symptom_${key} `}
+                    name={`symptom_${key} `}
                     type="checkbox"
                     checked={formData.symptoms[key as keyof typeof formData.symptoms] as boolean}
                     onChange={(e) => setFormData({
@@ -266,10 +266,10 @@ const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
                 hypertension: '고혈압',
                 cancer: '암',
               }).map(([key, label]) => (
-                <label key={key} htmlFor={`medical_${key}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <label key={key} htmlFor={`medical_${key} `} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                   <input
-                    id={`medical_${key}`}
-                    name={`medical_${key}`}
+                    id={`medical_${key} `}
+                    name={`medical_${key} `}
                     type="checkbox"
                     checked={formData.medical_history[key as keyof typeof formData.medical_history] as boolean}
                     onChange={(e) => setFormData({

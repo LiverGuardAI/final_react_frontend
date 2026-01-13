@@ -12,6 +12,7 @@ export interface Patient {
   address: string;
   registrationDate: string;
   lastVisit?: string;
+  totalVisits?: number;
 }
 
 export const usePatients = () => {
@@ -28,7 +29,6 @@ export const usePatients = () => {
       const response = await getPatientList(searchQuery);
 
       const formattedPatients: Patient[] = response.results.map((p: any) => {
-        const hasAppProfile = Boolean(p.profile);
         return {
           id: p.patient_id,
           name: p.name,
@@ -39,7 +39,8 @@ export const usePatients = () => {
           emergencyContact: 'N/A',
           address: 'N/A',
           registrationDate: p.created_at ? new Date(p.created_at).toLocaleDateString('ko-KR') : 'N/A',
-          lastVisit: hasAppProfile ? 'N/A' : (p.updated_at ? new Date(p.updated_at).toLocaleDateString('ko-KR') : 'N/A'),
+          lastVisit: p.last_visit ? new Date(p.last_visit).toLocaleDateString('ko-KR') : '없음',
+          totalVisits: p.total_visits || 0
         };
       });
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from '../../pages/administration/HomePage.module.css';
+import styles from '../../pages/administration/Dashboard.module.css';
 
 interface Patient {
   id: string;

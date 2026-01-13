@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import styles from '../../pages/administration/HomePage.module.css';
+import React, { useEffect, useState } from 'react';
+import styles from '../../pages/administration/Dashboard.module.css';
 
 interface Patient {
   id: string;
@@ -18,6 +18,12 @@ interface PatientDetailModalProps {
   onSave: (data: any) => Promise<void>;
   onCancelEdit: () => void;
 }
+
+const toGenderValue = (gender: string) => {
+  if (gender === '남' || gender === 'M') return 'M';
+  if (gender === '여' || gender === 'F') return 'F';
+  return '';
+};
 
 const PatientDetailModal: React.FC<PatientDetailModalProps> = ({
   isOpen,
@@ -40,7 +46,7 @@ const PatientDetailModal: React.FC<PatientDetailModalProps> = ({
       setEditForm({
         name: patient.name || '',
         date_of_birth: patient.birthDate || '',
-        gender: patient.gender === '남' ? 'M' : patient.gender === '여' ? 'F' : (patient.gender as '' | 'M' | 'F'),
+        gender: toGenderValue(patient.gender || ''),
         phone: patient.phone || '',
       });
     }
@@ -65,23 +71,23 @@ const PatientDetailModal: React.FC<PatientDetailModalProps> = ({
             <div className={styles.patientDetails}>
               <div className={styles.detailRow}>
                 <span className={styles.detailLabel}>환자 ID:</span>
-                <span className={styles.detailValue}>{patient.id}</span>
+                <span className={styles.detailValue}>    {patient.id}</span>
               </div>
               <div className={styles.detailRow}>
                 <span className={styles.detailLabel}>이름:</span>
-                <span className={styles.detailValue}>{patient.name}</span>
+                <span className={styles.detailValue}>    {patient.name}</span>
               </div>
               <div className={styles.detailRow}>
                 <span className={styles.detailLabel}>생년월일:</span>
-                <span className={styles.detailValue}>{patient.birthDate}</span>
+                <span className={styles.detailValue}>    {patient.birthDate}</span>
               </div>
               <div className={styles.detailRow}>
                 <span className={styles.detailLabel}>성별:</span>
-                <span className={styles.detailValue}>{patient.gender}</span>
+                <span className={styles.detailValue}>    {patient.gender}</span>
               </div>
               <div className={styles.detailRow}>
                 <span className={styles.detailLabel}>연락처:</span>
-                <span className={styles.detailValue}>{patient.phone}</span>
+                <span className={styles.detailValue}>    {patient.phone}</span>
               </div>
 
               <div className={styles.modalActions}>

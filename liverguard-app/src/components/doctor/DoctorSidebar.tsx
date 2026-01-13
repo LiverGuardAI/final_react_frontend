@@ -95,13 +95,13 @@ const DoctorSidebar = memo(function DoctorSidebar({
                     <div className={styles.patientActions}>
                       {/* 문진표 상태 뱃지 */}
                       <span style={{
-                        background: patient.questionnaireStatus === 'COMPLETED' ? '#4CAF50' :
-                          patient.questionnaireStatus === 'IN_PROGRESS' ? '#FF9800' : '#9E9E9E',
-                        color: 'white',
-                        padding: '4px 8px',
-                        borderRadius: '12px',
-                        fontSize: '11px',
-                        fontWeight: 'bold',
+                        background: patient.questionnaireStatus === 'COMPLETED' ? '#D7E8FB' :
+                          patient.questionnaireStatus === 'IN_PROGRESS' ? '#9ECFF5' : '#E3F2FD',
+                        color: patient.questionnaireStatus === 'IN_PROGRESS' ? '#045A8C' : '#52759C',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '600',
                         marginRight: '6px',
                         whiteSpace: 'nowrap'
                       }}>
@@ -143,13 +143,13 @@ const DoctorSidebar = memo(function DoctorSidebar({
                     <div className={styles.patientActions}>
                       {/* 문진표 상태 뱃지 */}
                       <span style={{
-                        background: patient.questionnaireStatus === 'COMPLETED' ? '#4CAF50' :
-                          patient.questionnaireStatus === 'IN_PROGRESS' ? '#FF9800' : '#9E9E9E',
-                        color: 'white',
-                        padding: '6px 10px',
-                        borderRadius: '8px',
+                        background: patient.questionnaireStatus === 'COMPLETED' ? '#D7E8FB' :
+                          patient.questionnaireStatus === 'IN_PROGRESS' ? '#9ECFF5' : '#E3F2FD',
+                        color: patient.questionnaireStatus === 'IN_PROGRESS' ? '#045A8C' : '#52759C',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
                         fontSize: '12px',
-                        fontWeight: 'bold',
+                        fontWeight: '600',
                         marginRight: '8px',
                         whiteSpace: 'nowrap',
                         display: 'flex',

@@ -1,6 +1,6 @@
 import React from "react";
 import LisSidebar from "../../components/lis/LisSidebar";
-import styles from "./HomePage.module.css";
+import styles from "../../pages/administration/Dashboard.module.css";
 
 const LisReceptionPage: React.FC = () => {
   const bloodReceipts = [

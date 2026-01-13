@@ -7,7 +7,7 @@ import {
   type CreateGenomicDataPayload,
   type CreateLabResultPayload,
 } from "../../api/doctorApi";
-import styles from "./HomePage.module.css";
+import styles from "../../pages/administration/Dashboard.module.css";
 
 const LisResultEntryPage: React.FC = () => {
   const pathwayKeys = [

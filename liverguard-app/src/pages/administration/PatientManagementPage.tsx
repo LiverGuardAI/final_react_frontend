@@ -93,43 +93,17 @@ const PatientManagementPage: React.FC = () => {
     try {
       const response = await getPatients(search);
 
-      const patientsWithStats = await Promise.all(
-        response.results.map(async (p: any) => {
-          try {
-            const encountersData = await getEncounters(p.patient_id);
-            const encounters = encountersData.results || [];
-            const completedEncounters = encounters.filter((e: any) => e.encounter_status === 'COMPLETED');
-
-            return {
-              id: p.patient_id,
-              patientId: p.patient_id,
-              name: p.name,
-              birthDate: p.date_of_birth || 'N/A',
-              gender: p.gender === 'M' ? '남' : p.gender === 'F' ? '여' : 'N/A',
-              phone: p.phone || 'N/A',
-              registrationDate: p.created_at ? p.created_at.split('T')[0] : 'N/A',
-              lastVisitDate: completedEncounters.length > 0
-                ? completedEncounters[0].encounter_date
-                : '없음',
-              totalVisits: completedEncounters.length,
-            };
-          } catch (error) {
-            return {
-              id: p.patient_id,
-              patientId: p.patient_id,
-              name: p.name,
-              birthDate: p.date_of_birth || 'N/A',
-              gender: p.gender === 'M' ? '남' : p.gender === 'F' ? '여' : 'N/A',
-              phone: p.phone || 'N/A',
-              registrationDate: p.created_at ? p.created_at.split('T')[0] : 'N/A',
-              lastVisitDate: '없음',
-              totalVisits: 0,
-            };
-          }
-        })
-      );
-
-      setPatients(patientsWithStats);
+      setPatients(response.results.map((p: any) => ({
+        id: p.patient_id,
+        patientId: p.patient_id,
+        name: p.name,
+        birthDate: p.date_of_birth || 'N/A',
+        gender: p.gender === 'M' ? '남' : p.gender === 'F' ? '여' : 'N/A',
+        phone: p.phone || 'N/A',
+        registrationDate: p.created_at ? p.created_at.split('T')[0] : 'N/A',
+        lastVisitDate: p.last_visit ? p.last_visit.split('T')[0] : '없음',
+        totalVisits: p.total_visits || 0,
+      })));
     } catch (error) {
       console.error('환자 목록 조회 실패:', error);
     } finally {
@@ -350,13 +324,13 @@ const PatientManagementPage: React.FC = () => {
             className={`${styles.actionButton} ${styles.vitalBtn} ${selectionMode === "vital" ? styles.active : ""}`}
             onClick={() => handleModeChange("vital")}
           >
-            <span className={styles.icon}>❤️</span> 바이탈 측정
+            바이탈 측정
           </button>
           <button
             className={`${styles.actionButton} ${styles.physicalBtn} ${selectionMode === "physical" ? styles.active : ""}`}
             onClick={() => handleModeChange("physical")}
           >
-            <span className={styles.icon}>📏</span> 신체 계측
+            신체 계측
           </button>
         </div>
         <div className={styles.searchBox}>

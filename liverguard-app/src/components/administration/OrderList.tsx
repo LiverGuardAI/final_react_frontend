@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getPendingOrders, getInProgressOrders, confirmOrder, assignDoctorToImagingOrder, updateEncounter, type PendingOrder } from '../../api/administrationApi';
-import { useDoctors } from '../../hooks/useDoctors';
+import { useAdministrationData } from '../../contexts/AdministrationContext';
+import type { Doctor } from '../../hooks/useDoctors';
 import styles from './OrderList.module.css';
 
 interface OrderListProps {
@@ -26,7 +27,7 @@ export default function OrderList({ refreshTrigger, onOpenVitalCheckModal, showI
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
 
-    const { doctors } = useDoctors();
+    const { doctors } = useAdministrationData();
 
     const fetchOrders = async () => {
         try {
@@ -237,7 +238,7 @@ export default function OrderList({ refreshTrigger, onOpenVitalCheckModal, showI
     }
 
     // 영상의학과 의사 필터링
-    const radiologyDoctors = doctors.filter(d => d.department?.dept_name === '영상의학과');
+    const radiologyDoctors = doctors.filter((d: Doctor) => d.department?.dept_name === '영상의학과');
 
     const totalPages = Math.ceil(groupedOrders.length / itemsPerPage);
     const currentOrders = groupedOrders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -256,7 +257,7 @@ export default function OrderList({ refreshTrigger, onOpenVitalCheckModal, showI
                                 style={{
                                     padding: '12px 16px',
                                     backgroundColor: '#FFFFFF',
-                                    borderLeft: '3px solid #FFE082',
+                                    borderLeft: '3px solid #B3E5FC',
                                     borderRadius: '4px',
                                     boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                                     display: 'flex',
@@ -281,12 +282,12 @@ export default function OrderList({ refreshTrigger, onOpenVitalCheckModal, showI
                                     fontSize: '12px',
                                     padding: '4px 10px',
                                     borderRadius: '12px',
-                                    backgroundColor: '#FFE082',
-                                    color: '#F57F17',
+                                    backgroundColor: '#B3E5FC',
+                                    color: '#0056b3',
                                     fontWeight: 'bold',
                                     whiteSpace: 'nowrap'
                                 }}>
-                                    📩 오더 {group.orders.length}건
+                                    오더 {group.orders.length}건
                                 </span>
 
                                 {/* 환자 이름 */}
@@ -502,7 +503,7 @@ export default function OrderList({ refreshTrigger, onOpenVitalCheckModal, showI
                                                                 onChange={(e) => setSelectedDoctor(Number(e.target.value))}
                                                             >
                                                                 <option value="">의사 선택</option>
-                                                                {radiologyDoctors.map(doc => (
+                                                                {radiologyDoctors.map((doc: Doctor) => (
                                                                     <option key={doc.doctor_id} value={doc.doctor_id}>
                                                                         {doc.name} ({doc.room_number || '방 미배정'})
                                                                     </option>

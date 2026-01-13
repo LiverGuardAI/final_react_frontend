@@ -21,7 +21,8 @@ const SurvivalAnalysisPage = lazy(() => import("../pages/doctor/SurvivalAnalysis
 const DDIPage = lazy(() => import("../pages/doctor/DDI"));
 const MedicalRecordPage = lazy(() => import("../pages/doctor/MedicalRecordPage"));
 const AdministrationLayout = lazy(() => import("../layouts/AdministrationLayout"));
-const AdministrationHomePage = lazy(() => import("../pages/administration/HomePage"));
+const AdministrationDashboard = lazy(() => import("../pages/administration/Dashboard"));
+const AdminSchedulePage = lazy(() => import("../pages/administration/SchedulePage"));
 const AppointmentManagementPage = lazy(() => import("../pages/administration/AppointmentManagementPage"));
 const PatientManagementPage = lazy(() => import("../pages/administration/PatientManagementPage"));
 const RadiologyHomePage = lazy(() => import("../pages/radiology/HomePage"));
@@ -86,7 +87,8 @@ const router = createBrowserRouter(
       {/* administration */}
       <Route path="/administration/login" element={<Suspense fallback={<LoadingFallback />}><UnifiedLoginPage initialRole="administration" /></Suspense>} />
       <Route path="/administration" element={<Suspense fallback={<LoadingFallback />}><AdministrationLayout /></Suspense>}>
-        <Route path="home" element={<Suspense fallback={<LoadingFallback />}><AdministrationHomePage /></Suspense>} />
+        <Route path="home" element={<Suspense fallback={<LoadingFallback />}><AdministrationDashboard /></Suspense>} />
+        <Route path="schedule" element={<Suspense fallback={<LoadingFallback />}><AdminSchedulePage /></Suspense>} />
         <Route path="appointments" element={<Suspense fallback={<LoadingFallback />}><AppointmentManagementPage /></Suspense>} />
         <Route path="patients" element={<Suspense fallback={<LoadingFallback />}><PatientManagementPage /></Suspense>} />
       </Route>

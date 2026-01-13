@@ -136,7 +136,7 @@ export default function BloodResultPage() {
                 domain={['auto', 'auto']} // 데이터 범위에 맞춰 자동 조정
               />
               <Tooltip
-                content={({ active, payload, label }) => {
+                content={({ active, payload, label }: any) => {
                   if (active && payload && payload.length) {
                     const dataItem = payload[0].payload;
                     return (
