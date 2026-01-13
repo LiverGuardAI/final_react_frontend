@@ -433,8 +433,9 @@ export interface GenomicDataItem {
   created_at?: string;
   measured_at?: string | null;
   patient?: string;
-  pathway_scores?: Record<string, number> | number[] | null;
+  pathway_scores?: Record<string, number> | null;
 }
+
 
 export const getPatientGenomicData = async (
   patientId: string,

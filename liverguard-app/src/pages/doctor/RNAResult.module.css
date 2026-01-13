@@ -1,0 +1,339 @@
+.container {
+  padding: 32px;
+  background-color: #f3f4f6;
+  height: 100%;
+  overflow-y: auto;
+  font-family: 'Inter', sans-serif;
+  color: #1f2937;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.pageTitle {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.searchbar {
+  display: inline-block;
+}
+
+.patientInfo {
+  display: inline-block;
+  margin-right: 30px;
+  font-size: 14px;
+  color: #6b7280;
+  background: transparent;
+  padding: 8px 0;
+}
+
+/**/
+.divider {
+  margin: 0 8px;
+  color: #e5e7eb;
+}
+
+/* 날짜 선택 드롭다운 스타일 */
+.dateSelector {
+  display: inline-block;
+  align-items: center;
+  background: white;
+  padding: 6px 16px;
+  border-radius: 20px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  gap: 12px;
+}
+
+.dateSelectorLabel {
+  font-size: 13px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.dateDropdown {
+  padding: 4px 12px;
+  border: none;
+  border-radius: 16px;
+  background: transparent;
+  font-size: 13px;
+  color: #374151;
+  cursor: pointer;
+  min-width: 130px;
+}
+
+.dateDropdown:hover {
+  border-color: #3b82f6;
+}
+
+.dateDropdown:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.dateDropdown option {
+  color: #111827;
+  padding: 10px;
+  font-weight: 500;
+}
+
+/* Dashboard Grid Layout */
+.dashboardGrid {
+  display: grid;
+  grid-template-columns: 400px 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.panel {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+.panelTitle {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: #111827;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 오른쪽 히트맵 영역 */
+.heatmapWrapper {
+  overflow-x: auto;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.heatmapGrid {
+  display: grid;
+  gap: 3px;
+  flex: 0.9;
+}
+
+.heatmapHeaderCell {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4b5563;
+  padding-bottom: 8px;
+  white-space: nowrap;
+}
+
+.heatmapRowLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 10px;
+  height: 30px;
+  white-space: nowrap;
+}
+
+.heatmapCell {
+  width: 100%;
+  height: 24px;
+  border-radius: 3px;
+  position: relative;
+  transition: transform 0.2s;
+}
+
+.heatmapCell:hover {
+  transform: scale(1.1);
+  z-index: 10;
+  border: 1px solid #1f2937;
+  /*box-shadow: 0 2px 4px rgba(0,0,0,0.1);*/
+}
+
+.legend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px;
+  font-size: 11px;
+  color: #6b7280;
+  gap: 8px;
+}
+
+.legendLabels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.legendGradient {
+  flex: 1;
+  max-width: none;
+  height: 12px;
+  background: linear-gradient(to right, #3b82f6, #38bdf8, #22c55e, #eab308, #ef4444);
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+/* 하단 테이블 */
+.tableSection {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.tableResponsive {
+  overflow-x: auto;
+}
+
+.dataTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.dataTable th {
+  text-align: left;
+  padding: 12px 16px;
+  background-color: #f9fafb;
+  color: #6b7280;
+  font-weight: 600;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.dataTable td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #1f2937;
+}
+
+/**/
+.dataTable tr:last-child td {
+  border-bottom: none;
+}
+
+.scoreValue {
+  font-weight: 600;
+  /*font-variant-numeric: tabular-nums;*/
+}
+
+.badge {
+  display: inline-flex;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge.high {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.badge.low {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.badge.neutral {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.loadingText,
+.emptyText {
+  text-align: center;
+  padding: 40px;
+  color: #9ca3af;
+  font-size: 14px;
+  /*width: 100%;*/
+}
+
+/* Top Activated Pathways 리스트 스타일 */
+.panelTitleBlock {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+}
+
+.panelTitleBlock .panelTitle {
+  font-size: 17px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.panelDate {
+  font-size: 12px;
+  color: #6b7280;
+  text-align: right;
+  margin-top: 4px;
+}
+
+.pathwayListHeader {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 8px;
+}
+
+.pathwayList {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.pathwayItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pathwayNameRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pathwayName {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.pathwayScore {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pathwayBarWrapper {
+  height: 7px;
+  background: #f3f4f6;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.pathwayBar {
+  height: 100%;
+  border-radius: 5px;
+}

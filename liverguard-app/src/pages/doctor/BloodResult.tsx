@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
 } from 'recharts';
 import styles from './BloodResult.module.css';
 import { getPatientLabResults, type LabResult } from '../../api/doctorApi';
@@ -25,10 +25,18 @@ const LAB_CONFIG: Record<string, { label: string; unit: string; min?: number; ma
 };
 
 export default function BloodResultPage() {
+  // 라우터에서 받은 patientId 직접 사용
   const { patientId } = useParams<{ patientId: string }>();
+  // 개발 테스트를 위해 특정 환자 ID로 고정
+  // const { patientId: routePatientId } = useParams<{ patientId: string }>();
+  // const patientId = 'P20240009';
+
   const [results, setResults] = useState<LabResult[]>([]);
-  const [selectedMetric, setSelectedMetric] = useState<string>('afp'); // 기본 선택: AFP
+  const [selectedMetric, setSelectedMetric] = useState<string>('afp');
   const [loading, setLoading] = useState(false);
+
+  // 선택된 날짜 인덱스 (기본값: 가장 최신 = results.length - 1)
+  const [selectedDateIndex, setSelectedDateIndex] = useState<number>(-1);
 
   useEffect(() => {
     if (!patientId) {
@@ -39,9 +47,11 @@ export default function BloodResultPage() {
     getPatientLabResults(patientId).then(data => {
       // 과거 -> 최신 순으로 정렬 (그래프용)
       const sorted = data.results.sort((a, b) =>
-        new Date(a.test_date).getTime() - new Date(b.test_date).getTime()
+        new Date(b.measured_at || b.test_date).getTime() - new Date(a.measured_at || a.test_date).getTime()
       );
       setResults(sorted);
+      // 데이터 로드 후, 가장 최신 날짜를 기본 선택
+      setSelectedDateIndex(0);
     }).catch(err => {
       console.error(err);
       setResults([]);
@@ -50,15 +60,17 @@ export default function BloodResultPage() {
     });
   }, [patientId]);
 
-  // 최신 결과 데이터 (데이터가 없으면 undefined)
-  const latest = results.length > 0 ? results[results.length - 1] : undefined;
+  // 선택된 날짜의 결과 데이터
+  const selectedData = selectedDateIndex >= 0 && results[selectedDateIndex]
+    ? results[selectedDateIndex]
+    : undefined;
 
   // 그래프용 데이터 변환
   const chartData = useMemo(() => {
     return results.map(r => {
       const val = r[selectedMetric as keyof LabResult];
       return {
-        date: r.test_date.split('T')[0],  // YYYY-MM-DD
+        date: (r.measured_at || r.test_date).split('T')[0],
         value: getChartValue(selectedMetric, val), // 문자열(A,B,C)을 숫자로 변환
         originalValue: val // 툴팁 표시용 원본 값
       };
@@ -72,15 +84,34 @@ export default function BloodResultPage() {
     <div className={styles.container}>
       <header className={styles.header}>
         <div className={styles.patientInfo}>
-          Patient ID : {patientId || '-'} <span className={styles.divider}>|</span> Last Update : {latest?.test_date?.split('T')[0] || '-'}
+          Patient ID : {patientId || '-'}
+          <span className={styles.divider}>|</span>
+          {/*"Sample Date" + 선택된 날짜 표시 */}
+          Sample Date : {selectedData?.measured_at?.split('T')[0] || '-'}
+        </div>
+
+        {/* 오른쪽에 날짜 선택 드롭다운 */}
+        <div className={styles.dateSelector}>
+          <span className={styles.dateSelectorLabel}>날짜 선택:</span>
+          <select
+            value={selectedDateIndex}
+            onChange={(e) => setSelectedDateIndex(Number(e.target.value))}
+            className={styles.dateDropdown}
+          >
+            {results.map((r, idx) => (
+              <option key={idx} value={idx}>
+                {r.test_date.split('T')[0]}
+              </option>
+            ))}
+          </select>
         </div>
       </header>
 
-      {/* 1. Summary Cards Section */}
+      {/* 1. Summary Cards Section - selectedData 사용 */}
       <div className={styles.cardsGrid}>
         {Object.entries(LAB_CONFIG).map(([key, conf]) => {
-          // 데이터가 없으면 '-' 처리
-          const value = latest ? (latest[key as keyof LabResult] as number) : undefined;
+          // selectedData 사용
+          const value = selectedData ? (selectedData[key as keyof LabResult] as number) : undefined;
           const status = getStatus(key, value);
           const isSelected = selectedMetric === key;
 
@@ -120,8 +151,16 @@ export default function BloodResultPage() {
         <h3 className={styles.sectionTitle}>{config.label} Trend Analysis</h3>
         <div className={styles.chartWrapper}>
           <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+            <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 10 }}>
+              {/* 그라데이션 정의 */}
+              <defs>
+                <linearGradient id="blueGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
               <XAxis
                 dataKey="date"
                 axisLine={false}
@@ -139,10 +178,16 @@ export default function BloodResultPage() {
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
                     const dataItem = payload[0].payload;
+                    const val = Number(dataItem.originalValue);
+
+                    let color = '#3b82f6'; // 기본: 파랑 (Normal)
+                    if (config.max !== undefined && val > config.max) color = '#ef4444'; // 높음: 빨강
+                    else if (config.min !== undefined && val < config.min) color = '#eab308'; // 낮음: 노랑
+
                     return (
                       <div style={{ background: 'white', padding: '10px', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
                         <p style={{ fontWeight: 'bold', marginBottom: '5px' }}>{label}</p>
-                        <p style={{ color: '#3b82f6' }}>
+                        <p style={{ color: color }}>
                           {config.label}: {dataItem.originalValue} {config.unit}
                         </p>
                       </div>
@@ -155,16 +200,17 @@ export default function BloodResultPage() {
                 <ReferenceLine y={config.max} stroke="#ef4444" strokeDasharray="3 3" label="Max" />
               )}
 
-              <Line
+              <Area
                 type="monotone"
                 dataKey="value"
-                stroke="#3b82f6"
+                stroke="#2563eb"
                 strokeWidth={3}
-                dot={{ r: 4, fill: 'white', stroke: '#3b82f6', strokeWidth: 2 }}
-                activeDot={{ r: 7, fill: '#3b82f6' }}
+                fill="url(#blueGradient)"
+                dot={{ r: 5, fill: 'white', stroke: '#2563eb', strokeWidth: 2 }}
+                activeDot={{ r: 8, fill: '#2563eb', stroke: 'white', strokeWidth: 2 }}
                 animationDuration={500}
               />
-            </LineChart>
+            </AreaChart>
           </ResponsiveContainer>
           {/* 데이터가 없을 때 안내 메시지 (그래프 위에 겹쳐서 표시) */}
           {!loading && chartData.length === 0 && (
