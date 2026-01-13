@@ -24,8 +24,9 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
   const WS_URL = React.useMemo(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const hostname = window.location.hostname;
-    return `${protocol}//${hostname}:8000/ws/clinic/`;
-  }, []);
+    const token = localStorage.getItem('access_token');
+    return `${protocol}//${hostname}:8000/ws/clinic/${token ? `?token=${token}` : ''}`;
+  }, [isAuthenticated]);
 
   const handleMessage = useCallback((data: any) => {
     // console.log('Global WS Message:', data); 
@@ -36,7 +37,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
     onMessage: handleMessage,
     onOpen: () => console.log('✅ Global WebSocket Connected'),
     onClose: () => console.log('⚠️ Global WebSocket Disconnected'),
-    enabled: isAuthenticated, // 오직 로그인 상태일 때만 연결
+    enabled: isAuthenticated && !!localStorage.getItem('access_token'), // 토큰이 있을 때만 연결
   });
 
   return (

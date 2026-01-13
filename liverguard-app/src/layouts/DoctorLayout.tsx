@@ -141,6 +141,13 @@ export default function DoctorLayout() {
     setIsPatientModalOpen(true);
   }, [setSelectedPatientId]);
 
+  const handleResumeConsultation = useCallback((patient: Patient, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setSelectedEncounterId(patient.encounterId);
+    setSelectedPatientId(patient.patientId);
+    navigate('/doctor/treatment');
+  }, [setSelectedEncounterId, setSelectedPatientId, navigate]);
+
   // 진료 시작 핸들러
   const handleStartConsultation = useCallback(async (patient: Patient, event: React.MouseEvent) => {
     event.stopPropagation(); // 카드 클릭 이벤트 전파 방지
@@ -270,6 +277,7 @@ export default function DoctorLayout() {
         completedPatients={completedPatients}
         onPatientCardClick={handlePatientCardClick}
         onStartConsultation={handleStartConsultation}
+        onResumeConsultation={handleResumeConsultation}
       />
 
       {/* 메인 영역 */}
