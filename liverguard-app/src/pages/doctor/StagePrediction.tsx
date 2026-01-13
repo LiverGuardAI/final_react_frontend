@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import * as api from '../../api/predictionApi';
-import * as adminApi from '../../api/administration_api';
 import * as aiApi from '../../api/ai_api';
 import FeatureSelectRow from '../../components/doctor/FeatureSelectRow';
 import type { CtSeriesItem, HCCDiagnosis, LabResult, PatientProfile } from '../../api/doctorApi';
@@ -334,10 +333,107 @@ const StagePrediction: React.FC = () => {
             오류: {predictionError}
           </div>
         )}
-        {predictionResult && (
-          <div style={{ padding: '10px', background: '#efe', borderRadius: '4px' }}>
-            <h3>병기 예측 결과</h3>
-            <pre>{JSON.stringify(predictionResult, null, 2)}</pre>
+        {predictionResult && predictionResult.result && (
+          <div className={styles.predictionResult}>
+            <h3 className={styles.resultTitle}>병기 예측 결과</h3>
+
+            {/* Main Prediction Card */}
+            <div className={styles.mainResultCard}>
+              <div className={styles.predictedStageLabel}>AI 예측 병기</div>
+              <div className={styles.predictedStageValue} style={{
+                color: predictionResult.result.stage_code === 0 ? '#10b981' :
+                       predictionResult.result.stage_code === 1 ? '#f59e0b' : '#ef4444'
+              }}>
+                {predictionResult.result.predicted_stage}
+              </div>
+
+              <div className={styles.clinicalInterpretation}>
+                {predictionResult.result.stage_code === 0 && (
+                  <>
+                    <div className={styles.interpretationTitle}>임상적 의미</div>
+                    <div className={styles.interpretationText}>
+                      조기 단계 간암으로 예측됩니다. 근치적 치료(절제술, 이식)가 가능할 수 있습니다.
+                    </div>
+                  </>
+                )}
+                {predictionResult.result.stage_code === 1 && (
+                  <>
+                    <div className={styles.interpretationTitle}>임상적 의미</div>
+                    <div className={styles.interpretationText}>
+                      중기 단계 간암으로 예측됩니다. 치료 옵션에 대한 다학제적 논의가 필요합니다.
+                    </div>
+                  </>
+                )}
+                {predictionResult.result.stage_code === 2 && (
+                  <>
+                    <div className={styles.interpretationTitle}>임상적 의미</div>
+                    <div className={styles.interpretationText}>
+                      진행성 간암으로 예측됩니다. 전신 치료 및 완화 치료를 고려해야 합니다.
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Probability Distribution */}
+            <div className={styles.probabilitySection}>
+              <h4 className={styles.sectionTitle}>병기별 확률 분포</h4>
+              <div className={styles.probabilityBars}>
+                {Object.entries(predictionResult.result.probabilities).map(([stage, prob]: [string, any]) => {
+                  const probability = typeof prob === 'number' ? prob : 0;
+                  const isStage1 = stage === 'Stage I';
+                  const isStage2 = stage === 'Stage II';
+                  const isStage3 = stage.includes('Stage III');
+                  const barColor = isStage1 ? '#10b981' : isStage2 ? '#f59e0b' : '#ef4444';
+
+                  return (
+                    <div key={stage} className={styles.probabilityBarRow}>
+                      <span className={styles.probabilityStageLabel}>{stage}</span>
+                      <div className={styles.probabilityBarContainer}>
+                        <div
+                          className={styles.probabilityBarFill}
+                          style={{
+                            width: `${probability * 100}%`,
+                            background: barColor
+                          }}
+                        />
+                      </div>
+                      <span className={styles.probabilityValue}>
+                        {(probability * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Additional Info */}
+            <div className={styles.additionalInfo}>
+              <div className={styles.infoChip}>
+                <span className={styles.infoChipLabel}>mRNA 사용:</span>
+                <span className={styles.infoChipValue}>
+                  {predictionResult.result.uses_mrna ? '사용' : '미사용'}
+                </span>
+              </div>
+              <div className={styles.infoChip}>
+                <span className={styles.infoChipLabel}>모델 버전:</span>
+                <span className={styles.infoChipValue}>
+                  {predictionResult.result.model_version}
+                </span>
+              </div>
+              <div className={styles.infoChip}>
+                <span className={styles.infoChipLabel}>예측 시간:</span>
+                <span className={styles.infoChipValue}>
+                  {new Date(predictionResult.result.prediction_timestamp).toLocaleString('ko-KR')}
+                </span>
+              </div>
+              <div className={styles.infoChip}>
+                <span className={styles.infoChipLabel}>분석 상태:</span>
+                <span className={styles.infoChipValue} style={{ color: '#10b981' }}>
+                  {predictionResult.message}
+                </span>
+              </div>
+            </div>
           </div>
         )}
       </div>

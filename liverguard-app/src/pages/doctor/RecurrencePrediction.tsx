@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import * as api from '../../api/predictionApi';
-import * as adminApi from '../../api/administration_api';
 import * as aiApi from '../../api/ai_api';
 import FeatureSelectRow from '../../components/doctor/FeatureSelectRow';
 import type { CtSeriesItem, GenomicDataItem, HCCDiagnosis, LabResult, PatientProfile } from '../../api/doctorApi';
@@ -402,10 +401,138 @@ const RecurrencePrediction: React.FC = () => {
             오류: {predictionError}
           </div>
         )}
-        {predictionResult && (
-          <div style={{ padding: '10px', background: '#efe', borderRadius: '4px' }}>
-            <h3>조기 재발 예측 결과</h3>
-            <pre>{JSON.stringify(predictionResult, null, 2)}</pre>
+        {predictionResult && predictionResult.result && (
+          <div className={styles.predictionResult}>
+            <h3 className={styles.resultTitle}>조기 재발 예측 결과</h3>
+
+            {/* Main Prediction Card */}
+            <div className={styles.mainResultCard}>
+              <div className={styles.predictedStageLabel}>AI 예측 재발 위험도</div>
+              <div className={styles.predictedStageValue} style={{
+                color: predictionResult.result.risk_level === 'Low' ? '#10b981' :
+                       predictionResult.result.risk_level === 'Medium' ? '#f59e0b' : '#ef4444'
+              }}>
+                {predictionResult.result.risk_level === 'Low' ? '낮음 (Low)' :
+                 predictionResult.result.risk_level === 'Medium' ? '중간 (Medium)' : '높음 (High)'}
+              </div>
+
+              <div className={styles.clinicalInterpretation}>
+                {predictionResult.result.prediction === 0 && (
+                  <>
+                    <div className={styles.interpretationTitle}>임상적 의미</div>
+                    <div className={styles.interpretationText}>
+                      조기 재발 가능성이 낮습니다. 표준 추적 관찰 프로토콜을 적용할 수 있습니다.
+                    </div>
+                  </>
+                )}
+                {predictionResult.result.prediction === 1 && predictionResult.result.risk_level === 'Medium' && (
+                  <>
+                    <div className={styles.interpretationTitle}>임상적 의미</div>
+                    <div className={styles.interpretationText}>
+                      중등도 재발 위험이 있습니다. 강화된 추적 관찰 및 보조 치료를 고려해야 합니다.
+                    </div>
+                  </>
+                )}
+                {predictionResult.result.prediction === 1 && predictionResult.result.risk_level === 'High' && (
+                  <>
+                    <div className={styles.interpretationTitle}>임상적 의미</div>
+                    <div className={styles.interpretationText}>
+                      조기 재발 가능성이 높습니다. 적극적인 보조 치료 및 집중 추적 관찰이 필요합니다.
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Recurrence Probability Bar */}
+              <div className={styles.recurrenceProbabilitySection}>
+                <div className={styles.probabilityHeader}>
+                  <span className={styles.probabilityHeaderLabel}>재발 확률</span>
+                  <span className={styles.probabilityHeaderValue}>
+                    {(predictionResult.result.relapse_probability * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <div className={styles.recurrenceBarTrack}>
+                  {/* Threshold marker */}
+                  <div
+                    className={styles.thresholdMarker}
+                    style={{
+                      left: `${predictionResult.result.threshold_used * 100}%`
+                    }}
+                  >
+                    <div className={styles.thresholdLine} />
+                    <div className={styles.thresholdLabel}>
+                      임계값<br/>{(predictionResult.result.threshold_used * 100).toFixed(1)}%
+                    </div>
+                  </div>
+
+                  {/* Probability fill */}
+                  <div
+                    className={styles.recurrenceBarFill}
+                    style={{
+                      width: `${predictionResult.result.relapse_probability * 100}%`,
+                      background: predictionResult.result.risk_level === 'Low' ? '#10b981' :
+                                 predictionResult.result.risk_level === 'Medium' ? '#f59e0b' : '#ef4444'
+                    }}
+                  />
+                </div>
+
+                {/* Risk scale indicators */}
+                <div className={styles.riskScale}>
+                  <div className={styles.riskScaleItem} style={{ color: '#10b981' }}>
+                    <div className={styles.riskScaleDot} style={{ background: '#10b981' }} />
+                    <span>낮음</span>
+                  </div>
+                  <div className={styles.riskScaleItem} style={{ color: '#f59e0b' }}>
+                    <div className={styles.riskScaleDot} style={{ background: '#f59e0b' }} />
+                    <span>중간</span>
+                  </div>
+                  <div className={styles.riskScaleItem} style={{ color: '#ef4444' }}>
+                    <div className={styles.riskScaleDot} style={{ background: '#ef4444' }} />
+                    <span>높음</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Prediction Result */}
+              <div className={styles.predictionBadge} style={{
+                background: predictionResult.result.prediction === 1 ? '#fee2e2' : '#d1fae5',
+                color: predictionResult.result.prediction === 1 ? '#991b1b' : '#065f46',
+                border: `2px solid ${predictionResult.result.prediction === 1 ? '#fca5a5' : '#6ee7b7'}`
+              }}>
+                <span className={styles.predictionBadgeLabel}>예측 결과:</span>
+                <span className={styles.predictionBadgeValue}>
+                  {predictionResult.result.prediction === 1 ? '조기 재발 가능성 있음' : '조기 재발 가능성 낮음'}
+                </span>
+              </div>
+            </div>
+
+            {/* Additional Info */}
+            <div className={styles.additionalInfo}>
+              <div className={styles.infoChip}>
+                <span className={styles.infoChipLabel}>mRNA 사용:</span>
+                <span className={styles.infoChipValue}>
+                  {predictionResult.result.uses_mrna ? '사용' : '미사용'}
+                </span>
+              </div>
+              <div className={styles.infoChip}>
+                <span className={styles.infoChipLabel}>모델 버전:</span>
+                <span className={styles.infoChipValue}>
+                  {predictionResult.result.model_version}
+                </span>
+              </div>
+              <div className={styles.infoChip}>
+                <span className={styles.infoChipLabel}>예측 시간:</span>
+                <span className={styles.infoChipValue}>
+                  {new Date(predictionResult.result.prediction_timestamp).toLocaleString('ko-KR')}
+                </span>
+              </div>
+              <div className={styles.infoChip}>
+                <span className={styles.infoChipLabel}>분석 상태:</span>
+                <span className={styles.infoChipValue} style={{ color: '#10b981' }}>
+                  {predictionResult.message}
+                </span>
+              </div>
+            </div>
           </div>
         )}
       </div>
