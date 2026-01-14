@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import styles from './MedicalRecordPage.module.css';
 import { getDoctorMedicalRecords } from '../../api/doctorApi';
 import type { EncounterDetail } from '../../api/doctorApi';
@@ -15,13 +15,30 @@ export default function MedicalRecordPage() {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
 
+    const [searchParams] = useSearchParams();
+    const searchTextRef = useRef(searchText);
+    const startDateRef = useRef(startDate);
+    const endDateRef = useRef(endDate);
+
+    useEffect(() => {
+        searchTextRef.current = searchText;
+    }, [searchText]);
+
+    useEffect(() => {
+        startDateRef.current = startDate;
+    }, [startDate]);
+
+    useEffect(() => {
+        endDateRef.current = endDate;
+    }, [endDate]);
+
     const fetchRecords = useCallback(async (search?: string, start?: string, end?: string) => {
         setLoading(true);
         try {
             const response = await getDoctorMedicalRecords({
-                search: search !== undefined ? search : searchText,
-                start_date: start !== undefined ? start : startDate,
-                end_date: end !== undefined ? end : endDate
+                search: search !== undefined ? search : searchTextRef.current,
+                start_date: start !== undefined ? start : startDateRef.current,
+                end_date: end !== undefined ? end : endDateRef.current
             });
             setRecords(response.results);
         } catch (error) {
@@ -29,12 +46,18 @@ export default function MedicalRecordPage() {
         } finally {
             setLoading(false);
         }
-    }, [searchText, startDate, endDate]);
-
-    // 초기 로드만 실행
-    useEffect(() => {
-        fetchRecords();
     }, []);
+
+    // 초기 로드 + URL 검색어 반영
+    useEffect(() => {
+        const searchValue = searchParams.get('search');
+        if (searchValue) {
+            setSearchText(searchValue);
+            fetchRecords(searchValue);
+            return;
+        }
+        fetchRecords();
+    }, [fetchRecords, searchParams]);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {

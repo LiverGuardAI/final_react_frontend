@@ -479,6 +479,34 @@ export const getDoctorMedicalRecords = async (params: {
 };
 
 // ===========================
+// 공지사항 API
+// ===========================
+
+export interface AnnouncementItem {
+  announcement_id: number;
+  title: string;
+  content: string;
+  announcement_type: 'GENERAL' | 'URGENT' | 'EVENT' | 'MAINTENANCE';
+  announcement_type_display?: string;
+  is_important: boolean;
+  published_at?: string | null;
+  created_at?: string;
+  expires_at?: string | null;
+  author_name?: string | null;
+}
+
+export const getAnnouncements = async (params?: {
+  limit?: number;
+  type?: AnnouncementItem['announcement_type'];
+  important_only?: boolean;
+}): Promise<{ count: number; results: AnnouncementItem[] }> => {
+  const response = await apiClient.get('/doctor/announcements/', {
+    params,
+  });
+  return response.data;
+};
+
+// ===========================
 // 오더 생성 API
 // ===========================
 
