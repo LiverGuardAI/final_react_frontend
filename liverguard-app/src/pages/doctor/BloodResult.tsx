@@ -7,6 +7,8 @@ import {
 } from 'recharts';
 import styles from './BloodResult.module.css';
 import { getPatientLabResults, type LabResult } from '../../api/doctorApi';
+import { useDoctorData } from '../../contexts/DoctorDataContext';
+import { useTreatment } from '../../contexts/TreatmentContext';
 
 // 설정: 각 검사 항목의 라벨, 단위, 정상 범위
 const LAB_CONFIG: Record<string, { label: string; unit: string; min?: number; max?: number }> = {
@@ -25,8 +27,25 @@ const LAB_CONFIG: Record<string, { label: string; unit: string; min?: number; ma
 };
 
 export default function BloodResultPage() {
-  // 라우터에서 받은 patientId 직접 사용
-  const { patientId } = useParams<{ patientId: string }>();
+  const { patientId: urlPatientId } = useParams<{ patientId: string }>();
+  const { waitingQueueData } = useDoctorData();
+  const { selectedPatientId } = useTreatment();
+  const inClinicPatientId = useMemo(() => {
+    const queue = waitingQueueData?.queue ?? [];
+    if (queue.length === 0) {
+      return '';
+    }
+    const inClinicItem = queue.find((item: any) => item.workflow_state === 'IN_CLINIC');
+    if (!inClinicItem) {
+      return '';
+    }
+    const patientObj =
+      typeof inClinicItem.patient === 'object' && inClinicItem.patient !== null
+        ? inClinicItem.patient
+        : null;
+    return patientObj?.patient_id || inClinicItem.patient_id || '';
+  }, [waitingQueueData]);
+  const patientId = selectedPatientId || inClinicPatientId || urlPatientId || '';
   // 개발 테스트를 위해 특정 환자 ID로 고정
   // const { patientId: routePatientId } = useParams<{ patientId: string }>();
   // const patientId = 'P20240009';
@@ -46,12 +65,14 @@ export default function BloodResultPage() {
     setLoading(true);
     getPatientLabResults(patientId).then(data => {
       // 과거 -> 최신 순으로 정렬 (그래프용)
-      const sorted = data.results.sort((a, b) =>
-        new Date(b.measured_at || b.test_date).getTime() - new Date(a.measured_at || a.test_date).getTime()
-      );
+      const sorted = data.results
+        .slice()
+        .sort((a, b) =>
+          new Date(a.measured_at || a.test_date).getTime() - new Date(b.measured_at || b.test_date).getTime()
+        );
       setResults(sorted);
       // 데이터 로드 후, 가장 최신 날짜를 기본 선택
-      setSelectedDateIndex(0);
+      setSelectedDateIndex(sorted.length ? sorted.length - 1 : -1);
     }).catch(err => {
       console.error(err);
       setResults([]);

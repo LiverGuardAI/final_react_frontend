@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import styles from '../../pages/doctor/AIAnalysis.module.css';
 import type { ClinicalFeature, GenomicFeature, RadioFeature } from '../../api/predictionApi';
 import {
@@ -13,6 +13,8 @@ import {
   type HCCDiagnosis,
   type PatientProfile,
 } from '../../api/doctorApi';
+import { useDoctorData } from '../../contexts/DoctorDataContext';
+import { useTreatment } from '../../contexts/TreatmentContext';
 
 interface FeatureSelectRowProps {
   radioList: RadioFeature[];
@@ -55,7 +57,24 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
   formatDate,
   disabled = false,
 }) => {
-  const patientId = 'P20240009';
+  const { waitingQueueData } = useDoctorData();
+  const { selectedPatientId } = useTreatment();
+  const inClinicPatientId = useMemo(() => {
+    const queue = waitingQueueData?.queue ?? [];
+    if (queue.length === 0) {
+      return '';
+    }
+    const inClinicItem = queue.find((item: any) => item.workflow_state === 'IN_CLINIC');
+    if (!inClinicItem) {
+      return '';
+    }
+    const patientObj =
+      typeof inClinicItem.patient === 'object' && inClinicItem.patient !== null
+        ? inClinicItem.patient
+        : null;
+    return patientObj?.patient_id || inClinicItem.patient_id || '';
+  }, [waitingQueueData]);
+  const patientId = selectedPatientId || inClinicPatientId || '';
   const [ctSeriesList, setCtSeriesList] = useState<CtSeriesItem[]>([]);
   const [labResults, setLabResults] = useState<LabResult[]>([]);
   const [genomicData, setGenomicData] = useState<GenomicDataItem[]>([]);
@@ -63,6 +82,10 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
   const [patientProfile, setPatientProfile] = useState<PatientProfile | null>(null);
 
   useEffect(() => {
+    if (!patientId) {
+      setCtSeriesList([]);
+      return;
+    }
     const loadCtSeries = async () => {
       try {
         const data = await getPatientCtSeries(patientId);
@@ -77,6 +100,11 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
   }, [patientId]);
 
   useEffect(() => {
+    if (!patientId) {
+      setPatientProfile(null);
+      onPatientProfileSelect?.(null);
+      return;
+    }
     const loadPatientProfile = async () => {
       try {
         const data = await getPatientProfile(patientId);
@@ -93,6 +121,10 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
   }, [onPatientProfileSelect, patientId]);
 
   useEffect(() => {
+    if (!patientId) {
+      setLabResults([]);
+      return;
+    }
     const loadLabResults = async () => {
       try {
         const data = await getPatientLabResults(patientId, 30);
@@ -107,6 +139,10 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
   }, [patientId]);
 
   useEffect(() => {
+    if (!patientId) {
+      setGenomicData([]);
+      return;
+    }
     const loadGenomicData = async () => {
       try {
         const data = await getPatientGenomicData(patientId, 30);
@@ -121,6 +157,10 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
   }, [patientId]);
 
   useEffect(() => {
+    if (!patientId) {
+      setHccDiagnoses([]);
+      return;
+    }
     const loadHccDiagnosis = async () => {
       try {
         const data = await getPatientHCCDiagnosis(patientId);
@@ -188,10 +228,15 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
     onHccDiagnosisSelect(match);
   }, [hccDiagnoses, onHccDiagnosisSelect, selectedHccId]);
 
+  const hasPatient = Boolean(patientId);
   const hasCtSeries = ctSeriesList.length > 0;
   const hasLabResults = labResults.length > 0;
   const hasGenomicData = genomicData.length > 0;
   const hasHccDiagnoses = hccDiagnoses.length > 0;
+  const effectiveRadioId = hasPatient ? selectedRadioId : '';
+  const effectiveClinicalId = hasPatient ? selectedClinicalId : '';
+  const effectiveGenomicId = hasPatient ? (selectedGenomicId || '') : '';
+  const effectiveHccId = hasPatient ? (selectedHccId || '') : '';
   const formatStudyDate = (value?: string) => {
     if (!value) return '';
     const dateOnly = value.split('T')[0];
@@ -211,24 +256,28 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
         <span className={styles.selectLabel}>CT 데이터:</span>
         <select
           className={styles.selectInput}
-          value={selectedRadioId}
+          value={effectiveRadioId}
           onChange={(e) => onRadioChange(e.target.value)}
           disabled={disabled}
         >
-          <option value="" disabled>
+          <option value="" disabled hidden>
             CT 데이터 선택
           </option>
-          {hasCtSeries
-            ? ctSeriesList.map((series) => (
-              <option key={series.series_uid} value={series.series_uid}>
-                {formatSeriesLabel(series)}
+            {!hasPatient ? (
+              <option value="no-patient" disabled>
+                진료 중인 환자가 없습니다
               </option>
-            ))
-            : radioList.map((radio) => (
-              <option key={radio.radio_vector_id} value={radio.radio_vector_id}>
-                {formatDate(radio.study_date)} ({radio.model_name})
+            ) : hasCtSeries ? (
+              ctSeriesList.map((series) => (
+                <option key={series.series_uid} value={series.series_uid}>
+                  {formatSeriesLabel(series)}
+                </option>
+              ))
+            ) : (
+              <option value="no-data" disabled>
+                CT series 목록이 없습니다
               </option>
-            ))}
+            )}
         </select>
       </div>
 
@@ -236,24 +285,28 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
         <span className={styles.selectLabel}>혈액 데이터:</span>
         <select
           className={styles.selectInput}
-          value={selectedClinicalId}
+          value={effectiveClinicalId}
           onChange={(e) => onClinicalChange(e.target.value)}
           disabled={disabled}
         >
-          <option value="" disabled>
+          <option value="" disabled hidden>
             혈액 데이터 선택
           </option>
-          {hasLabResults
-            ? labResults.map((lab) => (
-              <option key={lab.lab_id} value={String(lab.lab_id)}>
-                {formatDate(lab.test_date)}
+            {!hasPatient ? (
+              <option value="no-patient" disabled>
+                진료 중인 환자가 없습니다
               </option>
-            ))
-            : clinicalList.map((clinical) => (
-              <option key={clinical.clinical_vector_id} value={clinical.clinical_vector_id}>
-                {formatDate(clinical.lab_date)}
+            ) : hasLabResults ? (
+              labResults.map((lab) => (
+                <option key={lab.lab_id} value={String(lab.lab_id)}>
+                  {formatDate(lab.test_date)}
+                </option>
+              ))
+            ) : (
+              <option value="no-data" disabled>
+                혈액 검사 목록이 없습니다
               </option>
-            ))}
+            )}
         </select>
       </div>
 
@@ -262,24 +315,28 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
           <span className={styles.selectLabel}>유전체 데이터:</span>
           <select
             className={styles.selectInput}
-            value={selectedGenomicId}
+            value={effectiveGenomicId}
             onChange={(e) => onGenomicChange(e.target.value)}
             disabled={disabled}
           >
-            <option value="" disabled>
+            <option value="" disabled hidden>
               유전체 데이터 선택
             </option>
-            {hasGenomicData
-              ? genomicData.map((item) => (
+            {!hasPatient ? (
+              <option value="no-patient" disabled>
+                진료 중인 환자가 없습니다
+              </option>
+            ) : hasGenomicData ? (
+              genomicData.map((item) => (
                 <option key={item.genomic_id} value={String(item.genomic_id)}>
                   {formatDate(item.sample_date)}
                 </option>
               ))
-              : genomicList.map((genomic) => (
-                <option key={genomic.genomic_id} value={genomic.genomic_id}>
-                  {genomic.sample_date}
-                </option>
-              ))}
+            ) : (
+              <option value="no-data" disabled>
+                유전자 검사 목록이 없습니다
+              </option>
+            )}
           </select>
         </div>
       ) : null}
@@ -289,20 +346,28 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
           <span className={styles.selectLabel}>HCC 진단:</span>
           <select
             className={styles.selectInput}
-            value={selectedHccId}
+            value={effectiveHccId}
             onChange={(e) => onHccChange(e.target.value)}
             disabled={disabled}
           >
-            <option value="" disabled>
+            <option value="" disabled hidden>
               HCC 진단 선택
             </option>
-            {hasHccDiagnoses
-              ? hccDiagnoses.map((diagnosis) => (
-                  <option key={diagnosis.hcc_id} value={String(diagnosis.hcc_id)}>
-                    {formatDate(diagnosis.measured_at || diagnosis.hcc_diagnosis_date)}
-                  </option>
-                ))
-              : null}
+            {!hasPatient ? (
+              <option value="no-patient" disabled>
+                진료 중인 환자가 없습니다
+              </option>
+            ) : hasHccDiagnoses ? (
+              hccDiagnoses.map((diagnosis) => (
+                <option key={diagnosis.hcc_id} value={String(diagnosis.hcc_id)}>
+                  {formatDate(diagnosis.measured_at || diagnosis.hcc_diagnosis_date)}
+                </option>
+              ))
+            ) : (
+              <option value="no-data" disabled>
+                HCC 진단 목록이 없습니다
+              </option>
+            )}
           </select>
         </div>
       ) : null}

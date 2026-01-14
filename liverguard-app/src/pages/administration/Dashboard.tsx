@@ -252,7 +252,10 @@ export default function AdministrationDashboard() {
 
   const waitingPatientIds = useMemo(() => {
     if (!waitingQueueData?.queue) return [];
-    return waitingQueueData.queue.map((q: any) => q.patient_id || q.patient).filter(Boolean);
+    return waitingQueueData.queue
+      .filter((q: any) => q.workflow_state !== 'COMPLETED')
+      .map((q: any) => q.patient_id || q.patient)
+      .filter(Boolean);
   }, [waitingQueueData]);
 
   // --- API Calls ---
