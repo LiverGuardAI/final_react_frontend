@@ -32,7 +32,7 @@ export default function DDIPage() {
         return;
       }
       try {
-        const response = await apiClient.get(`/doctor/drugs/search/?q=${inputDrug}`);
+        const response = await apiClient.get(`ai/bentoml/drugs/search/?q=${inputDrug}`);
         setSuggestions(response.data);
         setShowSuggestions(true);
       } catch (err) {

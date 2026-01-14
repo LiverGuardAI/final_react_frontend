@@ -456,13 +456,13 @@ export interface DDIAnalysisResponse {
 
 /**
  * DDI 상호작용 분석 요청
- * POST /api/doctor/ddi/analyze/
+ * POST /api/ai/bentoml/ddi/analyze/
  */
 export const analyzeDDI = async (drugs: string[]): Promise<DDIAnalysisResponse> => {
   try {
     // apiClient는 내부적으로 'api/'를 base로 가질 것이므로 'doctor/ddi/analyze/'만 적습니다.
     const response = await apiClient.post<DDIAnalysisResponse>(
-      "doctor/ddi/analyze/",
+      "ai/bentoml/ddi/analyze/",
       { drugs }
     );
     return response.data;
