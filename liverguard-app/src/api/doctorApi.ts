@@ -87,9 +87,25 @@ export const getDoctorDashboardStats = async (
 export const getDoctorInProgressEncounter = async (
   doctorId: number
 ): Promise<QueueItem | null> => {
-  const response = await getDoctorWaitingQueue(doctorId, 50);
-  const inProgressEncounter = response.queue.find(
-    (item: any) => item.workflow_state === 'IN_CLINIC'
+  const response = await apiClient.get('/doctor/queue/', {
+    params: {
+      doctor_id: doctorId,
+      status: 'IN_CLINIC',
+    },
+  });
+  const queue = response.data.encounters || [];
+  const matchesDoctor = (item: any) => {
+    if (!doctorId) return true;
+    const ids = [
+      item.assigned_doctor,
+      item.assigned_doctor_id,
+      item.doctor_id,
+      item.doctor,
+    ];
+    return ids.some((id) => Number(id) === doctorId);
+  };
+  const inProgressEncounter = queue.find(
+    (item: any) => item.workflow_state === 'IN_CLINIC' && matchesDoctor(item)
   );
   return inProgressEncounter || null;
 };

@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import * as aiApi from '../../api/ai_api';
 import FeatureSelectRow from '../../components/doctor/FeatureSelectRow';
 import type { CtSeriesItem, HCCDiagnosis, LabResult, PatientProfile } from '../../api/doctorApi';
-import { useDoctorData } from '../../contexts/DoctorDataContext';
 import { useTreatment } from '../../contexts/TreatmentContext';
 import styles from './AIAnalysis.module.css';
 
@@ -15,24 +14,8 @@ import styles from './AIAnalysis.module.css';
 
 const StagePrediction: React.FC = () => {
   const { patientId: urlPatientId } = useParams();
-  const { waitingQueueData } = useDoctorData();
   const { selectedPatientId } = useTreatment();
-  const inClinicPatientId = useMemo(() => {
-    const queue = waitingQueueData?.queue ?? [];
-    if (queue.length === 0) {
-      return '';
-    }
-    const inClinicItem = queue.find((item: any) => item.workflow_state === 'IN_CLINIC');
-    if (!inClinicItem) {
-      return '';
-    }
-    const patientObj =
-      typeof inClinicItem.patient === 'object' && inClinicItem.patient !== null
-        ? inClinicItem.patient
-        : null;
-    return patientObj?.patient_id || inClinicItem.patient_id || '';
-  }, [waitingQueueData]);
-  const resolvedPatientId = selectedPatientId || inClinicPatientId || urlPatientId || '';
+  const resolvedPatientId = selectedPatientId || urlPatientId || '';
   // 상태 관리
   const [selectedPatient, setSelectedPatient] = useState(resolvedPatientId);
   const [selectedRadioId, setSelectedRadioId] = useState('');
@@ -174,6 +157,23 @@ const StagePrediction: React.FC = () => {
       setSelectedPatient(resolvedPatientId);
     }
   }, [resolvedPatientId, selectedPatient]);
+
+  useEffect(() => {
+    if (selectedPatientId !== null) {
+      return;
+    }
+    setSelectedRadioId('');
+    setSelectedClinicalId('');
+    setSelectedHccId('');
+    setSelectedCtSeries(null);
+    setSelectedLabResult(null);
+    setSelectedHccDiagnosis(null);
+    setPatientProfile(null);
+    setPredictionResult(null);
+    setPredictionError(null);
+    setTaskId(null);
+    setIsPolling(false);
+  }, [selectedPatientId]);
 
 
   // Poll task status

@@ -1,9 +1,8 @@
 // src/pages/doctor/CTResult.tsx
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getPatientStudies, getStudySeries } from '../../api/orthanc_api';
 import DicomViewer2D from '../../components/DicomViewer2D';
 import DicomViewer3D from '../../components/DicomViewer3D';
-import { useDoctorData } from '../../contexts/DoctorDataContext';
 import { useTreatment } from '../../contexts/TreatmentContext';
 import styles from './CTResult.module.css';
 
@@ -38,27 +37,26 @@ export default function CTResultPage() {
   const [seriesSectionExpanded, setSeriesSectionExpanded] = useState(false);
   const [segSectionExpanded, setSegSectionExpanded] = useState(false);
 
-  const { waitingQueueData } = useDoctorData();
   const { selectedPatientId } = useTreatment();
-
-  const inClinicPatientId = useMemo(() => {
-    const queue = waitingQueueData?.queue ?? [];
-    if (queue.length === 0) {
-      return '';
-    }
-    const inClinicItem = queue.find((item: any) => item.workflow_state === 'IN_CLINIC');
-    if (!inClinicItem) {
-      return '';
-    }
-    const patientObj =
-      typeof inClinicItem.patient === 'object' && inClinicItem.patient !== null
-        ? inClinicItem.patient
-        : null;
-    return patientObj?.patient_id || inClinicItem.patient_id || '';
-  }, [waitingQueueData]);
-
-  const patientId = selectedPatientId || inClinicPatientId || '';
+  const patientId = selectedPatientId || '';
   const cacheKey = patientId ? `ct-result:${patientId}` : null;
+
+  useEffect(() => {
+    if (selectedPatientId !== null) {
+      return;
+    }
+    setStudies([]);
+    setSeriesList([]);
+    setSelectedStudy(null);
+    setSelectedCtSeries(null);
+    setSelectedSegSeries(null);
+    setStudySectionExpanded(false);
+    setSeriesSectionExpanded(false);
+    setSegSectionExpanded(false);
+    setSeriesLoading(false);
+    setLoading(false);
+    setError('진료 중인 환자가 없습니다.');
+  }, [selectedPatientId]);
 
   // CT Series만 필터링
   const ctSeriesList = seriesList.filter(series => series.Modality === 'CT');
