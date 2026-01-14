@@ -50,6 +50,30 @@ const AdministrationLayout = () => {
         }
     };
 
+    const handleRejectSchedule = async (scheduleId: number) => {
+        const reason = window.prompt("거절 사유를 입력해주세요.\n(예: 개인 사정, 연차 사용 등)");
+        if (reason === null) return; // 취소 버튼 클릭 시
+
+        // 사유 입력 강제 여부는 선택사항이지만, 요구사항에 따라 입력하도록 유도
+        if (!reason.trim()) {
+            alert("거절 사유를 입력해주세요.");
+            return;
+        }
+
+        try {
+            const { rejectDutySchedule } = await import('../api/hospitalOpsApi');
+            await rejectDutySchedule(scheduleId, reason);
+            setPendingSchedules(prev => prev.filter(s => s.schedule_id !== scheduleId));
+            if (pendingSchedules.length <= 1) {
+                setIsScheduleModalOpen(false);
+            }
+            alert("스케줄을 거절(취소)했습니다.");
+        } catch (e) {
+            console.error("Failed to reject schedule", e);
+            alert("스케줄 거절 실패");
+        }
+    };
+
     return (
         <AdministrationProvider>
             <div className={styles.container}>
@@ -98,6 +122,15 @@ const AdministrationLayout = () => {
                                         }}
                                     >
                                         확정
+                                    </button>
+                                    <button
+                                        onClick={() => handleRejectSchedule(sch.schedule_id)}
+                                        style={{
+                                            background: '#ef4444', color: 'white', border: 'none', padding: '6px 12px',
+                                            borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginLeft: '6px'
+                                        }}
+                                    >
+                                        거절
                                     </button>
                                 </div>
                             ))}

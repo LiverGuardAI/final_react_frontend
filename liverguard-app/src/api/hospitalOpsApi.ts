@@ -203,6 +203,7 @@ export interface DutyScheduleData {
   end_time: string;   // ISO String
   shift_type?: string;
   schedule_status?: 'CONFIRMED' | 'PENDING' | 'CANCELLED';
+  rejection_reason?: string;
 }
 
 export const getDutySchedules = async (startDate?: string, endDate?: string, userId?: number) => {
@@ -220,8 +221,26 @@ export const createDutySchedule = async (data: DutyScheduleData) => {
   return response.data;
 };
 
+export interface BulkScheduleData {
+  user_id: number;
+  start_date: string; // YYYY-MM-DD
+  end_date: string;   // YYYY-MM-DD
+  off_days: string[]; // ['Mon', 'Tue']
+  shift_type: string;
+}
+
+export const createBulkDutySchedule = async (data: BulkScheduleData) => {
+  const response = await apiClient.post("accounts/schedules/bulk/", data);
+  return response.data;
+};
+
 export const confirmDutySchedule = async (scheduleId: number) => {
   const response = await apiClient.post(`accounts/schedules/${scheduleId}/confirm/`);
+  return response.data;
+};
+
+export const rejectDutySchedule = async (scheduleId: number, reason?: string) => {
+  const response = await apiClient.post(`accounts/schedules/${scheduleId}/reject/`, { reason });
   return response.data;
 };
 

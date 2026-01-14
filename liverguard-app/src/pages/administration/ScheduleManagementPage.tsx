@@ -250,7 +250,8 @@ export default function ScheduleManagementPage() {
                                 onChange={e => setModalData({ ...modalData, shift_type: e.target.value })}
                             >
                                 <option value="DAY">주간 (Day)</option>
-                                <option value="NIGHT">야간 (Night)</option>
+                                <option value="EVENING">야간 (Night)</option>
+                                <option value="NIGHT">심야 (Late Night)</option>
                                 <option value="OFF">휴무 (Off)</option>
                             </select>
                         </div>
@@ -260,7 +261,8 @@ export default function ScheduleManagementPage() {
                         </div>
                     </div>
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 }

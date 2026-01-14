@@ -263,6 +263,21 @@ export default function DoctorLayout() {
     }
   };
 
+  const handleRejectSchedule = async (scheduleId: number) => {
+    try {
+      const { rejectDutySchedule } = await import('../api/hospitalOpsApi');
+      await rejectDutySchedule(scheduleId);
+      setPendingSchedules(prev => prev.filter(s => s.schedule_id !== scheduleId));
+      if (pendingSchedules.length <= 1) {
+        setIsScheduleModalOpen(false);
+      }
+      alert("스케줄을 거절(취소)했습니다.");
+    } catch (e) {
+      console.error("Failed to reject schedule", e);
+      alert("스케줄 거절 실패");
+    }
+  };
+
   return (
     <div className={styles.container}>
       {/* 왼쪽 사이드바 */}
@@ -349,6 +364,15 @@ export default function DoctorLayout() {
                     }}
                   >
                     확정
+                  </button>
+                  <button
+                    onClick={() => handleRejectSchedule(sch.schedule_id)}
+                    style={{
+                      background: '#ef4444', color: 'white', border: 'none', padding: '6px 12px',
+                      borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginLeft: '6px'
+                    }}
+                  >
+                    거절
                   </button>
                 </div>
               ))}

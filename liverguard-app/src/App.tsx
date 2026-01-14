@@ -3,14 +3,17 @@ import router from "./router";
 import { AuthProvider } from "./context/AuthContext";
 import { TreatmentProvider } from "./contexts/TreatmentContext";
 import { WebSocketProvider } from "./context/WebSocketContext";
+import { NotificationProvider } from "./context/NotificationContext";
 
 function App() {
   return (
     <AuthProvider>
       <WebSocketProvider>
-        <TreatmentProvider>
-          <RouterProvider router={router} />
-        </TreatmentProvider>
+        <NotificationProvider>
+          <TreatmentProvider>
+            <RouterProvider router={router} />
+          </TreatmentProvider>
+        </NotificationProvider>
       </WebSocketProvider>
     </AuthProvider>
   );
