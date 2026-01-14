@@ -206,18 +206,19 @@ export interface DutyScheduleData {
   rejection_reason?: string;
 }
 
-export const getDutySchedules = async (startDate?: string, endDate?: string, userId?: number) => {
+export const getDutySchedules = async (startDate?: string, endDate?: string, userId?: number, status?: string) => {
   const params: any = {};
   if (startDate) params.start_date = startDate;
   if (endDate) params.end_date = endDate;
   if (userId) params.user_id = userId;
+  if (status) params.status = status;
 
-  const response = await apiClient.get("accounts/schedules/", { params });
+  const response = await apiClient.get("auth/schedules/", { params });
   return response.data;
 };
 
 export const createDutySchedule = async (data: DutyScheduleData) => {
-  const response = await apiClient.post("accounts/schedules/", data);
+  const response = await apiClient.post("auth/schedules/", data);
   return response.data;
 };
 
@@ -230,20 +231,25 @@ export interface BulkScheduleData {
 }
 
 export const createBulkDutySchedule = async (data: BulkScheduleData) => {
-  const response = await apiClient.post("accounts/schedules/bulk/", data);
+  const response = await apiClient.post("auth/schedules/bulk/", data);
   return response.data;
 };
 
 export const confirmDutySchedule = async (scheduleId: number) => {
-  const response = await apiClient.post(`accounts/schedules/${scheduleId}/confirm/`);
+  const response = await apiClient.post(`auth/schedules/${scheduleId}/confirm/`);
   return response.data;
 };
 
 export const rejectDutySchedule = async (scheduleId: number, reason?: string) => {
-  const response = await apiClient.post(`accounts/schedules/${scheduleId}/reject/`, { reason });
+  const response = await apiClient.post(`auth/schedules/${scheduleId}/reject/`, { reason });
   return response.data;
 };
 
 export const deleteDutySchedule = async (scheduleId: number) => {
-  await apiClient.delete(`accounts/schedules/${scheduleId}/`);
+  await apiClient.delete(`auth/schedules/${scheduleId}/`);
+};
+
+export const updateDutySchedule = async (scheduleId: number, scheduleData: Partial<DutyScheduleData>) => {
+  const res = await apiClient.patch(`auth/schedules/${scheduleId}/`, scheduleData);
+  return res.data;
 };

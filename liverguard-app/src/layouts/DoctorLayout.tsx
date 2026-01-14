@@ -224,10 +224,11 @@ export default function DoctorLayout() {
   // 스케줄 확인 로직
   const [pendingSchedules, setPendingSchedules] = useState<any[]>([]);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  const { user } = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
 
   const checkPendingSchedules = async () => {
-    if (!user || !user.id) return;
+    const userId = user?.user_id ?? user?.id;
+    if (!userId) return;
     try {
       // Fetch all schedules for this user (future optimization: filter by status in backend)
       // Since backend param doesn't support status yet, we fetch and client-side filter
@@ -237,8 +238,8 @@ export default function DoctorLayout() {
       // Step 196: API takes startDate, endDate, userId.
       // If I pass nothing for dates, it returns all? Yes.
       const { getDutySchedules } = await import('../api/hospitalOpsApi');
-      const data = await getDutySchedules(undefined, undefined, user.id);
-      const pending = data.filter((s: any) => s.schedule_status === 'PENDING');
+      const data = await getDutySchedules(undefined, undefined, userId, 'PENDING');
+      const pending = data;
       if (pending.length > 0) {
         setPendingSchedules(pending);
         setIsScheduleModalOpen(true);

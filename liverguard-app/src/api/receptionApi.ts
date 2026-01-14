@@ -36,6 +36,7 @@ export const getAppointments = async (filters?: {
   status?: string;
   date?: string;
   patient_id?: string;
+  doctor_id?: string;
 }) => {
   const res = await apiClient.get("administration/appointments/", { params: filters });
   return res.data;
