@@ -55,8 +55,11 @@ const DoctorTopBar = memo(function DoctorTopBar({ activeTab }: DoctorTopBarProps
       case 'treatment':
         navigate('/doctor/treatment');
         break;
+      case 'examination':
+        navigate('/doctor/ct-result');
+        break;
       case 'testForm':
-        navigate('/doctor/ai-result');
+        navigate('/doctor/ai-stage-prediction');
         break;
       case 'medicalRecord':
         navigate('/doctor/medical-record');
@@ -93,6 +96,7 @@ const DoctorTopBar = memo(function DoctorTopBar({ activeTab }: DoctorTopBarProps
         >
           <button
             className={`${styles.tabButton} ${styles.hasDropdown} ${openDropdown === 'examination' ? styles.active : ''}`}
+            onClick={() => handleTabClick('examination')}
           >
             <span>검사 결과</span>
           </button>
@@ -127,6 +131,7 @@ const DoctorTopBar = memo(function DoctorTopBar({ activeTab }: DoctorTopBarProps
         >
           <button
             className={`${styles.tabButton} ${styles.hasDropdown} ${openDropdown === 'aiAnalysis' ? styles.active : ''}`}
+            onClick={() => handleTabClick('testForm')}
           >
             <span>AI분석</span>
           </button>
