@@ -1,5 +1,5 @@
 // src/pages/doctor/CTResult.tsx
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getPatientStudies, getStudySeries } from '../../api/orthanc_api';
 import DicomViewer2D from '../../components/DicomViewer2D';
 import DicomViewer3D from '../../components/DicomViewer3D';
@@ -66,7 +66,7 @@ export default function CTResultPage() {
   // SEG Series만 필터링
   const segSeriesList = seriesList.filter(series => series.Modality === 'SEG');
 
-  const fetchStudies = async () => {
+  const fetchStudies = useCallback(async () => {
     if (!patientId) {
       setStudies([]);
       setSeriesList([]);
@@ -97,7 +97,7 @@ export default function CTResultPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [patientId]);
 
   useEffect(() => {
     if (!cacheKey) {
@@ -136,7 +136,7 @@ export default function CTResultPage() {
       }
     }
     fetchStudies();
-  }, [cacheKey, patientId]);
+  }, [cacheKey, fetchStudies]);
 
   useEffect(() => {
     if (!cacheKey) {

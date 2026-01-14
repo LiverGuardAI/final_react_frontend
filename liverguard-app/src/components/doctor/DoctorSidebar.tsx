@@ -49,7 +49,17 @@ const DoctorSidebar = memo(function DoctorSidebar({
       <div className={styles.sidebarContent}>
         {/* 프로필 섹션 */}
         <div className={styles.profileSection}>
-          <div className={styles.profileImage}></div>
+          <div className={styles.profileImage}>
+            <svg className={styles.profileIcon} viewBox="0 0 64 64" aria-hidden="true">
+              <rect x="10" y="14" width="44" height="40" rx="8" fill="#7AA6D6" />
+              <rect x="16" y="20" width="8" height="8" rx="2" fill="#E6F0FA" />
+              <rect x="40" y="20" width="8" height="8" rx="2" fill="#E6F0FA" />
+              <rect x="16" y="34" width="8" height="8" rx="2" fill="#E6F0FA" />
+              <rect x="40" y="34" width="8" height="8" rx="2" fill="#E6F0FA" />
+              <rect x="29" y="24" width="6" height="16" rx="2" fill="#FFFFFF" />
+              <rect x="24" y="29" width="16" height="6" rx="2" fill="#FFFFFF" />
+            </svg>
+          </div>
           <div className={styles.profileInfo}>
             <div className={styles.profileName}>{doctorName}</div>
             <div className={styles.departmentTag}>{departmentName}</div>

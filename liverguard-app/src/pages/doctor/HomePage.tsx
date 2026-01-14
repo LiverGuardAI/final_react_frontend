@@ -192,21 +192,6 @@ export default function DoctorHomePage() {
               </div>
             </div>
           </div>
-          {/* 대기 환자 정보 */}
-          <div>
-            <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '15px' }}>대기 환자:</h3>
-            {waitingPatients.length === 0 ? (
-              <div style={{ fontSize: '16px', color: '#999', textAlign: 'center', padding: '20px 0' }}>
-                대기 중인 환자가 없습니다
-              </div>
-            ) : (
-              waitingPatients.slice(0, 2).map((patient: any) => (
-                <div key={patient.encounterId} style={{ marginBottom: '10px', fontSize: '16px', color: '#666' }}>
-                  • {patient.name}
-                </div>
-              ))
-            )}
-          </div>
         </div>
       </div>
 
