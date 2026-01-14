@@ -124,6 +124,7 @@ const MaskOverlayViewer = ({
   const measurementBoxRef = useRef<typeof measurementBox>(null);
   const isDraggingRef = useRef(false);
   const prefetchTokenRef = useRef(0);
+  const renderMaskOverlayRef = useRef<(() => void) | null>(null);
 
   // Keep showOverlayRef in sync with showOverlay state
   useEffect(() => {
@@ -417,6 +418,10 @@ const MaskOverlayViewer = ({
   }, [currentIndex, measurementBoxes, maskFilter, maskOpacity]);
 
   useEffect(() => {
+    renderMaskOverlayRef.current = renderMaskOverlay;
+  }, [renderMaskOverlay]);
+
+  useEffect(() => {
     prefetchTokenRef.current += 1;
     if (!viewerRef.current || instances.length === 0) return;
 
@@ -465,7 +470,7 @@ const MaskOverlayViewer = ({
       if (showOverlayRef.current && currentMaskImageRef.current) {
         // Use requestAnimationFrame to ensure overlay is applied AFTER Cornerstone's rendering is complete
         requestAnimationFrame(() => {
-          renderMaskOverlay();
+          renderMaskOverlayRef.current?.();
         });
       }
     };

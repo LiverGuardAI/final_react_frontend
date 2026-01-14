@@ -1,4 +1,4 @@
-// src/api/administration_api.ts
+// src/api/receptionApi.ts
 import apiClient from "./axiosConfig";
 
 // ==================== 대시보드 ====================
@@ -135,6 +135,17 @@ export const getWaitingQueue = async (maxCount: number = 10) => {
 
 export const getDashboardStats = async () => {
   const res = await apiClient.get("administration/dashboard/stats/");
+  return res.data;
+};
+
+// ==================== 근무 일정 (Schedule) ====================
+export const getDutySchedules = async (startDate?: string, endDate?: string, doctorId?: number) => {
+  const params: any = {};
+  if (startDate) params.start_date = startDate;
+  if (endDate) params.end_date = endDate;
+  if (doctorId) params.doctor_id = doctorId;
+
+  const res = await apiClient.get("auth/schedules/public/", { params });
   return res.data;
 };
 

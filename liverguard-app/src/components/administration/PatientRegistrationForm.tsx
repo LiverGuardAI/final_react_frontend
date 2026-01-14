@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import styles from "../../pages/administration/Dashboard.module.css";
-import type { PatientRegistrationData } from '../../api/administrationApi';
+import type { PatientRegistrationData } from '../../api/hospitalOpsApi';
 
 interface PatientRegistrationFormProps {
   onSubmit: (data: PatientRegistrationData) => Promise<{ patient?: { patient_id?: string } }>;

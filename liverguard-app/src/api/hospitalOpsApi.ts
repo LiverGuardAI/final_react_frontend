@@ -1,4 +1,4 @@
-// src/api/administrationApi.tsx
+// src/api/hospitalOpsApi.ts
 import apiClient from "./axiosConfig";
 
 // 환자 등록 데이터 타입
@@ -188,4 +188,43 @@ export const rejectAppSyncRequest = async (requestId: number, adminId?: number) 
 
   const response = await apiClient.post(`patients/app-sync-requests/${requestId}/reject/`, payload);
   return response.data;
+};
+
+// ===========================
+// 근무 일정 관리 API (DutySchedule)
+// ===========================
+
+export interface DutyScheduleData {
+  schedule_id?: number;
+  user: number; // user_id
+  user_name?: string;
+  work_role: 'DOCTOR' | 'RADIOLOGIST' | 'CLERK'; // OnlineStatus.WorkRole
+  start_time: string; // ISO String
+  end_time: string;   // ISO String
+  shift_type?: string;
+  schedule_status?: 'CONFIRMED' | 'PENDING' | 'CANCELLED';
+}
+
+export const getDutySchedules = async (startDate?: string, endDate?: string, userId?: number) => {
+  const params: any = {};
+  if (startDate) params.start_date = startDate;
+  if (endDate) params.end_date = endDate;
+  if (userId) params.user_id = userId;
+
+  const response = await apiClient.get("accounts/schedules/", { params });
+  return response.data;
+};
+
+export const createDutySchedule = async (data: DutyScheduleData) => {
+  const response = await apiClient.post("accounts/schedules/", data);
+  return response.data;
+};
+
+export const confirmDutySchedule = async (scheduleId: number) => {
+  const response = await apiClient.post(`accounts/schedules/${scheduleId}/confirm/`);
+  return response.data;
+};
+
+export const deleteDutySchedule = async (scheduleId: number) => {
+  await apiClient.delete(`accounts/schedules/${scheduleId}/`);
 };

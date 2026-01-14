@@ -32,7 +32,6 @@
 
 - `HomePage.tsx` - 메인 대시보드 (~1066줄)
 - `SchedulePage.tsx` - 일정 관리
-- `AppointmentManagementPage.tsx` - 예약 관리
 - `PatientManagementPage.tsx` - 환자 관리
 - `QuestionnaireFormPage.tsx` - 문진표
 

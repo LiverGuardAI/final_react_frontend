@@ -27,14 +27,14 @@ export default function AdministrationTopBar() {
                 </NavLink>
 
                 <NavLink
-                    to="/administration/schedule"
+                    to="/administration/appointments"
                     className={({ isActive }) => `${styles.tabButton} ${isActive ? styles.active : ''}`}
                 >
                     <span>예약 관리</span>
                 </NavLink>
 
                 <NavLink
-                    to="/administration/appointments"
+                    to="/administration/patientstatus"
                     className={({ isActive }) => `${styles.tabButton} ${isActive ? styles.active : ''}`}
                 >
                     <span>환자 현황</span>

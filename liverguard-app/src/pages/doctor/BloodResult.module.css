@@ -12,7 +12,10 @@
 
 /* Header */
 .header {
-    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
 }
 
 .pageTitle {
@@ -26,11 +29,56 @@
 .patientInfo {
     font-size: 14px;
     color: #6b7280;
+    background: transparent;
+    padding: 0;
 }
 
 .divider {
     margin: 0 8px;
     color: #d1d5db;
+}
+
+.dateSelector {
+    display: flex;
+    align-items: center;
+    background: white;
+    padding: 6px 16px;
+    border-radius: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    gap: 12px;
+}
+
+.dateSelectorLabel {
+    font-size: 13px;
+    color: #6b7280;
+    white-space: nowrap;
+}
+
+.dateDropdown {
+    padding: 4px 12px;
+    border: none;
+    border-radius: 16px;
+    background: transparent;
+    font-size: 13px;
+    color: #374151;
+    cursor: pointer;
+    min-width: 130px;
+}
+
+.dateDropdown:hover {
+    border-color: #3b82f6;
+}
+
+.dateDropdown:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.dateDropdown option {
+    color: #111827;
+    padding: 10px;
+    font-weight: 500;
 }
 
 /* Cards Grid */
@@ -50,7 +98,6 @@
     border: 2px solid transparent;
     cursor: pointer;
     transition: all 0.2s ease;
-    position: relative;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -62,11 +109,33 @@
 }
 
 /* Selected State */
-.card.selected {
+.card.selected.normal {
     border-color: #3b82f6;
-    /* Blue border */
     background-color: #eff6ff;
-    /* Very light blue bg */
+}
+
+.card.selected.normal .value {
+    color: #2f7bf5;
+}
+
+.card.selected.normal .cardLabel {
+    color: #2f7bf5;
+    font-weight: 700;
+}
+
+.card.selected.danger {
+    border-color: #fca5a5;
+    background: linear-gradient(135deg, #fff1f2 0%, #fee2e2 100%);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+}
+
+.card.selected.danger .value {
+    color: #cc6262;
+}
+
+.card.selected.danger .cardLabel {
+    color: #cc6262;
+    font-weight: 700;
 }
 
 /* Card Content */
@@ -127,7 +196,7 @@
 /* Status Badges within Card */
 .badge {
     font-size: 11px;
-    padding: 2px 8px;
+    padding: 4px 12px;
     border-radius: 12px;
     font-weight: 600;
 }

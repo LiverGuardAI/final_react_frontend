@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import LisSidebar from "../../components/lis/LisSidebar";
-import * as adminApi from "../../api/administration_api";
+import * as adminApi from "../../api/receptionApi";
 import {
   createGenomicData,
   createLabResult,

@@ -4,8 +4,8 @@ import styles from '../../pages/administration/Dashboard.module.css';
 import PatientActionModal from './PatientActionModal';
 import QuestionnaireModal, { type QuestionnaireData } from './QuestionnaireModal';
 import PatientDetailModal from './PatientDetailModal';
-import { updateEncounter, createQuestionnaire, cancelEncounter } from '../../api/administration_api';
-import { getPatientDetail, updatePatient, type PatientUpdateData } from '../../api/administrationApi';
+import { updateEncounter, createQuestionnaire, cancelEncounter } from '../../api/receptionApi';
+import { getPatientDetail, updatePatient, type PatientUpdateData } from '../../api/hospitalOpsApi';
 
 interface AdministrationSidebarProps {
     staffName?: string;
@@ -301,7 +301,7 @@ export default function AdministrationSidebar({
                             <div className={styles.profileName}>{staffName}</div>
                             <div className={styles.departmentTag}>{departmentName}</div>
                             <div className={styles.statusInfo}>
-                                상태: <span className={styles.statusBadge}>근무중</span>
+                                상태: <span className={styles.statusBadge}> 근무중 </span>
                             </div>
                         </div>
                     </div>

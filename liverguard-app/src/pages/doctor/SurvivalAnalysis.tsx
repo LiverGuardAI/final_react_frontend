@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import * as api from '../../api/predictionApi';
-import * as adminApi from '../../api/administration_api';
+import * as adminApi from '../../api/receptionApi';
 import * as aiApi from '../../api/ai_api';
 import FeatureSelectRow from '../../components/doctor/FeatureSelectRow';
 import type { CtSeriesItem, GenomicDataItem, HCCDiagnosis, LabResult, PatientProfile } from '../../api/doctorApi';
@@ -846,20 +846,20 @@ const SurvivalAnalysis: React.FC = () => {
                 predictionResult.survival_curve?.survival
               )}
               <div className={styles.summaryCharts}>
-            {renderLineChart(
-              '생존곡선',
-              predictionResult.survival_curve?.timeline,
-              predictionResult.survival_curve?.survival,
-              '#2563eb',
-              { legendLabel: 'Survival Probability', xLabel: 'Month', yLabel: 'Probability' }
-            )}
-            {renderLineChart(
-              '누적 위험도 곡선',
-              predictionResult.hazard_curve?.timeline,
-              predictionResult.hazard_curve?.hazard,
-              '#ef4444',
-              { legendLabel: 'Cumulative Hazard', xLabel: 'Month', yLabel: 'Hazard' }
-            )}
+                {renderLineChart(
+                  '생존곡선',
+                  predictionResult.survival_curve?.timeline,
+                  predictionResult.survival_curve?.survival,
+                  '#2563eb',
+                  { legendLabel: 'Survival Probability', xLabel: 'Month', yLabel: 'Probability' }
+                )}
+                {renderLineChart(
+                  '누적 위험도 곡선',
+                  predictionResult.hazard_curve?.timeline,
+                  predictionResult.hazard_curve?.hazard,
+                  '#ef4444',
+                  { legendLabel: 'Cumulative Hazard', xLabel: 'Month', yLabel: 'Hazard' }
+                )}
               </div>
               <div className={styles.summaryHazard}>
                 {renderHazardChart(Array.isArray(predictionResult.hazard_ratio) ? predictionResult.hazard_ratio : [])}

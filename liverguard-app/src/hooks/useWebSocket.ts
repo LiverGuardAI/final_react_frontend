@@ -21,23 +21,44 @@ export const useWebSocket = (url: string, options: UseWebSocketOptions = {}) => 
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 3;
+  const hookId = useRef(Math.random().toString(36).substring(7));
+
+  // Callbacks via refs to avoid dependency changes
+  const onMessageRef = useRef(onMessage);
+  const onOpenRef = useRef(onOpen);
+  const onCloseRef = useRef(onClose);
+  const onErrorRef = useRef(onError);
+
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+    onOpenRef.current = onOpen;
+    onCloseRef.current = onClose;
+    onErrorRef.current = onError;
+  }, [onMessage, onOpen, onClose, onError]);
 
   const connect = useCallback(() => {
     if (!enabled) return;
+
+    // 이미 연결되어 있으면 중복 연결 방지
+    if (wsRef.current &&
+      (wsRef.current.readyState === WebSocket.OPEN ||
+        wsRef.current.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
 
     try {
       const ws = new WebSocket(url);
 
       ws.onopen = () => {
-        console.log(`✅ WebSocket 연결됨: ${url}`);
+        console.log(`[${hookId.current}] ✅ WebSocket 연결됨: ${url}`);
         reconnectAttemptsRef.current = 0;
-        onOpen?.();
+        onOpenRef.current?.();
       };
 
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          onMessage?.(data);
+          onMessageRef.current?.(data);
         } catch (error) {
           console.error('WebSocket 메시지 파싱 실패:', error);
         }
@@ -45,21 +66,25 @@ export const useWebSocket = (url: string, options: UseWebSocketOptions = {}) => 
 
       ws.onerror = (error) => {
         console.error('❌ WebSocket 에러:', error);
-        onError?.(error);
+        onErrorRef.current?.(error);
       };
 
-      ws.onclose = () => {
-        console.log('⚠️ WebSocket 연결 종료');
-        onClose?.();
+      ws.onclose = (event) => {
+        console.log(`⚠️ WebSocket 연결 종료 (Code: ${event.code}, Clean: ${event.wasClean})`);
+        onCloseRef.current?.();
 
-        // 5초 후 자동 재연결 시도
-        if (reconnectAttemptsRef.current < maxReconnectAttempts) {
+        // 1000: Normal Closure (disconnect 호출 등) -> 재연결 X
+        // 1001: Going Away (브라우저 종료 등)
+        if (event.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
+          const timeout = Math.min(1000 * (2 ** reconnectAttemptsRef.current), 10000); // Exponential backoff
           reconnectAttemptsRef.current += 1;
+
+          console.log(`🔄 ${timeout}ms 후 WebSocket 재연결 시도... (${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
+
           reconnectTimeoutRef.current = setTimeout(() => {
-            console.log(`🔄 WebSocket 재연결 시도... (${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
             connect();
-          }, 5000);
-        } else {
+          }, timeout);
+        } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
           console.warn('⚠️ WebSocket 재연결 최대 횟수에 도달했습니다.');
         }
       };
@@ -68,7 +93,7 @@ export const useWebSocket = (url: string, options: UseWebSocketOptions = {}) => 
     } catch (error) {
       console.error('❌ WebSocket 연결 실패:', error);
     }
-  }, [url, enabled, onMessage, onOpen, onClose, onError]);
+  }, [url, enabled]); // Removed callback dependencies
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -91,8 +116,18 @@ export const useWebSocket = (url: string, options: UseWebSocketOptions = {}) => 
   }, []);
 
   useEffect(() => {
+    // 이미 연결되어 있으면 중복 연결 방지
+    if (wsRef.current &&
+      (wsRef.current.readyState === WebSocket.OPEN ||
+        wsRef.current.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+
+    let isMounted = true;
     connect();
+
     return () => {
+      isMounted = false;
       disconnect();
     };
   }, [connect, disconnect]);

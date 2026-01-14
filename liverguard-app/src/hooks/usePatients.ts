@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { getPatientList } from '../api/administrationApi';
+import { getPatientList } from '../api/hospitalOpsApi';
 
 export interface Patient {
   id: string;

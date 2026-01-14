@@ -28,6 +28,7 @@ interface DoctorSidebarProps {
   completedPatients: Patient[];
   onPatientCardClick: (patient: Patient) => void;
   onStartConsultation: (patient: Patient, event: React.MouseEvent) => Promise<void>;
+  onResumeConsultation: (patient: Patient, event: React.MouseEvent) => void;
 }
 
 const DoctorSidebar = memo(function DoctorSidebar({
@@ -41,6 +42,7 @@ const DoctorSidebar = memo(function DoctorSidebar({
   completedPatients,
   onPatientCardClick,
   onStartConsultation,
+  onResumeConsultation,
 }: DoctorSidebarProps) {
   return (
     <div className={styles.sidebar}>
@@ -108,7 +110,9 @@ const DoctorSidebar = memo(function DoctorSidebar({
                         {patient.questionnaireStatus === 'COMPLETED' ? '작성완료' :
                           patient.questionnaireStatus === 'IN_PROGRESS' ? '작성중' : '미작성'}
                       </span>
-                      <span style={{
+                      <span
+                        onClick={(e) => onResumeConsultation(patient, e)}
+                        style={{
                         background: '#6C5CE7',
                         color: 'white',
                         padding: '4px 12px',

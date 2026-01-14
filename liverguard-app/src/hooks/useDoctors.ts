@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { getAvailableDoctors } from '../api/administration_api';
+import { getAvailableDoctors } from '../api/receptionApi';
 
 export interface Doctor {
   doctor_id: number;
