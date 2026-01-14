@@ -11,7 +11,7 @@ import {
 const UnifiedLoginPage = lazy(() => import("../pages/login/LoginPage"));
 const DoctorLayout = lazy(() => import("../layouts/DoctorLayout"));
 const DoctorHomePage = lazy(() => import("../pages/doctor/HomePage"));
-const SchedulePage = lazy(() => import("../pages/doctor/SchedulePage"));
+const SchedulePage = lazy(() => import("../pages/common/PersonalSchedulePage"));
 const TreatmentPage = lazy(() => import("../pages/doctor/TreatmentPage"));
 const CTResultPage = lazy(() => import("../pages/doctor/CTResult"));
 const RNAResultPage = lazy(() => import("../pages/doctor/RNAResult"));
@@ -24,6 +24,7 @@ const MedicalRecordPage = lazy(() => import("../pages/doctor/MedicalRecordPage")
 const AdministrationLayout = lazy(() => import("../layouts/AdministrationLayout"));
 const AdministrationDashboard = lazy(() => import("../pages/administration/Dashboard"));
 const AdminSchedulePage = lazy(() => import("../pages/administration/SchedulePage"));
+const AdminMySchedulePage = lazy(() => import("../pages/common/PersonalSchedulePage"));
 const PatientManagementPage = lazy(() => import("../pages/administration/PatientManagementPage"));
 const PatientStatusPage = lazy(() => import("../pages/administration/PatientStatusPage"));
 const RadiologyHomePage = lazy(() => import("../pages/radiology/HomePage"));
@@ -35,9 +36,6 @@ const LisResultEntryPage = lazy(() => import("../pages/lis/ResultEntryPage"));
 const LisLabResultFormPage = lazy(() => import("../pages/lis/LabResultFormPage"));
 const ProtectedRoute = lazy(() => import("../components/auth/ProtectedRoute"));
 const ErrorPage = lazy(() => import("../pages/ErrorPage"));
-
-// Manager Pages
-const ManagerSchedulePage = lazy(() => import("../pages/manager/ScheduleManagementPage"));
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -97,12 +95,10 @@ const router = createBrowserRouter(
       >
         <Route path="home" element={<Suspense fallback={<LoadingFallback />}><AdministrationDashboard /></Suspense>} />
         <Route path="appointments" element={<Suspense fallback={<LoadingFallback />}><AdminSchedulePage /></Suspense>} />
+        <Route path="schedule" element={<Suspense fallback={<LoadingFallback />}><AdminMySchedulePage /></Suspense>} />
         <Route path="patientstatus" element={<Suspense fallback={<LoadingFallback />}><PatientStatusPage /></Suspense>} />
         <Route path="patients" element={<Suspense fallback={<LoadingFallback />}><PatientManagementPage /></Suspense>} />
       </Route>
-
-      {/* manager */}
-      <Route path="/manager/schedule-management" element={<Suspense fallback={<LoadingFallback />}><ManagerSchedulePage /></Suspense>} />
 
       {/* radiology */}
       <Route path="/radiology/login" element={<Suspense fallback={<LoadingFallback />}><UnifiedLoginPage initialRole="radiology" /></Suspense>} />
