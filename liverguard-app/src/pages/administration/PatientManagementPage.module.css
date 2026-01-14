@@ -5,9 +5,9 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   background: #F5F7FA;
-  padding: 20px;
+  padding: 16px 20px 12px;
   overflow: hidden;
 }
 
@@ -15,7 +15,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .title {
@@ -57,7 +57,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 
 .leftControls {
@@ -121,7 +121,7 @@
   color: #1976d2;
   padding: 15px 20px;
   border-radius: 8px;
-  margin-bottom: 20px;
+  margin-bottom: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -225,13 +225,27 @@
   border-color: #52759C;
 }
 
-.tableContainer {
+.tableCard {
   flex: 1;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
   background: #FFFFFF;
   border-radius: 12px;
   box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
-  padding: 15px;
+  overflow: hidden;
+}
+
+.tableCardHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 20px 0;
+}
+
+.tableContainer {
+  flex: 1;
+  overflow: auto;
+  padding: 30px 20px;
 }
 
 .patientTable {
@@ -248,7 +262,7 @@
 }
 
 .patientTable th {
-  padding: 12px 10px;
+  padding: 10px 10px;
   text-align: left;
   font-size: 13px;
   font-weight: 700;
@@ -258,7 +272,7 @@
 }
 
 .patientTable td {
-  padding: 12px 10px;
+  padding: 10px 10px;
   font-size: 13px;
   color: #666666;
   border-bottom: 1px solid #F0F0F0;
@@ -858,4 +872,91 @@
 
 .cancelEditBtn:hover {
   background: #757575;
+}
+
+.paginationBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #FFFFFF;
+  padding: 12px 20px;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  margin: 0;
+}
+
+.pageInfo {
+  font-size: 13px;
+  color: #666666;
+  font-weight: 600;
+}
+
+.pageControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pageButton {
+  padding: 8px 14px;
+  border: 1px solid #D7E8FB;
+  background: #FFFFFF;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #52759C;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 40px;
+}
+
+.pageButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.pageButton:not(:disabled):hover {
+  background: #E3F2FD;
+  border-color: #B3E5FC;
+  color: #52759C;
+}
+
+.pageButton.activePage {
+  background: #52759C;
+  color: #FFFFFF;
+  border-color: #52759C;
+}
+
+.pageButton.activePage:hover {
+  background: #405F7F;
+  border-color: #405F7F;
+}
+
+.pageNumber {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333333;
+}
+
+.pageSize {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #666666;
+}
+
+.pageSize select {
+  padding: 6px 10px;
+  border: 1px solid #D0D0D0;
+  border-radius: 6px;
+  font-size: 12px;
+  background: #FFFFFF;
 }

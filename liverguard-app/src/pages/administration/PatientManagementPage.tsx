@@ -55,6 +55,8 @@ const PatientManagementPage: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [activeTab, setActiveTab] = useState<"info" | "history" | "appointments">("info");
@@ -139,6 +141,22 @@ const PatientManagementPage: React.FC = () => {
       patient.phone.includes(searchTerm);
     return matchesSearch;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredPatients.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, filteredPatients.length);
+  const paginatedPatients = filteredPatients.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, pageSize]);
+
+  useEffect(() => {
+    if (currentPage !== safePage) {
+      setCurrentPage(safePage);
+    }
+  }, [currentPage, safePage]);
 
   const handleViewDetails = async (patient: Patient) => {
     setSelectedPatient(patient);
@@ -318,140 +336,188 @@ const PatientManagementPage: React.FC = () => {
         </div>
       </div>
 
-      <div className={styles.controls}>
-        <div className={styles.leftControls}>
-          <button
-            className={`${styles.actionButton} ${styles.vitalBtn} ${selectionMode === "vital" ? styles.active : ""}`}
-            onClick={() => handleModeChange("vital")}
-          >
-            바이탈 측정
-          </button>
-          <button
-            className={`${styles.actionButton} ${styles.physicalBtn} ${selectionMode === "physical" ? styles.active : ""}`}
-            onClick={() => handleModeChange("physical")}
-          >
-            신체 계측
-          </button>
-        </div>
-        <div className={styles.searchBox}>
-          <input
-            type="text"
-            className={styles.searchInput}
-            placeholder="환자명, 환자번호, 연락처로 검색"
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                fetchPatientList(searchTerm);
-              }
-            }}
-          />
-          {searchTerm && (
-            <button
-              onClick={() => {
-                setSearchTerm("");
-                fetchPatientList("");
-              }}
-              style={{
-                position: 'absolute',
-                right: '10px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                background: 'none',
-                border: 'none',
-                fontSize: '16px',
-                cursor: 'pointer',
-                color: '#999'
-              }}
-            >
-              ✕
-            </button>
+      <div className={styles.tableCard}>
+        <div className={styles.tableCardHeader}>
+          <div className={styles.controls}>
+            <div className={styles.leftControls}>
+              <button
+                className={`${styles.actionButton} ${styles.vitalBtn} ${selectionMode === "vital" ? styles.active : ""}`}
+                onClick={() => handleModeChange("vital")}
+              >
+                바이탈 측정
+              </button>
+              <button
+                className={`${styles.actionButton} ${styles.physicalBtn} ${selectionMode === "physical" ? styles.active : ""}`}
+                onClick={() => handleModeChange("physical")}
+              >
+                신체 계측
+              </button>
+            </div>
+            <div className={styles.searchBox}>
+              <input
+                type="text"
+                className={styles.searchInput}
+                placeholder="환자명, 환자번호, 연락처로 검색"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    fetchPatientList(searchTerm);
+                  }
+                }}
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => {
+                    setSearchTerm("");
+                    fetchPatientList("");
+                  }}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '16px',
+                    cursor: 'pointer',
+                    color: '#999'
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+
+          {selectionMode !== 'none' && (
+            <div className={styles.selectionBanner}>
+              <span>
+                {selectionMode === 'vital' ? '바이탈 측정' : '신체 계측'}할 환자를 선택하세요.
+                {selectedForAction && <span className={styles.selectedName}> (선택됨: {selectedForAction.name})</span>}
+              </span>
+              <div className={styles.bannerActions}>
+                <button
+                  className={styles.confirmSelectionBtn}
+                  disabled={!selectedForAction}
+                  onClick={handleSelectionConfirm}
+                >
+                  확인
+                </button>
+                <button className={styles.cancelSelectionBtn} onClick={handleCancelSelection}>취소</button>
+              </div>
+            </div>
           )}
         </div>
-      </div>
-
-      {selectionMode !== 'none' && (
-        <div className={styles.selectionBanner}>
-          <span>
-            {selectionMode === 'vital' ? '바이탈 측정' : '신체 계측'}할 환자를 선택하세요.
-            {selectedForAction && <span className={styles.selectedName}> (선택됨: {selectedForAction.name})</span>}
-          </span>
-          <div className={styles.bannerActions}>
-            <button
-              className={styles.confirmSelectionBtn}
-              disabled={!selectedForAction}
-              onClick={handleSelectionConfirm}
-            >
-              확인
-            </button>
-            <button className={styles.cancelSelectionBtn} onClick={handleCancelSelection}>취소</button>
-          </div>
-        </div>
-      )}
-
-      <div className={styles.tableContainer}>
-        {isLoading ? (
-          <div style={{ textAlign: 'center', padding: '40px' }}>환자 목록을 불러오는 중...</div>
-        ) : (
-          <table className={styles.patientTable}>
-            <thead>
-              <tr>
-                {selectionMode !== 'none' && <th>선택</th>}
-                <th>환자번호</th>
-                <th>이름</th>
-                <th>생년월일</th>
-                <th>나이</th>
-                <th>성별</th>
-                <th>연락처</th>
-                <th>최근 방문일</th>
-                <th>총 방문 횟수</th>
-                <th>작업</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredPatients.length === 0 ? (
+        <div className={styles.tableContainer}>
+          {isLoading ? (
+            <div style={{ textAlign: 'center', padding: '40px' }}>환자 목록을 불러오는 중...</div>
+          ) : (
+            <table className={styles.patientTable}>
+              <thead>
                 <tr>
-                  <td colSpan={selectionMode !== 'none' ? 10 : 9} style={{ textAlign: 'center', padding: '20px' }}>
-                    검색 결과가 없습니다.
-                  </td>
+                  {selectionMode !== 'none' && <th>선택</th>}
+                  <th>환자번호</th>
+                  <th>이름</th>
+                  <th>생년월일</th>
+                  <th>나이</th>
+                  <th>성별</th>
+                  <th>연락처</th>
+                  <th>최근 방문일</th>
+                  <th>총 방문 횟수</th>
+                  <th>작업</th>
                 </tr>
-              ) : (
-                filteredPatients.map(patient => (
-                  <tr key={patient.id} className={selectedForAction?.id === patient.id ? styles.selectedRow : ''} onClick={() => selectionMode !== 'none' && handleSelectPatient(patient)}>
-                    {selectionMode !== 'none' && (
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={selectedForAction?.id === patient.id}
-                          onChange={() => handleSelectPatient(patient)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </td>
-                    )}
-                    <td>{patient.patientId}</td>
-                    <td className={styles.patientName}>{patient.name}</td>
-                    <td>{patient.birthDate}</td>
-                    <td>{calculateAge(patient.birthDate)}세</td>
-                    <td>{patient.gender}</td>
-                    <td>{patient.phone}</td>
-                    <td>{patient.lastVisitDate}</td>
-                    <td>{patient.totalVisits}회</td>
-                    <td>
-                      <button
-                        className={styles.detailBtn}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleViewDetails(patient);
-                        }}
-                      >
-                        상세보기
-                      </button>
+              </thead>
+              <tbody>
+                {filteredPatients.length === 0 ? (
+                  <tr>
+                    <td colSpan={selectionMode !== 'none' ? 10 : 9} style={{ textAlign: 'center', padding: '20px' }}>
+                      검색 결과가 없습니다.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  paginatedPatients.map(patient => (
+                    <tr key={patient.id} className={selectedForAction?.id === patient.id ? styles.selectedRow : ''} onClick={() => selectionMode !== 'none' && handleSelectPatient(patient)}>
+                      {selectionMode !== 'none' && (
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={selectedForAction?.id === patient.id}
+                            onChange={() => handleSelectPatient(patient)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </td>
+                      )}
+                      <td>{patient.patientId}</td>
+                      <td className={styles.patientName}>{patient.name}</td>
+                      <td>{patient.birthDate}</td>
+                      <td>{calculateAge(patient.birthDate)}세</td>
+                      <td>{patient.gender}</td>
+                      <td>{patient.phone}</td>
+                      <td>{patient.lastVisitDate}</td>
+                      <td>{patient.totalVisits}회</td>
+                      <td>
+                        <button
+                          className={styles.detailBtn}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewDetails(patient);
+                          }}
+                        >
+                          상세보기
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {!isLoading && filteredPatients.length > 0 && (
+          <div className={styles.paginationBar}>
+            <div className={styles.pageInfo}>
+              {startIndex + 1}-{endIndex} / {filteredPatients.length}
+            </div>
+            <div className={styles.pagination}>
+              <button
+                className={styles.pageButton}
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={safePage === 1}
+              >
+                이전
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => (
+                <button
+                  key={pageNumber}
+                  className={`${styles.pageButton} ${safePage === pageNumber ? styles.activePage : ''}`}
+                  onClick={() => setCurrentPage(pageNumber)}
+                >
+                  {pageNumber}
+                </button>
+              ))}
+              <button
+                className={styles.pageButton}
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={safePage === totalPages}
+              >
+                다음
+              </button>
+            </div>
+            <div className={styles.pageSize}>
+              <label htmlFor="patient-page-size">페이지당</label>
+              <select
+                id="patient-page-size"
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          </div>
         )}
       </div>
 
