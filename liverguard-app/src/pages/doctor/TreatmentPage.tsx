@@ -14,6 +14,13 @@ import {
 } from '../../api/doctorApi';
 import type { EncounterDetail, LabResult, ImagingOrder } from '../../api/doctorApi';
 
+interface Medication {
+  name: string;
+  dosage: string;
+  frequency: string;
+  days: string;
+}
+
 // Components
 import PatientInfoHeader from '../../components/doctor/treatment/PatientInfoHeader';
 import PatientHistorySection from '../../components/doctor/treatment/PatientHistorySection';
@@ -39,6 +46,10 @@ export default function TreatmentPage() {
   const [clinicalNotes, setClinicalNotes] = useState('');
   const [diagnosisName, setDiagnosisName] = useState('');
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+
+  const [medications, setMedications] = useState<Medication[]>([
+    { name: '', dosage: '', frequency: '', days: '' }
+  ]);
 
   const [orderRequests, setOrderRequests] = useState({
     physical: { notes: '' },
@@ -202,6 +213,20 @@ export default function TreatmentPage() {
     );
   };
 
+  const handleAddMedication = () => {
+    setMedications([...medications, { name: '', dosage: '', frequency: '', days: '' }]);
+  };
+
+  const handleRemoveMedication = (index: number) => {
+    setMedications(medications.filter((_, i) => i !== index));
+  };
+
+  const handleMedicationChange = (index: number, field: string, value: string) => {
+    const newMedications = [...medications];
+    newMedications[index] = { ...newMedications[index], [field]: value };
+    setMedications(newMedications);
+  };
+
   const handleCompleteTreatment = async () => {
     if (!currentEncounter || !selectedEncounterId) return;
 
@@ -342,6 +367,10 @@ export default function TreatmentPage() {
           setHccDetails={setHccDetails}
           onComplete={handleCompleteTreatment}
           disabled={!selectedEncounterId || currentEncounter?.encounter_status === 'COMPLETED'}
+          medications={medications}
+          onAddMedication={handleAddMedication}
+          onRemoveMedication={handleRemoveMedication}
+          onMedicationChange={handleMedicationChange}
         />
       </div>
     </div>

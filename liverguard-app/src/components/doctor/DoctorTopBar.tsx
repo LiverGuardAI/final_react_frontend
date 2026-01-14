@@ -87,7 +87,7 @@ const DoctorTopBar = memo(function DoctorTopBar({ activeTab }: DoctorTopBarProps
         </button>
 
         <div
-          style={{ position: 'relative', flex: 1, maxWidth: '150px' }}
+          style={{ position: 'relative' }}
           onMouseEnter={() => handleMouseEnter('examination')}
           onMouseLeave={handleMouseLeave}
         >
@@ -121,7 +121,7 @@ const DoctorTopBar = memo(function DoctorTopBar({ activeTab }: DoctorTopBarProps
         </div>
 
         <div
-          style={{ position: 'relative', flex: 1, maxWidth: '150px' }}
+          style={{ position: 'relative' }}
           onMouseEnter={() => handleMouseEnter('aiAnalysis')}
           onMouseLeave={handleMouseLeave}
         >
