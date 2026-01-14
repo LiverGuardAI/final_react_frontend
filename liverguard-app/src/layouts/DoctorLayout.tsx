@@ -4,7 +4,7 @@ import styles from './DoctorLayout.module.css';
 import { useWebSocketContext } from '../context/WebSocketContext';
 import { useDoctorWaitingQueue } from '../hooks/useDoctorWaitingQueue';
 import { useDoctorDashboardStats } from '../hooks/useDoctorDashboardStats';
-import { updateEncounter } from '../api/doctorApi';
+import { getDoctorInProgressEncounter, updateEncounter } from '../api/doctorApi';
 import DoctorPatientModal from '../components/doctor/DoctorPatientModal';
 import DoctorSidebar from '../components/doctor/DoctorSidebar';
 import DoctorTopBar from '../components/doctor/DoctorTopBar';
@@ -221,26 +221,34 @@ export default function DoctorLayout() {
     }
   }, [doctorId, fetchWaitingQueue, fetchStats]);
 
+  const resolveActiveEncounter = useCallback(async () => {
+    if (!doctorId || selectedPatientId) {
+      return;
+    }
+    try {
+      const inProgress = await getDoctorInProgressEncounter(doctorId);
+      if (!inProgress) {
+        return;
+      }
+      const patientObj =
+        typeof inProgress.patient === 'object' && inProgress.patient !== null
+          ? inProgress.patient
+          : null;
+      const patientId = patientObj?.patient_id || inProgress.patient_id || null;
+      if (patientId) {
+        setSelectedPatientId(patientId);
+      }
+      if (inProgress.encounter_id) {
+        setSelectedEncounterId(inProgress.encounter_id);
+      }
+    } catch (error) {
+      console.error('진료 중 encounter 조회 실패:', error);
+    }
+  }, [doctorId, selectedPatientId, setSelectedEncounterId, setSelectedPatientId]);
+
   useEffect(() => {
-    if (selectedPatientId || !waitingQueueData?.queue?.length) {
-      return;
-    }
-    const inClinic = waitingQueueData.queue.filter(
-      (item: any) => item.workflow_state === 'IN_CLINIC'
-    );
-    if (inClinic.length !== 1) {
-      return;
-    }
-    const inClinicItem = inClinic[0];
-    const patientObj =
-      typeof inClinicItem.patient === 'object' && inClinicItem.patient !== null
-        ? inClinicItem.patient
-        : null;
-    const patientId = patientObj?.patient_id || inClinicItem.patient_id || null;
-    if (patientId) {
-      setSelectedPatientId(patientId);
-    }
-  }, [selectedPatientId, waitingQueueData, setSelectedPatientId]);
+    resolveActiveEncounter();
+  }, [resolveActiveEncounter]);
 
   // 스케줄 확인 로직
   const [pendingSchedules, setPendingSchedules] = useState<any[]>([]);

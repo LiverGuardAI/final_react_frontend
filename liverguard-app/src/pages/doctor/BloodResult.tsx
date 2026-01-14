@@ -7,7 +7,6 @@ import {
 } from 'recharts';
 import styles from './BloodResult.module.css';
 import { getPatientLabResults, type LabResult } from '../../api/doctorApi';
-import { useDoctorData } from '../../contexts/DoctorDataContext';
 import { useTreatment } from '../../contexts/TreatmentContext';
 
 // 설정: 각 검사 항목의 라벨, 단위, 정상 범위
@@ -28,24 +27,8 @@ const LAB_CONFIG: Record<string, { label: string; unit: string; min?: number; ma
 
 export default function BloodResultPage() {
   const { patientId: urlPatientId } = useParams<{ patientId: string }>();
-  const { waitingQueueData } = useDoctorData();
   const { selectedPatientId } = useTreatment();
-  const inClinicPatientId = useMemo(() => {
-    const queue = waitingQueueData?.queue ?? [];
-    if (queue.length === 0) {
-      return '';
-    }
-    const inClinicItem = queue.find((item: any) => item.workflow_state === 'IN_CLINIC');
-    if (!inClinicItem) {
-      return '';
-    }
-    const patientObj =
-      typeof inClinicItem.patient === 'object' && inClinicItem.patient !== null
-        ? inClinicItem.patient
-        : null;
-    return patientObj?.patient_id || inClinicItem.patient_id || '';
-  }, [waitingQueueData]);
-  const patientId = selectedPatientId || inClinicPatientId || urlPatientId || '';
+  const patientId = selectedPatientId || urlPatientId || '';
   // 개발 테스트를 위해 특정 환자 ID로 고정
   // const { patientId: routePatientId } = useParams<{ patientId: string }>();
   // const patientId = 'P20240009';

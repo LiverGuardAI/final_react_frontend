@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styles from '../../pages/doctor/AIAnalysis.module.css';
 import type { ClinicalFeature, GenomicFeature, RadioFeature } from '../../api/predictionApi';
 import {
@@ -13,7 +13,6 @@ import {
   type HCCDiagnosis,
   type PatientProfile,
 } from '../../api/doctorApi';
-import { useDoctorData } from '../../contexts/DoctorDataContext';
 import { useTreatment } from '../../contexts/TreatmentContext';
 
 interface FeatureSelectRowProps {
@@ -57,24 +56,8 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
   formatDate,
   disabled = false,
 }) => {
-  const { waitingQueueData } = useDoctorData();
   const { selectedPatientId } = useTreatment();
-  const inClinicPatientId = useMemo(() => {
-    const queue = waitingQueueData?.queue ?? [];
-    if (queue.length === 0) {
-      return '';
-    }
-    const inClinicItem = queue.find((item: any) => item.workflow_state === 'IN_CLINIC');
-    if (!inClinicItem) {
-      return '';
-    }
-    const patientObj =
-      typeof inClinicItem.patient === 'object' && inClinicItem.patient !== null
-        ? inClinicItem.patient
-        : null;
-    return patientObj?.patient_id || inClinicItem.patient_id || '';
-  }, [waitingQueueData]);
-  const patientId = selectedPatientId || inClinicPatientId || '';
+  const patientId = selectedPatientId || '';
   const [ctSeriesList, setCtSeriesList] = useState<CtSeriesItem[]>([]);
   const [labResults, setLabResults] = useState<LabResult[]>([]);
   const [genomicData, setGenomicData] = useState<GenomicDataItem[]>([]);

@@ -6,7 +6,6 @@ import {
 } from 'recharts';
 import styles from './RNAResult.module.css';
 import { getPatientGenomicData, type GenomicDataItem } from '../../api/doctorApi';
-import { useDoctorData } from '../../contexts/DoctorDataContext';
 import { useTreatment } from '../../contexts/TreatmentContext';
 
 // 20개 Pathway 정의
@@ -20,24 +19,8 @@ const PATHWAY_KEYS = [
 
 export default function RNAResultPage() {
   const { patientId: urlPatientId } = useParams<{ patientId: string }>();
-  const { waitingQueueData } = useDoctorData();
   const { selectedPatientId } = useTreatment();
-  const inClinicPatientId = useMemo(() => {
-    const queue = waitingQueueData?.queue ?? [];
-    if (queue.length === 0) {
-      return '';
-    }
-    const inClinicItem = queue.find((item: any) => item.workflow_state === 'IN_CLINIC');
-    if (!inClinicItem) {
-      return '';
-    }
-    const patientObj =
-      typeof inClinicItem.patient === 'object' && inClinicItem.patient !== null
-        ? inClinicItem.patient
-        : null;
-    return patientObj?.patient_id || inClinicItem.patient_id || '';
-  }, [waitingQueueData]);
-  const patientId = selectedPatientId || inClinicPatientId || urlPatientId || '';
+  const patientId = selectedPatientId || urlPatientId || '';
   // 개발 테스트를 위해 특정 환자 ID로 고정
   // const { patientId: routePatientId } = useParams<{ patientId: string }>();
   // const patientId = 'P20240009';
