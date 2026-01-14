@@ -5,25 +5,29 @@ import AdministrationTopBar from "../components/administration/AdministrationTop
 import styles from "../pages/administration/Dashboard.module.css";
 
 import { useState, useEffect } from 'react';
+import { useAuth } from "../context/AuthContext";
 
 const AdministrationLayout = () => {
     // 스케줄 확인 로직
     const [pendingSchedules, setPendingSchedules] = useState<any[]>([]);
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
-    // User info can be retrieved from localStorage or a context if available.
-    // AuthProvider might be better, but assuming localStorage for consistency with DoctorLayout for now.
-    const { user } = JSON.parse(localStorage.getItem('user') || '{}');
+    // User info from AuthContext (reactive)
+    const { user } = useAuth();
+
+    // Administration 테이블의 name(실명)을 가져옵니다.
+    const adminData = JSON.parse(localStorage.getItem('administration') || '{}');
+    const staffName = adminData?.name || '원무과';
 
     // Effect to check schedules
     useEffect(() => {
         const checkPendingSchedules = async () => {
-            if (!user || !user.id) return;
+            const userId = user?.user_id ?? user?.id;
+            if (!userId) return;
             try {
                 const { getDutySchedules } = await import('../api/hospitalOpsApi');
-                const data = await getDutySchedules(undefined, undefined, user.id);
-                // Filter for PENDING schedules
-                const pending = data.filter((s: any) => s.schedule_status === 'PENDING');
+                const data = await getDutySchedules(undefined, undefined, userId, 'PENDING');
+                const pending = data;
                 if (pending.length > 0) {
                     setPendingSchedules(pending);
                     setIsScheduleModalOpen(true);
@@ -33,7 +37,7 @@ const AdministrationLayout = () => {
             }
         };
         checkPendingSchedules();
-    }, [user?.id]); // Depend on user ID
+    }, [user?.id, user?.user_id]); // Depend on user ID
 
     const handleConfirmSchedule = async (scheduleId: number) => {
         try {
@@ -77,7 +81,7 @@ const AdministrationLayout = () => {
     return (
         <AdministrationProvider>
             <div className={styles.container}>
-                <AdministrationSidebar />
+                <AdministrationSidebar staffName={staffName} departmentName="원무과" />
                 <div className={styles.mainArea}>
                     <AdministrationTopBar />
                     <div className={styles.mainContent}>

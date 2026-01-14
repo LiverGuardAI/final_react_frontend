@@ -82,11 +82,12 @@ interface ClinicWaiting {
     encounterId: number;
     name: string;
     phone: string;
-    status: '진료중' | '대기중' | '진료완료';
+    status: string;
     patientId: string;
     encounter_status: string;
   }[];
 }
+
 
 type TabType = 'home' | 'schedule' | 'appointments' | 'patients';
 type ContentTabType = 'search' | 'newPatient' | 'appointments';
@@ -104,6 +105,7 @@ export default function AdministrationDashboard() {
   const itemsPerPage = 5;
   const [searchQuery, setSearchQuery] = useState('');
   const [adminStaffId, setAdminStaffId] = useState<number | null>(null);
+  const { lastMessage } = useWebSocketContext();
 
   // Custom Hook for Patients
   const { patients, fetchPatients, isLoading: isLoadingPatients, currentPage, setCurrentPage } = usePatients();
@@ -121,12 +123,45 @@ export default function AdministrationDashboard() {
     fetchWaitingQueue
   } = useAdministrationData();
 
+  // 영상의학과 대기열 상태
+  const [imagingQueueData, setImagingQueueData] = useState<any>(null);
+
+  // 영상의학과 대기열 가져오기
+  const fetchImagingQueue = async () => {
+    try {
+      const response = await fetch('/api/administration/queue/admin/?type=imaging', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      });
+      const data = await response.json();
+      setImagingQueueData(data);
+    } catch (error) {
+      console.error('Failed to fetch imaging queue:', error);
+    }
+  };
+
   // Refresh trigger listener
   useEffect(() => {
     if (currentPage === 1) {
       fetchPatients(searchQuery, 1);
     }
   }, [refreshPatientsTrigger]); // searchQuery changes handled manually
+
+  // 영상의학과 대기열 초기 로드 및 WebSocket 업데이트
+  useEffect(() => {
+    fetchImagingQueue();
+  }, []);
+
+  // WebSocket 업데이트 시 영상의학과 대기열 갱신
+  useEffect(() => {
+    if (lastMessage && lastMessage.type === 'queue_update') {
+      const queueType = lastMessage.data?.queue_type;
+      if (queueType === 'imaging') {
+        fetchImagingQueue();
+      }
+    }
+  }, [lastMessage]);
 
   // --- Modals State ---
   // Patient Detail Modal
@@ -177,7 +212,7 @@ export default function AdministrationDashboard() {
   const [orderRefreshTrigger, setOrderRefreshTrigger] = useState(0);
   const [notification, setNotification] = useState<{ message: string, type: string } | null>(null);
 
-  const { lastMessage } = useWebSocketContext();
+  
 
   useEffect(() => {
     if (lastMessage && lastMessage.type === 'new_order') {
@@ -197,58 +232,97 @@ export default function AdministrationDashboard() {
 
   // --- Logic for Detailed Waiting Status ---
   const clinicWaitingList = useMemo((): ClinicWaiting[] => {
-    if (sidebarDoctors.length === 0) return [];
+    const result: ClinicWaiting[] = [];
 
-    const parseRoomNumber = (room?: string) => {
-      if (!room) return Number.POSITIVE_INFINITY;
-      const numeric = Number.parseInt(room.replace(/\D/g, ''), 10);
-      return Number.isFinite(numeric) ? numeric : Number.POSITIVE_INFINITY;
-    };
+    // 의사 진료실 목록
+    if (sidebarDoctors.length > 0) {
+      const parseRoomNumber = (room?: string) => {
+        if (!room) return Number.POSITIVE_INFINITY;
+        const numeric = Number.parseInt(room.replace(/\D/g, ''), 10);
+        return Number.isFinite(numeric) ? numeric : Number.POSITIVE_INFINITY;
+      };
 
-    const sortedDoctors = [...sidebarDoctors].sort((a, b) => {
-      const aRoom = parseRoomNumber(a.room_number);
-      const bRoom = parseRoomNumber(b.room_number);
-      if (aRoom !== bRoom) return aRoom - bRoom;
-      return a.name.localeCompare(b.name);
-    });
+      const sortedDoctors = [...sidebarDoctors].sort((a, b) => {
+        const aRoom = parseRoomNumber(a.room_number);
+        const bRoom = parseRoomNumber(b.room_number);
+        if (aRoom !== bRoom) return aRoom - bRoom;
+        return a.name.localeCompare(b.name);
+      });
 
-    return sortedDoctors.map((doctor) => {
-      const myPatients = waitingQueueData?.queue?.filter((q: any) =>
-        q.doctor_id === doctor.doctor_id || q.doctor === doctor.doctor_id || q.assigned_doctor === doctor.doctor_id
-      ) || [];
+      sortedDoctors.forEach((doctor) => {
+        const myPatients = waitingQueueData?.queue?.filter((q: any) =>
+          q.doctor_id === doctor.doctor_id || q.doctor === doctor.doctor_id || q.assigned_doctor === doctor.doctor_id
+        ) || [];
 
-      const formattedPatients = myPatients
+        const formattedPatients = myPatients
+          .map((p: any) => {
+            let statusText = 'WAITING';
+            if (p.workflow_state === 'IN_PROGRESS' || p.workflow_state === 'IN_CLINIC') statusText = 'IN_PROGRESS';
+            else if (p.workflow_state === 'WAITING_RESULTS') statusText = 'WAITING_RESULTS';
+            else if (p.workflow_state === 'COMPLETED') statusText = 'COMPLETED';
+
+            return {
+              encounterId: p.encounter_id,
+              name: p.patient_name || 'Unknown',
+              phone: '010-****-****',
+              status: statusText,
+              patientId: p.patient || p.patient_id,
+              encounter_status: p.workflow_state,
+              checkin_time: p.checkin_time
+            };
+          })
+          .sort((a: any, b: any) => {
+            if (a.encounter_status === 'IN_PROGRESS' && b.encounter_status !== 'IN_PROGRESS') return -1;
+            if (a.encounter_status !== 'IN_PROGRESS' && b.encounter_status === 'IN_PROGRESS') return 1;
+            return 0;
+          });
+
+        result.push({
+          id: doctor.doctor_id,
+          clinicName: doctor.department.dept_name,
+          roomNumber: doctor.room_number ? `${doctor.room_number}` : 'Unassigned',
+          doctorName: doctor.name,
+          patients: formattedPatients
+        });
+      });
+    }
+
+    // 영상의학과 (CT실) 추가
+    if (imagingQueueData?.queue) {
+      const imagingPatients = imagingQueueData.queue
         .map((p: any) => {
-          let statusText = '대기중';
-          if (p.workflow_state === 'IN_PROGRESS' || p.workflow_state === 'IN_CLINIC') statusText = '진료중';
-          else if (p.workflow_state === 'WAITING_RESULTS') statusText = '결과대기';
-          else if (p.workflow_state === 'COMPLETED') statusText = '진료완료';
+          let statusText = 'WAITING';
+          if (p.workflow_state === 'IN_IMAGING') statusText = 'IN_IMAGING';
+          else if (p.workflow_state === 'WAITING_IMAGING') statusText = 'WAITING';
+          else if (p.workflow_state === 'COMPLETED') statusText = 'COMPLETED';
 
           return {
             encounterId: p.encounter_id,
-            name: p.patient_name || '이름 없음',
+            name: p.patient_name || 'Unknown',
             phone: '010-****-****',
-            status: statusText as '진료중' | '대기중' | '진료완료',
+            status: statusText,
             patientId: p.patient || p.patient_id,
             encounter_status: p.workflow_state,
-            checkin_time: p.checkin_time
+            checkin_time: p.state_entered_at
           };
         })
         .sort((a: any, b: any) => {
-          if (a.encounter_status === 'IN_PROGRESS' && b.encounter_status !== 'IN_PROGRESS') return -1;
-          if (a.encounter_status !== 'IN_PROGRESS' && b.encounter_status === 'IN_PROGRESS') return 1;
+          if (a.encounter_status === 'IN_IMAGING' && b.encounter_status !== 'IN_IMAGING') return -1;
+          if (a.encounter_status !== 'IN_IMAGING' && b.encounter_status === 'IN_IMAGING') return 1;
           return 0;
         });
 
-      return {
-        id: doctor.doctor_id,
-        clinicName: doctor.department.dept_name,
-        roomNumber: doctor.room_number ? `${doctor.room_number}호` : '미배정',
-        doctorName: doctor.name,
-        patients: formattedPatients
-      };
-    });
-  }, [sidebarDoctors, waitingQueueData]);
+      result.push({
+        id: 'imaging_ct',
+        clinicName: 'Radiology',
+        roomNumber: 'CT',
+        doctorName: 'Radiology',
+        patients: imagingPatients
+      });
+    }
+
+    return result;
+  }, [sidebarDoctors, waitingQueueData, imagingQueueData]);
 
   const waitingPatientIds = useMemo(() => {
     if (!waitingQueueData?.queue) return [];

@@ -5,9 +5,13 @@ import {
     getDutySchedules,
     type DutyScheduleData,
     confirmDutySchedule,
-    rejectDutySchedule
+    rejectDutySchedule,
+    createDutySchedule,
+    updateDutySchedule,
+    deleteDutySchedule
 } from '../../api/hospitalOpsApi';
 import { useWebSocketContext } from '../../context/WebSocketContext';
+import ScheduleManagementModal from './ScheduleManagementModal';
 
 interface ScheduleModalProps {
     schedule: DutyScheduleData;
@@ -30,6 +34,16 @@ const ScheduleReviewModal: React.FC<ScheduleModalProps> = ({ schedule, onClose, 
             return;
         }
         onReject(reason);
+    };
+
+    const getShiftTypeLabel = (type?: string) => {
+        switch (type) {
+            case 'DAY': return '주간';
+            case 'EVENING': return '저녁';
+            case 'NIGHT': return '심야';
+            case 'OFF': return '휴무';
+            default: return type || '-';
+        }
     };
 
     return (
@@ -57,9 +71,7 @@ const ScheduleReviewModal: React.FC<ScheduleModalProps> = ({ schedule, onClose, 
                     <div className={styles.detailRow}>
                         <span className={styles.detailLabel}>근무 유형</span>
                         <span className={styles.detailValue}>
-                            {schedule.shift_type === 'DAY' ? '주간' :
-                                schedule.shift_type === 'EVENING' ? '야간' :
-                                    schedule.shift_type === 'NIGHT' ? '심야' : schedule.shift_type}
+                            {getShiftTypeLabel(schedule.shift_type)}
                         </span>
                     </div>
                     <div className={styles.detailRow}>
@@ -116,14 +128,21 @@ export default function PersonalSchedulePage() {
     const { user } = useAuth();
     const { lastMessage } = useWebSocketContext();
 
-    const [currentDate, setCurrentDate] = useState(new Date()); // Selected Date
-    const [currentMonth, setCurrentMonth] = useState(new Date()); // Calendar View Month
+    const [currentDate, setCurrentDate] = useState(new Date());
+    const [currentMonth, setCurrentMonth] = useState(new Date());
     const [schedules, setSchedules] = useState<DutyScheduleData[]>([]);
+    const [appointments, setAppointments] = useState<any[]>([]);
     const [selectedSchedule, setSelectedSchedule] = useState<DutyScheduleData | null>(null);
+    const [dailyTab, setDailyTab] = useState<'schedule' | 'appointment'>('schedule');
 
-    // Derived State
+    // Management Modal State
+    const [isManagementModalOpen, setIsManagementModalOpen] = useState(false);
+    const [managementMode, setManagementMode] = useState<'create' | 'edit'>('create');
+    const [editingData, setEditingData] = useState<DutyScheduleData | null>(null);
+
+    // 주간 날짜 계산
     const startOfWeek = new Date(currentDate);
-    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay()); // Sunday start
+    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
     startOfWeek.setHours(0, 0, 0, 0);
 
     const weekDates = Array.from({ length: 7 }, (_, i) => {
@@ -132,22 +151,56 @@ export default function PersonalSchedulePage() {
         return d;
     });
 
+    // 주간 기간 텍스트
+    const weekStart = weekDates[0];
+    const weekEnd = weekDates[6];
+    const weekRangeText = `${weekStart.getFullYear()}년 ${weekStart.getMonth() + 1}월 ${weekStart.getDate()}일 ~ ${weekEnd.getMonth() + 1}월 ${weekEnd.getDate()}일`;
+
     useEffect(() => {
         if (user) {
             fetchSchedules();
+            fetchAppointments();
         }
-    }, [user, currentDate, currentMonth]); // Fetch broadly or optimize
+    }, [user, currentDate, currentMonth]);
 
-    // Listen for WebSocket updates
-    // Listen for WebSocket updates
+    // 자동 스크롤
+    useEffect(() => {
+        if (schedules.length > 0) {
+            setTimeout(() => {
+                const today = new Date();
+                const todaySchedules = schedules.filter(s => {
+                    const scheduleDate = new Date(s.start_time);
+                    return scheduleDate.toDateString() === today.toDateString() &&
+                        s.schedule_status === 'CONFIRMED';
+                });
+
+                const gridBody = document.getElementById('scheduleGridBody');
+                if (!gridBody) return;
+
+                if (todaySchedules.length > 0) {
+                    const earliestSchedule = todaySchedules.sort((a, b) =>
+                        new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+                    )[0];
+
+                    const startTime = new Date(earliestSchedule.start_time);
+                    const scrollMinutes = Math.max(0, startTime.getHours() * 60 + startTime.getMinutes() - 30);
+
+                    gridBody.scrollTop = scrollMinutes * 50 / 30; // 30분당 50px
+                } else {
+                    const now = new Date();
+                    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                    gridBody.scrollTop = Math.max(0, (currentMinutes - 60) * 50 / 30);
+                }
+            }, 100);
+        }
+    }, [schedules]);
+
+    // WebSocket 업데이트 수신
     useEffect(() => {
         if (lastMessage) {
             const data = lastMessage;
             if (data.type === 'schedule_update') {
-                // Refresh schedules
                 fetchSchedules();
-                // Optional: Show prompt or highlight
-                // alert('일정이 업데이트되었습니다.'); // User might find annoying, maybe just refresh logic
             }
         }
     }, [lastMessage]);
@@ -155,18 +208,51 @@ export default function PersonalSchedulePage() {
     const fetchSchedules = async () => {
         if (!user) return;
         try {
-            // Fetch for a wide range (e.g. current month + week buffer)
             const start = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
             const end = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 2, 0);
 
+            const userId = user?.user_id ?? user?.id;
             const data = await getDutySchedules(
                 start.toISOString().split('T')[0],
                 end.toISOString().split('T')[0],
-                user.id
+                userId
             );
             setSchedules(data);
         } catch (error) {
             console.error("Failed to fetch schedules", error);
+        }
+    };
+
+    const fetchAppointments = async () => {
+        if (!user) return;
+
+        // Appointment는 의사에게만 해당되는 데이터입니다.
+        // 원무과(administration) 등 타 직군은 진료 예약 내역이 없으므로 조회하지 않습니다.
+        const isDoctor = user.role === 'doctor' || user.role === 'DOCTOR';
+
+        if (!isDoctor) {
+            setAppointments([]);
+            return;
+        }
+
+        try {
+            // Import dynamically or assume it's available
+            const { getAppointments } = await import('../../api/receptionApi');
+            const doctorInfoRaw = localStorage.getItem('doctor');
+            const doctorInfo = doctorInfoRaw ? JSON.parse(doctorInfoRaw) : null;
+            const doctorId = doctorInfo?.doctor_id;
+
+            if (!doctorId) {
+                setAppointments([]);
+                return;
+            }
+            const data = await getAppointments({
+                doctor_id: String(doctorId),
+                // Optimization: Fetch for current week or month range if API supports it
+            });
+            setAppointments(data.results || data);
+        } catch (error) {
+            console.error("Failed to fetch appointments", error);
         }
     };
 
@@ -192,7 +278,61 @@ export default function PersonalSchedulePage() {
         }
     };
 
-    // Calendar Helpers
+    // Management Handlers
+    const handleAddSchedule = () => {
+        setManagementMode('create');
+        setEditingData(null);
+        setIsManagementModalOpen(true);
+    };
+
+    const handleEditSchedule = () => {
+        if (!selectedSchedule) return;
+        setManagementMode('edit');
+        setEditingData(selectedSchedule);
+        setIsManagementModalOpen(true);
+    };
+
+    const handleDeleteSchedule = async () => {
+        if (!selectedSchedule || !selectedSchedule.schedule_id) return;
+        if (!confirm('정말 이 일정을 삭제하시겠습니까?')) return;
+        try {
+            await deleteDutySchedule(selectedSchedule.schedule_id);
+            fetchSchedules();
+            setSelectedSchedule(null);
+        } catch (error) {
+            alert('삭제 실패');
+        }
+    };
+
+    const handleManagementSubmit = async (data: Partial<DutyScheduleData>) => {
+        if (!user) return;
+        try {
+            if (managementMode === 'create') {
+                const userId = user?.user_id ?? user?.id;
+                if (!userId) return;
+                await createDutySchedule({ ...data, user: userId } as DutyScheduleData);
+            } else if (managementMode === 'edit' && editingData?.schedule_id) {
+                await updateDutySchedule(editingData.schedule_id, data);
+            }
+            setIsManagementModalOpen(false);
+            fetchSchedules();
+            setSelectedSchedule(null); // Close selection after edit
+        } catch (error) {
+            alert('저장 실패: ' + error);
+        }
+    };
+
+    const getShiftTypeLabel = (type?: string) => {
+        switch (type) {
+            case 'DAY': return '주간';
+            case 'EVENING': return '저녁';
+            case 'NIGHT': return '심야';
+            case 'OFF': return '휴무';
+            default: return type || '';
+        }
+    };
+
+    // 달력 렌더링
     const getDaysInMonth = (date: Date) => {
         const year = date.getFullYear();
         const month = date.getMonth();
@@ -209,18 +349,14 @@ export default function PersonalSchedulePage() {
         const { daysInMonth, startingDay, prevMonthLastDay } = getDaysInMonth(currentMonth);
         const days = [];
 
-        // Prev Month
         for (let i = startingDay - 1; i >= 0; i--) {
             days.push(<div key={`prev-${i}`} className={`${styles.day} ${styles.otherMonth}`}>{prevMonthLastDay - i}</div>);
         }
 
-        // Current Month
         for (let i = 1; i <= daysInMonth; i++) {
             const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i);
             const isSelected = d.toDateString() === currentDate.toDateString();
             const isToday = d.toDateString() === new Date().toDateString();
-
-            // Check events
             const hasEvent = schedules.some(s => new Date(s.start_time).toDateString() === d.toDateString());
 
             days.push(
@@ -234,7 +370,6 @@ export default function PersonalSchedulePage() {
             );
         }
 
-        // Next Month (Just fill grid to 35 or 42)
         const remaining = 42 - days.length;
         for (let i = 1; i <= remaining; i++) {
             days.push(<div key={`next-${i}`} className={`${styles.day} ${styles.otherMonth}`}>{i}</div>);
@@ -243,134 +378,198 @@ export default function PersonalSchedulePage() {
         return days;
     };
 
+    // Daily Summary
     const renderDailySummary = () => {
         const daySchedules = schedules.filter(s =>
             new Date(s.start_time).toDateString() === currentDate.toDateString()
         ).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
 
         return (
-            <div className={styles.summaryList}>
-                {daySchedules.length === 0 ? (
-                    <div style={{ color: '#a0aec0', textAlign: 'center', marginTop: '20px' }}>일정이 없습니다.</div>
-                ) : (
-                    daySchedules.map(sch => (
-                        <div
-                            key={sch.schedule_id}
-                            className={`${styles.summaryItem} ${styles[sch.schedule_status?.toLowerCase() || '']}`}
-                            onClick={() => setSelectedSchedule(sch)}
-                            style={{ cursor: 'pointer' }}
-                        >
-                            <div className={styles.itemTime}>
-                                {new Date(sch.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -
-                                {new Date(sch.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </div>
-                            <div className={styles.itemTitle}>
-                                {sch.shift_type === 'DAY' ? '주간 근무' :
-                                    sch.shift_type === 'EVENING' ? '야간 근무' : '심야 근무'}
-                            </div>
-                            <span className={`${styles.itemStatus} ${styles[sch.schedule_status?.toLowerCase() || '']}`}>
-                                {sch.schedule_status}
-                            </span>
+            <>
+                {/* 탭 버튼 */}
+                <div className={styles.tabButtons}>
+                    <button
+                        className={`${styles.tabButton} ${dailyTab === 'schedule' ? styles.active : ''}`}
+                        onClick={() => setDailyTab('schedule')}
+                    >
+                        일정
+                    </button>
+                    <button
+                        className={`${styles.tabButton} ${dailyTab === 'appointment' ? styles.active : ''}`}
+                        onClick={() => setDailyTab('appointment')}
+                    >
+                        예약
+                    </button>
+                </div>
+
+                {/* 일정 탭 내용 */}
+                {dailyTab === 'schedule' ? (
+                    <>
+                        <div className={styles.summaryList}>
+                            {daySchedules.length === 0 ? (
+                                <div style={{ color: '#a0aec0', textAlign: 'center', marginTop: '20px' }}>일정이 없습니다.</div>
+                            ) : (
+                                daySchedules.map(sch => (
+                                    <div
+                                        key={sch.schedule_id}
+                                        className={`${styles.summaryItem} ${styles[sch.schedule_status?.toLowerCase() || '']}`}
+                                        onClick={() => setSelectedSchedule(sch)}
+                                        style={{ cursor: 'pointer' }}
+                                    >
+                                        <div className={styles.itemTime}>
+                                            {new Date(sch.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -
+                                            {new Date(sch.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </div>
+                                        <div className={styles.itemTitle}>
+                                            {getShiftTypeLabel(sch.shift_type)}
+                                        </div>
+                                        <span className={`${styles.itemStatus} ${styles[sch.schedule_status?.toLowerCase() || '']}`}>
+                                            {sch.schedule_status}
+                                        </span>
+                                    </div>
+                                ))
+                            )}
                         </div>
-                    ))
+                        {/* 일정 관리 버튼 */}
+                        <div className={styles.scheduleActions}>
+                            <button className={styles.btnAdd} onClick={handleAddSchedule}>일정 추가</button>
+                            <button
+                                className={styles.btnEdit}
+                                disabled={!selectedSchedule}
+                                onClick={handleEditSchedule}
+                            >
+                                수정
+                            </button>
+                            <button
+                                className={styles.btnDelete}
+                                disabled={!selectedSchedule}
+                                onClick={handleDeleteSchedule}
+                            >
+                                삭제
+                            </button>
+                        </div>
+                    </>
+                ) : (
+                    <div className={styles.summaryList}>
+                        {appointments
+                            .filter(apt => new Date(apt.appointment_date).toDateString() === currentDate.toDateString())
+                            .sort((a, b) => (a.appointment_time || '').localeCompare(b.appointment_time || ''))
+                            .map((apt, idx) => (
+                                <div key={idx} className={styles.summaryItem}>
+                                    <div className={styles.itemTime}>
+                                        {apt.appointment_time?.slice(0, 5)}
+                                    </div>
+                                    <div className={styles.itemTitle}>
+                                        {apt.patient_name || apt.patient?.name} ({apt.status})
+                                    </div>
+                                    <div className={styles.itemStatus}>
+                                        {apt.appointment_type}
+                                    </div>
+                                </div>
+                            ))}
+                        {appointments.filter(apt => new Date(apt.appointment_date).toDateString() === currentDate.toDateString()).length === 0 && (
+                            <div style={{ color: '#a0aec0', textAlign: 'center', marginTop: '20px' }}>예약이 없습니다.</div>
+                        )}
+                    </div>
                 )}
-            </div>
+            </>
         );
     };
 
+
+    // Timetable - appointments 스타일 (그리드)
     const renderTimetable = () => {
-        const hours = Array.from({ length: 24 }, (_, i) => i);
+        const timeSlots = [];
+        for (let hour = 0; hour < 24; hour++) {
+            for (let minute = 0; minute < 60; minute += 30) {
+                timeSlots.push({
+                    hour,
+                    minute,
+                    time: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+                });
+            }
+        }
 
         return (
-            <div className={styles.timetableGrid}>
-                {/* Header */}
-                <div className={styles.gridHeader}>
-                    <div className={styles.timeColHeader}></div>
+            <div className={styles.scheduleGridContainer} id="scheduleGridBody">
+                {/* 헤더 */}
+                <div className={styles.weekDaysHeader}>
+                    <div className={styles.timeColumn}>시간</div>
                     {weekDates.map((d, i) => (
-                        <div key={i} className={styles.dayHeader}>
+                        <div key={i} className={styles.dayColumn}>
                             {['일', '월', '화', '수', '목', '금', '토'][d.getDay()]} ({d.getDate()})
                         </div>
                     ))}
                 </div>
 
-                {/* Body */}
-                <div className={styles.gridBody}>
-                    {/* Time Labels */}
-                    <div className={styles.timeCol}>
-                        {hours.map(h => (
-                            <div key={h} className={styles.timeLabel} style={{ height: '60px' }}>
-                                {h}:00
-                            </div>
-                        ))}
-                    </div>
+                {/* 각 30분 슬롯 */}
+                {timeSlots.map((slot, index) => (
+                    <div key={index} className={styles.timeSlotRow}>
+                        <div className={styles.timeLabel}>{slot.time}</div>
 
-                    {/* Day Columns */}
-                    {weekDates.map((d, dayIndex) => {
-                        // Schedules for this day
-                        const daySchedules = schedules.filter(s => {
-                            const sDate = new Date(s.start_time);
-                            return sDate.getDate() === d.getDate() && sDate.getMonth() === d.getMonth();
-                        });
+                        {/* 각 요일 셀 */}
+                        {weekDates.map((d, dayIndex) => {
+                            const daySchedules = schedules.filter(s => {
+                                const sDate = new Date(s.start_time);
+                                return sDate.toDateString() === d.toDateString();
+                            });
 
-                        return (
-                            <div key={dayIndex} className={styles.dayCol}>
-                                <div style={{ position: 'relative', height: `${24 * 60}px` }}>
-                                    {/* Make sure height matches timeCol, assume 60px per hour */}
+                            // 이 슬롯 시간에 해당하는 일정 찾기
+                            const schedule = daySchedules.find(s => {
+                                const start = new Date(s.start_time);
+                                const startMinutes = start.getHours() * 60 + start.getMinutes();
+                                const slotMinutes = slot.hour * 60 + slot.minute;
+                                const end = new Date(s.end_time);
+                                const endMinutes = end.getHours() * 60 + end.getMinutes();
 
-                                    {/* Render Slots (White for Duty) is hard with variable shifts. 
-                                        Instead, render default gray background on col, and overlay White blocks for duty? 
-                                        Or just render Event Blocks. User asked for "white for duty, gray for off".
-                                        So default background is gray (set in CSS), and we render "Duty Slots" in white.
-                                    */}
+                                return slotMinutes >= startMinutes && slotMinutes < endMinutes;
+                            });
 
-                                    {daySchedules.map(sch => {
-                                        if (sch.schedule_status === 'CANCELLED') return null; // Don't show cancelled as duty slot logic? Or show as red/gray.
+                            const isOff = schedule?.shift_type === 'OFF';
+                            const hasSchedule = !!schedule && schedule.schedule_status !== 'CANCELLED';
 
-                                        const start = new Date(sch.start_time);
-                                        const end = new Date(sch.end_time);
-                                        // Calculate top and height
-                                        const startHour = start.getHours() + start.getMinutes() / 60;
-                                        let endHour = end.getHours() + end.getMinutes() / 60;
-                                        if (end.getDate() !== start.getDate()) endHour += 24; // Handle next day crossing loosely for display
+                            // Appointments for this slot
+                            const slotAppointments = appointments.filter(apt => {
+                                if (new Date(apt.appointment_date).toDateString() !== d.toDateString()) return false;
+                                const [aptH, aptM] = (apt.appointment_time || '00:00:00').split(':').map(Number);
+                                const aptTime = aptH * 60 + aptM;
+                                const slotTime = slot.hour * 60 + slot.minute;
+                                return aptTime >= slotTime && aptTime < slotTime + 30; // 30 min slot logic
+                            });
 
-                                        const top = startHour * 60;
-                                        const height = (endHour - startHour) * 60;
-
-                                        return (
-                                            <React.Fragment key={sch.schedule_id}>
-                                                {/* White Background Slot */}
-                                                <div
-                                                    className={styles.dutySlot}
-                                                    style={{ top: `${top}px`, height: `${height}px` }}
-                                                />
-                                                {/* Event Block Overlay */}
-                                                <div
-                                                    className={`${styles.eventBlock} ${styles[sch.schedule_status?.toLowerCase() || '']}`}
-                                                    style={{ top: `${top}px`, height: `${height}px` }}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setSelectedSchedule(sch);
-                                                    }}
-                                                >
-                                                    {sch.shift_type} ({sch.schedule_status})
-                                                </div>
-                                            </React.Fragment>
-                                        );
-                                    })}
+                            return (
+                                <div
+                                    key={dayIndex}
+                                    className={`${styles.scheduleCell} ${hasSchedule ? styles.onDuty : styles.offDuty} ${isOff ? styles.dayOff : ''}`}
+                                    onClick={() => schedule && setSelectedSchedule(schedule)}
+                                >
+                                    {schedule && schedule.schedule_status !== 'CANCELLED' && (
+                                        <div className={styles.scheduleLabel}>
+                                            {isOff ? '휴무' : getShiftTypeLabel(schedule.shift_type)}
+                                        </div>
+                                    )}
+                                    {/* Appointment Indicators */}
+                                    {slotAppointments.length > 0 && (
+                                        <div className={styles.appointmentIndicator}>
+                                            {slotAppointments.map((apt, i) => (
+                                                <div key={i} className={styles.appointmentDot} title={`${apt.patient_name || apt.patient?.name} - ${apt.appointment_time?.slice(0, 5)}`} />
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
-                        );
-                    })}
-                </div>
+                            );
+                        })}
+                    </div>
+                ))}
             </div>
         );
     };
 
     return (
         <div className={styles.scheduleContainer}>
-            {/* Left Panel */}
+            {/* 왼쪽 패널 */}
             <div className={styles.leftPanel}>
-                {/* Calendar */}
+                {/* 달력 */}
                 <div className={`${styles.card} ${styles.calendarCard}`}>
                     <div className={styles.calendarHeader}>
                         <button className={styles.navButton} onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)))}>&lt;</button>
@@ -392,20 +591,15 @@ export default function PersonalSchedulePage() {
                             {currentDate.getDate()}일 일정
                         </div>
                     </div>
-                    <div className={styles.tabButtons}>
-                        <button className={`${styles.tabButton} ${styles.active}`}>일정</button>
-                        <button className={styles.tabButton} onClick={() => alert('예약 탭은 준비 중입니다.')}>예약</button>
-                        {/* Only schedule active for now as per plan */}
-                    </div>
                     {renderDailySummary()}
                 </div>
             </div>
 
-            {/* Main Panel */}
+            {/* 메인 패널 */}
             <div className={styles.mainPanel}>
                 <div className={`${styles.card} ${styles.timetableCard}`}>
                     <div className={styles.timetableHeader}>
-                        <div className={styles.weekTitle}>주간 시간표</div>
+                        <div className={styles.weekTitle}>주간 시간표 ({weekRangeText})</div>
                         <div className={styles.controls}>
                             <button className={styles.todayBtn} onClick={() => setCurrentDate(new Date())}>오늘</button>
                         </div>
@@ -414,13 +608,22 @@ export default function PersonalSchedulePage() {
                 </div>
             </div>
 
-            {/* Modal */}
+            {/* 모달 */}
             {selectedSchedule && (
                 <ScheduleReviewModal
                     schedule={selectedSchedule}
                     onClose={() => setSelectedSchedule(null)}
                     onConfirm={() => handleConfirm(selectedSchedule)}
                     onReject={(r) => handleReject(selectedSchedule, r)}
+                />
+            )}
+            {isManagementModalOpen && (
+                <ScheduleManagementModal
+                    isOpen={isManagementModalOpen}
+                    onClose={() => setIsManagementModalOpen(false)}
+                    onSubmit={handleManagementSubmit}
+                    initialData={editingData}
+                    userId={user?.id || 0}
                 />
             )}
         </div>

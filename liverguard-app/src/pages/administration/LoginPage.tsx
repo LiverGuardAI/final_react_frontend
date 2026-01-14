@@ -30,7 +30,7 @@ export default function AdministrationLoginPage() {
       localStorage.setItem("user", JSON.stringify(response.data.user));
       localStorage.setItem("administration", JSON.stringify(response.data.administration));
 
-      login("administration");
+      login("administration", response.data.user);
       navigate("/administration/home");
     } catch (err: any) {
       setError(
