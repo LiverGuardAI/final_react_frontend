@@ -1,8 +1,10 @@
 // src/pages/doctor/CTResult.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getPatientStudies, getStudySeries } from '../../api/orthanc_api';
 import DicomViewer2D from '../../components/DicomViewer2D';
 import DicomViewer3D from '../../components/DicomViewer3D';
+import { useDoctorData } from '../../contexts/DoctorDataContext';
+import { useTreatment } from '../../contexts/TreatmentContext';
 import styles from './CTResult.module.css';
 
 interface Study {
@@ -36,9 +38,27 @@ export default function CTResultPage() {
   const [seriesSectionExpanded, setSeriesSectionExpanded] = useState(false);
   const [segSectionExpanded, setSegSectionExpanded] = useState(false);
 
-  // 임시로 TCGA-BC-A3KF 환자 ID 사용
-  const patientId = 'P20240009';
-  const cacheKey = `ct-result:${patientId}`;
+  const { waitingQueueData } = useDoctorData();
+  const { selectedPatientId } = useTreatment();
+
+  const inClinicPatientId = useMemo(() => {
+    const queue = waitingQueueData?.queue ?? [];
+    if (queue.length === 0) {
+      return '';
+    }
+    const inClinicItem = queue.find((item: any) => item.workflow_state === 'IN_CLINIC');
+    if (!inClinicItem) {
+      return '';
+    }
+    const patientObj =
+      typeof inClinicItem.patient === 'object' && inClinicItem.patient !== null
+        ? inClinicItem.patient
+        : null;
+    return patientObj?.patient_id || inClinicItem.patient_id || '';
+  }, [waitingQueueData]);
+
+  const patientId = selectedPatientId || inClinicPatientId || '';
+  const cacheKey = patientId ? `ct-result:${patientId}` : null;
 
   // CT Series만 필터링
   const ctSeriesList = seriesList.filter(series => series.Modality === 'CT');
@@ -47,20 +67,53 @@ export default function CTResultPage() {
   const segSeriesList = seriesList.filter(series => series.Modality === 'SEG');
 
   const fetchStudies = async () => {
+    if (!patientId) {
+      setStudies([]);
+      setSeriesList([]);
+      setSelectedStudy(null);
+      setSelectedCtSeries(null);
+      setSelectedSegSeries(null);
+      setStudySectionExpanded(false);
+      setSeriesSectionExpanded(false);
+      setSegSectionExpanded(false);
+      setSeriesLoading(false);
+      setLoading(false);
+      setError('진료 중인 환자가 없습니다.');
+      return;
+    }
     try {
       setLoading(true);
       const studyData = await getPatientStudies(patientId);
       setStudies(studyData);
       setError(null);
-    } catch (err) {
-      console.error('Failed to fetch studies:', err);
-      setError('Study 목록을 불러오는데 실패했습니다.');
+    } catch (err: any) {
+      if (err?.response?.status === 404) {
+        setStudies([]);
+        setError(null);
+      } else {
+        console.error('Failed to fetch studies:', err);
+        setError('Study 목록을 불러오는데 실패했습니다.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    if (!cacheKey) {
+      setStudies([]);
+      setSeriesList([]);
+      setSelectedStudy(null);
+      setSelectedCtSeries(null);
+      setSelectedSegSeries(null);
+      setStudySectionExpanded(false);
+      setSeriesSectionExpanded(false);
+      setSegSectionExpanded(false);
+      setSeriesLoading(false);
+      setLoading(false);
+      setError('진료 중인 환자가 없습니다.');
+      return;
+    }
     const cached = sessionStorage.getItem(cacheKey);
     if (cached) {
       try {
@@ -83,9 +136,12 @@ export default function CTResultPage() {
       }
     }
     fetchStudies();
-  }, [cacheKey]);
+  }, [cacheKey, patientId]);
 
   useEffect(() => {
+    if (!cacheKey) {
+      return;
+    }
     if (
       studies.length === 0 &&
       seriesList.length === 0 &&
@@ -165,7 +221,7 @@ export default function CTResultPage() {
               ) : error ? (
                 <div className={styles.errorState}>{error}</div>
               ) : studies.length === 0 ? (
-                <div className={styles.emptyState}>Study가 없습니다.</div>
+                <div className={styles.emptyState}>Study 목록이 없습니다.</div>
               ) : (
                 <div className={styles.studyList}>
                   {studies.map((study) => (

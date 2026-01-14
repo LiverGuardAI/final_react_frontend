@@ -221,6 +221,27 @@ export default function DoctorLayout() {
     }
   }, [doctorId, fetchWaitingQueue, fetchStats]);
 
+  useEffect(() => {
+    if (selectedPatientId || !waitingQueueData?.queue?.length) {
+      return;
+    }
+    const inClinic = waitingQueueData.queue.filter(
+      (item: any) => item.workflow_state === 'IN_CLINIC'
+    );
+    if (inClinic.length !== 1) {
+      return;
+    }
+    const inClinicItem = inClinic[0];
+    const patientObj =
+      typeof inClinicItem.patient === 'object' && inClinicItem.patient !== null
+        ? inClinicItem.patient
+        : null;
+    const patientId = patientObj?.patient_id || inClinicItem.patient_id || null;
+    if (patientId) {
+      setSelectedPatientId(patientId);
+    }
+  }, [selectedPatientId, waitingQueueData, setSelectedPatientId]);
+
   // 스케줄 확인 로직
   const [pendingSchedules, setPendingSchedules] = useState<any[]>([]);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);

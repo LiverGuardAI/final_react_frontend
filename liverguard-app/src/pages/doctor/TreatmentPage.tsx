@@ -317,9 +317,14 @@ export default function TreatmentPage() {
         diagnosis: diagnosisName
       });
 
+      if (currentPatient?.patient_id) {
+        sessionStorage.removeItem(`ct-result:${currentPatient.patient_id}`);
+      }
+
       alert(status === 'WAITING_RESULTS' ? '오더가 전송되고 검사 대기(결과 대기) 상태로 전환되었습니다.' : '진료가 완료되었습니다. (수납 대기 상태로 전환)');
       // 목록 리프레시 혹은 초기화
       setSelectedEncounterId(null);
+      setSelectedPatientId(null);
       setCurrentEncounter(null);
       clearForm();
 

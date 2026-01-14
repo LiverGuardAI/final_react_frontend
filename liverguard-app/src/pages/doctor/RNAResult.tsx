@@ -6,6 +6,8 @@ import {
 } from 'recharts';
 import styles from './RNAResult.module.css';
 import { getPatientGenomicData, type GenomicDataItem } from '../../api/doctorApi';
+import { useDoctorData } from '../../contexts/DoctorDataContext';
+import { useTreatment } from '../../contexts/TreatmentContext';
 
 // 20개 Pathway 정의
 const PATHWAY_KEYS = [
@@ -17,8 +19,25 @@ const PATHWAY_KEYS = [
 ];
 
 export default function RNAResultPage() {
-  // 라우터에서 받은 patientId 직접 사용
-  const { patientId } = useParams<{ patientId: string }>();
+  const { patientId: urlPatientId } = useParams<{ patientId: string }>();
+  const { waitingQueueData } = useDoctorData();
+  const { selectedPatientId } = useTreatment();
+  const inClinicPatientId = useMemo(() => {
+    const queue = waitingQueueData?.queue ?? [];
+    if (queue.length === 0) {
+      return '';
+    }
+    const inClinicItem = queue.find((item: any) => item.workflow_state === 'IN_CLINIC');
+    if (!inClinicItem) {
+      return '';
+    }
+    const patientObj =
+      typeof inClinicItem.patient === 'object' && inClinicItem.patient !== null
+        ? inClinicItem.patient
+        : null;
+    return patientObj?.patient_id || inClinicItem.patient_id || '';
+  }, [waitingQueueData]);
+  const patientId = selectedPatientId || inClinicPatientId || urlPatientId || '';
   // 개발 테스트를 위해 특정 환자 ID로 고정
   // const { patientId: routePatientId } = useParams<{ patientId: string }>();
   // const patientId = 'P20240009';
@@ -46,14 +65,14 @@ export default function RNAResultPage() {
     setLoading(true);
     // Genomic 데이터 조회
     getPatientGenomicData(patientId).then(response => {
-      // 날짜순 정렬 (오래된 것 -> 최신)
-      // sample_date가 있는 것만 필터링 후 정렬
+      // 날짜순 정렬 (과거 -> 최신)
       const sorted = response.results
         .filter(d => d.measured_at)
-        .sort((a, b) => new Date(b.measured_at!).getTime() - new Date(a.measured_at!).getTime());
+        .slice()
+        .sort((a, b) => new Date(a.measured_at!).getTime() - new Date(b.measured_at!).getTime());
       setDataList(sorted);
       // 데이터 로드 후, 가장 최신 날짜를 기본 선택
-      setSelectedDateIndex(0);
+      setSelectedDateIndex(sorted.length ? sorted.length - 1 : -1);
     }).catch(err => {
       console.error(err);
       setDataList([]);
