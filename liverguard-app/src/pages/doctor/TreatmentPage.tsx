@@ -10,7 +10,8 @@ import {
   createLabOrder,
   createImagingOrder,
   updateEncounter,
-  getPatientDetail // Added
+  getPatientDetail, // Added
+  cancelEncounter
 } from '../../api/doctorApi';
 import type { EncounterDetail, LabResult, ImagingOrder } from '../../api/doctorApi';
 
@@ -338,6 +339,28 @@ export default function TreatmentPage() {
     }
   };
 
+  const handleCancelTreatment = async () => {
+    if (!selectedEncounterId || !confirm('정말 진료를 취소하시겠습니까? 취소된 진료는 복구할 수 없습니다.')) return;
+
+    try {
+      setLoading(true);
+      await cancelEncounter(selectedEncounterId);
+      alert('진료가 취소되었습니다.');
+
+      // 목록 리프레시 및 초기화
+      setSelectedEncounterId(null);
+      setSelectedPatientId(null);
+      setCurrentEncounter(null);
+      clearForm();
+
+    } catch (error) {
+      console.error('진료 취소 실패:', error);
+      alert('진료 취소 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
 
   return (
@@ -373,9 +396,9 @@ export default function TreatmentPage() {
           onComplete={handleCompleteTreatment}
           disabled={!selectedEncounterId || currentEncounter?.encounter_status === 'COMPLETED'}
           medications={medications}
-          onAddMedication={handleAddMedication}
           onRemoveMedication={handleRemoveMedication}
           onMedicationChange={handleMedicationChange}
+          onCancel={handleCancelTreatment}
         />
       </div>
     </div>

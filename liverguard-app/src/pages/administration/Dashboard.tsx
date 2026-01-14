@@ -14,6 +14,7 @@ import {
   getAppSyncRequests,
   approveAppSyncRequest,
   rejectAppSyncRequest,
+  getStaffList,
   getAdministrationWaitingQueue,
   type PatientRegistrationData,
   type PatientUpdateData,
@@ -198,6 +199,7 @@ export default function AdministrationDashboard() {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [appointmentDoctor, setAppointmentDoctor] = useState<number | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [radiologyStaff, setRadiologyStaff] = useState<any[]>([]);
 
   // Clinic Waiting Detail View Mode
   const [clinicViewModes, setClinicViewModes] = useState<Record<number, 'WAITING' | 'COMPLETED'>>({});
@@ -289,6 +291,13 @@ export default function AdministrationDashboard() {
 
     // 영상의학과 (CT실) 추가
     if (imagingQueueData?.queue) {
+      const primaryRadiologist = radiologyStaff[0];
+      const radiologyName = primaryRadiologist?.name || 'Radiology';
+      const radiologyDept = primaryRadiologist?.dept_name || 'Radiology';
+      const radiologyId = primaryRadiologist?.user_id ?? -1;
+      const extraCount = radiologyStaff.length > 1 ? ` +${radiologyStaff.length - 1}` : '';
+      const radiologyDisplayName = `${radiologyName}${extraCount}`;
+
       const imagingPatients = imagingQueueData.queue
         .map((p: any) => {
           let statusText = 'WAITING';
@@ -313,16 +322,16 @@ export default function AdministrationDashboard() {
         });
 
       result.push({
-        id: 'imaging_ct',
-        clinicName: 'Radiology',
+        id: radiologyId,
+        clinicName: radiologyDept,
         roomNumber: 'CT',
-        doctorName: 'Radiology',
+        doctorName: radiologyDisplayName,
         patients: imagingPatients
       });
     }
 
     return result;
-  }, [sidebarDoctors, waitingQueueData, imagingQueueData]);
+  }, [sidebarDoctors, waitingQueueData, imagingQueueData, radiologyStaff]);
 
   const waitingPatientIds = useMemo(() => {
     if (!waitingQueueData?.queue) return [];
@@ -374,6 +383,16 @@ export default function AdministrationDashboard() {
     }
   }, []);
 
+  const fetchRadiologyStaff = useCallback(async () => {
+    try {
+      const staffList = await getStaffList();
+      const radiologists = (staffList || []).filter((staff: any) => staff.role === 'RADIOLOGIST');
+      setRadiologyStaff(radiologists);
+    } catch (error) {
+      console.error('Failed to fetch radiology staff:', error);
+    }
+  }, []);
+
 
   useEffect(() => {
     const storedAdmin = localStorage.getItem('administration');
@@ -388,7 +407,8 @@ export default function AdministrationDashboard() {
 
     // Initial Loads (Doctors, Queue done by Context usually, but Appointments local)
     fetchTodayAppointments();
-  }, [fetchTodayAppointments]);
+    fetchRadiologyStaff();
+  }, [fetchTodayAppointments, fetchRadiologyStaff]);
 
   useEffect(() => {
     if (receptionTab === 'appSync') {

@@ -3,7 +3,12 @@ import styles from './PersonalSchedule.module.css';
 import { useAuth } from '../../context/AuthContext';
 import {
     getDutySchedules,
+    getPersonalSchedules,
+    createPersonalSchedule,
+    updatePersonalSchedule,
+    deletePersonalSchedule,
     type DutyScheduleData,
+    type PersonalScheduleData,
     confirmDutySchedule,
     rejectDutySchedule,
     createDutySchedule,
@@ -12,6 +17,7 @@ import {
 } from '../../api/hospitalOpsApi';
 import { useWebSocketContext } from '../../context/WebSocketContext';
 import ScheduleManagementModal from './ScheduleManagementModal';
+import PersonalScheduleModal from './PersonalScheduleModal';
 
 interface ScheduleModalProps {
     schedule: DutyScheduleData;
@@ -132,8 +138,12 @@ export default function PersonalSchedulePage() {
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [schedules, setSchedules] = useState<DutyScheduleData[]>([]);
     const [appointments, setAppointments] = useState<any[]>([]);
+    const [personalSchedules, setPersonalSchedules] = useState<PersonalScheduleData[]>([]);
+    const [selectedPersonalSchedule, setSelectedPersonalSchedule] = useState<PersonalScheduleData | null>(null);
+    const [isPersonalModalOpen, setIsPersonalModalOpen] = useState(false);
+    const [personalEditingData, setPersonalEditingData] = useState<PersonalScheduleData | null>(null);
     const [selectedSchedule, setSelectedSchedule] = useState<DutyScheduleData | null>(null);
-    const [dailyTab, setDailyTab] = useState<'schedule' | 'appointment'>('schedule');
+    const [dailyTab, setDailyTab] = useState<'schedule' | 'appointment' | 'personal'>('schedule');
 
     // Management Modal State
     const [isManagementModalOpen, setIsManagementModalOpen] = useState(false);
@@ -160,6 +170,7 @@ export default function PersonalSchedulePage() {
         if (user) {
             fetchSchedules();
             fetchAppointments();
+            fetchPersonalSchedules();
         }
     }, [user, currentDate, currentMonth]);
 
@@ -220,6 +231,27 @@ export default function PersonalSchedulePage() {
             setSchedules(data);
         } catch (error) {
             console.error("Failed to fetch schedules", error);
+        }
+    };
+
+
+    const fetchPersonalSchedules = async () => {
+        if (!user) return;
+        const isDoctor = user.role === 'doctor' || user.role === 'DOCTOR';
+        if (!isDoctor) {
+            setPersonalSchedules([]);
+            return;
+        }
+        try {
+            const start = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+            const end = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 2, 0);
+            const data = await getPersonalSchedules(
+                start.toISOString().split('T')[0],
+                end.toISOString().split('T')[0]
+            );
+            setPersonalSchedules(data);
+        } catch (error) {
+            console.error("Failed to fetch personal schedules", error);
         }
     };
 
@@ -293,8 +325,7 @@ export default function PersonalSchedulePage() {
     };
 
     const handleDeleteSchedule = async () => {
-        if (!selectedSchedule || !selectedSchedule.schedule_id) return;
-        if (!confirm('정말 이 일정을 삭제하시겠습니까?')) return;
+        if (!confirm('\uC815\uB9D0 \uC774 \uC77C\uC815\uC744 \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?')) return;
         try {
             await deleteDutySchedule(selectedSchedule.schedule_id);
             fetchSchedules();
@@ -357,7 +388,7 @@ export default function PersonalSchedulePage() {
             const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i);
             const isSelected = d.toDateString() === currentDate.toDateString();
             const isToday = d.toDateString() === new Date().toDateString();
-            const hasEvent = schedules.some(s => new Date(s.start_time).toDateString() === d.toDateString());
+            const hasEvent = schedules.some(s => new Date(s.start_time).toDateString() === d.toDateString()) || personalSchedules.some(s => new Date(s.schedule_date).toDateString() === d.toDateString());
 
             days.push(
                 <div
@@ -400,6 +431,10 @@ export default function PersonalSchedulePage() {
                     >
                         예약
                     </button>
+                    <button
+                        className={`${styles.tabButton} ${dailyTab === 'personal' ? styles.active : ''}`}
+                        onClick={() => setDailyTab('personal')}
+                    >개인 일정</button>
                 </div>
 
                 {/* 일정 탭 내용 */}
@@ -449,8 +484,59 @@ export default function PersonalSchedulePage() {
                             </button>
                         </div>
                     </>
+                
+                ) : dailyTab === 'personal' ? (
+                    <>
+                        <div className={styles.summaryList}>
+                            {personalSchedules
+                                .filter(sch => new Date(sch.schedule_date).toDateString() === currentDate.toDateString())
+                                .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
+                                .map((sch) => (
+                                    <div
+                                        key={sch.schedule_id}
+                                        className={styles.summaryItem}
+                                        onClick={() => setSelectedPersonalSchedule(sch)}
+                                        style={{ cursor: 'pointer' }}
+                                    >
+                                        <div className={styles.itemTime}>
+                                            {sch.start_time?.slice(0, 5)} - {sch.end_time?.slice(0, 5)}
+                                        </div>
+                                        <div className={styles.itemTitle}>
+                                            {sch.schedule_type}
+                                        </div>
+                                    </div>
+                                ))}
+                            {personalSchedules.filter(sch => new Date(sch.schedule_date).toDateString() === currentDate.toDateString()).length === 0 && (
+                                <div style={{ color: '#a0aec0', textAlign: 'center', marginTop: '20px' }}>{'개인 일정이 없습니다.'}</div>
+                            )}
+                        </div>
+                        <div className={styles.scheduleActions}>
+                            <button className={styles.btnAdd} onClick={() => { setPersonalEditingData(null); setIsPersonalModalOpen(true); }}>{'개인 일정 추가'}</button>
+                            <button
+                                className={styles.btnEdit}
+                                disabled={!selectedPersonalSchedule}
+                                onClick={() => { setPersonalEditingData(selectedPersonalSchedule); setIsPersonalModalOpen(true); }}
+                            >
+                                {'수정'}
+                            </button>
+                            <button
+                                className={styles.btnDelete}
+                                disabled={!selectedPersonalSchedule}
+                                onClick={async () => {
+                                    if (!selectedPersonalSchedule?.schedule_id) return;
+                                    if (!confirm('정말 삭제할까요?')) return;
+                                    await deletePersonalSchedule(selectedPersonalSchedule.schedule_id);
+                                    setSelectedPersonalSchedule(null);
+                                    fetchPersonalSchedules();
+                                }}
+                            >
+                                {'삭제'}
+                            </button>
+                        </div>
+                    </>
                 ) : (
                     <div className={styles.summaryList}>
+
                         {appointments
                             .filter(apt => new Date(apt.appointment_date).toDateString() === currentDate.toDateString())
                             .sort((a, b) => (a.appointment_time || '').localeCompare(b.appointment_time || ''))
@@ -623,9 +709,28 @@ export default function PersonalSchedulePage() {
                     onClose={() => setIsManagementModalOpen(false)}
                     onSubmit={handleManagementSubmit}
                     initialData={editingData}
-                    userId={user?.id || 0}
+                    userId={user?.user_id ?? user?.id ?? 0}
                 />
             )}
+            <PersonalScheduleModal
+                isOpen={isPersonalModalOpen}
+                onClose={() => setIsPersonalModalOpen(false)}
+                initialData={personalEditingData}
+                onSubmit={async (data) => {
+                    try {
+                        if (personalEditingData?.schedule_id) {
+                            await updatePersonalSchedule(personalEditingData.schedule_id, data);
+                        } else {
+                            await createPersonalSchedule(data);
+                        }
+                        setIsPersonalModalOpen(false);
+                        setPersonalEditingData(null);
+                        fetchPersonalSchedules();
+                    } catch (error) {
+                        alert('\uAC1C\uC778 \uC77C\uC815 \uCC98\uB9AC \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.');
+                    }
+                }}
+            />
         </div>
     );
 }

@@ -257,6 +257,12 @@
   color: #666666;
 }
 
+.doctorShiftHeader {
+  font-size: 11px;
+  color: #2f6b3f;
+  font-weight: 600;
+}
+
 .scheduleGrid {
   flex: 1;
   overflow-y: auto;

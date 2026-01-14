@@ -286,9 +286,15 @@ export default function DoctorLayout() {
   };
 
   const handleRejectSchedule = async (scheduleId: number) => {
+    const reason = window.prompt("거절 사유를 입력해주세요.\n(예: 개인 사정, 연차 사용 등)");
+    if (reason === null) return;
+    if (!reason.trim()) {
+      alert("거절 사유를 입력해주세요.");
+      return;
+    }
     try {
       const { rejectDutySchedule } = await import('../api/hospitalOpsApi');
-      await rejectDutySchedule(scheduleId);
+      await rejectDutySchedule(scheduleId, reason);
       setPendingSchedules(prev => prev.filter(s => s.schedule_id !== scheduleId));
       if (pendingSchedules.length <= 1) {
         setIsScheduleModalOpen(false);

@@ -6,6 +6,7 @@ import { usePatients } from '../../hooks/usePatients';
 
 interface Doctor {
   doctor_id: number;
+  user_id?: number;
   name: string;
   department: {
     dept_name: string;
@@ -32,6 +33,7 @@ interface DutySchedule {
   end_time: string;
   schedule_status: string;
   work_role: string;
+  shift_type?: string;
 }
 
 interface TimeSlot {
@@ -40,6 +42,18 @@ interface TimeSlot {
   minute: number;
   appointments: { [doctorId: number]: Appointment | null };
 }
+
+const getDaysInMonth = (date: Date) => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  return {
+    daysInMonth: lastDay.getDate(),
+    startingDayOfWeek: firstDay.getDay(),
+    prevMonthLastDay: new Date(year, month, 0).getDate()
+  };
+};
 
 export default function SchedulePage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -184,6 +198,11 @@ export default function SchedulePage() {
   };
 
   // 휴일 여부 확인 (주말)
+
+  const getDoctorUserId = (doctorId: number) => {
+    return doctors.find(d => d.doctor_id === doctorId)?.user_id;
+  };
+
   const isHoliday = (date: Date) => {
     const day = date.getDay();
     return day === 0 || day === 6; // 일요일(0) 또는 토요일(6)
@@ -191,40 +210,68 @@ export default function SchedulePage() {
 
   // 근무시간 외 여부 확인
   // 근무시간 외 여부 확인 (Updated to use Duty Schedules)
-  const isDoctorOffDuty = (doctorId: number, date: Date, hour: number) => {
-    // Find schedules for this doctor on this day
-    // Note: dutySchedules are already filtered for the day by fetch call
-    const doctorSchedules = dutySchedules.filter(s => s.user === doctorId && s.schedule_status === 'CONFIRMED');
+  const getDoctorSchedules = (doctorId: number) => {
+    const userId = getDoctorUserId(doctorId);
+    if (!userId) return [];
+    return dutySchedules.filter(s => s.user === userId && s.schedule_status === 'CONFIRMED');
+  };
 
-    if (doctorSchedules.length === 0) return true; // No schedule = Off duty
+  const getDoctorShiftLabel = (doctorId: number) => {
+    const schedules = getDoctorSchedules(doctorId);
+    if (schedules.length === 0) return '\uD734\uBB34';
+    const uniqueShiftTypes = Array.from(new Set(schedules.map(s => s.shift_type).filter(Boolean)));
+    if (uniqueShiftTypes.length > 1) return '\uBCF5\uC218';
+    const shiftType = uniqueShiftTypes[0];
+    switch (shiftType) {
+      case 'DAY':
+        return '\uC8FC\uAC04';
+      case 'EVENING':
+        return '\uC57C\uAC04';
+      case 'NIGHT':
+        return '\uC2EC\uC57C';
+      case 'OFF':
+        return '\uD734\uBB34';
+      default:
+        return shiftType || '\uADFC\uBB34';
+    }
+  };
 
-    // Check if hour is within any schedule
-    // Create time for the slot
+  const isWithinDutySchedule = (doctorId: number, dateStr: string, timeStr: string) => {
+    const schedules = getDoctorSchedules(doctorId);
+    if (schedules.length === 0) return false;
+
+    const parts = timeStr.split(':');
+    const hour = Number(parts[0]);
+    const minute = Number(parts[1] || 0);
+    const slotStart = new Date(dateStr);
+    slotStart.setHours(hour, minute, 0, 0);
+    const slotEnd = new Date(slotStart);
+    slotEnd.setMinutes(slotStart.getMinutes() + 30);
+
+    return schedules.some(s => {
+      const start = new Date(s.start_time);
+      const end = new Date(s.end_time);
+      return start < slotEnd && end > slotStart;
+    });
+  };
+
+  const isDoctorOffDuty = (doctorId: number, date: Date, hour: number, minute: number) => {
+    const doctorSchedules = getDoctorSchedules(doctorId);
+
+    if (doctorSchedules.length === 0) return true;
+
     const slotTime = new Date(date);
-    slotTime.setHours(hour, 0, 0, 0);
-    const slotEndTime = new Date(date);
-    slotEndTime.setHours(hour + 1, 0, 0, 0);
+    slotTime.setHours(hour, minute, 0, 0);
+    const slotEndTime = new Date(slotTime);
+    slotEndTime.setMinutes(slotEndTime.getMinutes() + 30);
 
     const isOnDuty = doctorSchedules.some(s => {
       const start = new Date(s.start_time);
       const end = new Date(s.end_time);
-      // Check overlap: Start < SlotEnd AND End > SlotStart
       return start < slotEndTime && end > slotTime;
     });
 
     return !isOnDuty;
-  };
-
-  // 달력 관련 함수들
-  const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
-
-    return { daysInMonth, startingDayOfWeek };
   };
 
   const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentMonth);
@@ -299,9 +346,14 @@ export default function SchedulePage() {
     }
 
     try {
+      const doctorId = Number(onsiteForm.doctor_id);
+      if (!isWithinDutySchedule(doctorId, onsiteForm.appointment_date, onsiteForm.appointment_time)) {
+        alert('\uD574\uB2F9 \uC2DC\uAC04\uC740 \uADFC\uBB34 \uC77C\uC815\uC774 \uC544\uB2D9\uB2C8\uB2E4. \uB2E4\uB978 \uC2DC\uAC04\uC73C\uB85C \uC608\uC57D\uD574\uC8FC\uC138\uC694.');
+        return;
+      }
       await createAppointment({
         patient: onsiteForm.patient_id,
-        doctor: Number(onsiteForm.doctor_id),
+        doctor: doctorId,
         appointment_date: onsiteForm.appointment_date,
         appointment_time: onsiteForm.appointment_time,
         status: '예약완료',
@@ -334,6 +386,14 @@ export default function SchedulePage() {
     if (!selectedAppointment) return;
 
     try {
+      if (!selectedAppointment.doctor) {
+        alert('\uB2F4\uB2F9 \uC758\uC0AC\uAC00 \uC9C0\uC815\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4.');
+        return;
+      }
+      if (!isWithinDutySchedule(selectedAppointment.doctor, selectedAppointment.appointment_date, selectedAppointment.appointment_time)) {
+        alert('\uD574\uB2F9 \uC2DC\uAC04\uC740 \uB2F4\uB2F9 \uC758\uC0AC\uC758 \uADFC\uBB34 \uC77C\uC815\uC774 \uC544\uB2D9\uB2C8\uB2E4.');
+        return;
+      }
       await updateAppointment(selectedAppointment.appointment_id, {
         status: '승인완료'
       });
@@ -441,11 +501,13 @@ export default function SchedulePage() {
               <div className={styles.timeColumn}>시간</div>
               {selectedDoctors.map(doctorId => {
                 const doctor = doctors.find(d => d.doctor_id === doctorId);
+                const shiftLabel = getDoctorShiftLabel(doctorId);
                 return (
                   <div key={doctorId} className={styles.doctorColumn}>
                     <div className={styles.doctorInfo}>
                       <div className={styles.doctorNameHeader}>{doctor?.name}</div>
                       <div className={styles.doctorDeptHeader}>{doctor?.department.dept_name}</div>
+                      <div className={styles.doctorShiftHeader}>{shiftLabel}</div>
                     </div>
                   </div>
                 );
@@ -462,7 +524,7 @@ export default function SchedulePage() {
                     <div className={styles.timeLabel}>{slot.time}</div>
                     {selectedDoctors.map(doctorId => {
                       const appointment = slot.appointments[doctorId];
-                      const isGrayed = isDoctorOffDuty(doctorId, selectedDate, slot.hour);
+                      const isGrayed = isDoctorOffDuty(doctorId, selectedDate, slot.hour, slot.minute);
 
                       return (
                         <div

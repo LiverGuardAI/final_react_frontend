@@ -190,6 +190,11 @@ export const rejectAppSyncRequest = async (requestId: number, adminId?: number) 
   return response.data;
 };
 
+export const getStaffList = async () => {
+  const response = await apiClient.get("auth/staff/");
+  return response.data;
+};
+
 // ===========================
 // 근무 일정 관리 API (DutySchedule)
 // ===========================
@@ -252,4 +257,40 @@ export const deleteDutySchedule = async (scheduleId: number) => {
 export const updateDutySchedule = async (scheduleId: number, scheduleData: Partial<DutyScheduleData>) => {
   const res = await apiClient.patch(`auth/schedules/${scheduleId}/`, scheduleData);
   return res.data;
+};
+
+// ===========================
+// Doctor personal schedule (ScheduleDoctor)
+// ===========================
+
+export interface PersonalScheduleData {
+  schedule_id?: number;
+  schedule_date: string; // YYYY-MM-DD
+  schedule_type: 'CONFERENCE' | 'VACATION' | 'OTHER' | 'OUTPATIENT' | 'SURGERY';
+  start_time: string; // HH:MM
+  end_time: string;   // HH:MM
+  notes?: string;
+  is_available?: boolean;
+}
+
+export const getPersonalSchedules = async (startDate?: string, endDate?: string) => {
+  const params: any = {};
+  if (startDate) params.start_date = startDate;
+  if (endDate) params.end_date = endDate;
+  const response = await apiClient.get("doctor/personal-schedules/", { params });
+  return response.data;
+};
+
+export const createPersonalSchedule = async (data: PersonalScheduleData) => {
+  const response = await apiClient.post("doctor/personal-schedules/", data);
+  return response.data;
+};
+
+export const updatePersonalSchedule = async (scheduleId: number, data: Partial<PersonalScheduleData>) => {
+  const response = await apiClient.patch(`doctor/personal-schedules/${scheduleId}/`, data);
+  return response.data;
+};
+
+export const deletePersonalSchedule = async (scheduleId: number) => {
+  await apiClient.delete(`doctor/personal-schedules/${scheduleId}/`);
 };

@@ -22,6 +22,7 @@ interface TreatmentWriteSectionProps {
     onAddMedication?: () => void;
     onRemoveMedication?: (index: number) => void;
     onMedicationChange?: (index: number, field: string, value: string) => void;
+    onCancel?: () => void;
 }
 
 export default function TreatmentWriteSection({
@@ -44,7 +45,8 @@ export default function TreatmentWriteSection({
     medications = [],
     onAddMedication,
     onRemoveMedication,
-    onMedicationChange
+    onMedicationChange,
+    onCancel
 }: TreatmentWriteSectionProps) {
 
     const isHCCDiagnosis = diagnosisName.toLowerCase().includes('hcc') ||
@@ -273,6 +275,16 @@ export default function TreatmentWriteSection({
                             )}
 
                             <div className={styles.buttonGroup}>
+                                {onCancel && (
+                                    <button
+                                        className={styles.cancelButton}
+                                        onClick={onCancel}
+                                        disabled={disabled}
+                                        style={{ marginRight: 'auto', background: '#FF5252', color: 'white', border: 'none', borderRadius: '8px', padding: '12px 24px', fontWeight: 'bold', cursor: 'pointer' }}
+                                    >
+                                        진료 취소
+                                    </button>
+                                )}
                                 <button className={styles.tempSaveButton} disabled={disabled}>임시저장</button>
                                 <button
                                     className={styles.submitButton}
