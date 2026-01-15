@@ -133,7 +133,7 @@ export default function RNAResultPage() {
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <h2 className={styles.pageTitle}>Genomic pathway analysis</h2>
+        <h2 className={styles.pageTitle}>유전체 경로 분석</h2>
 
         <div className={styles.searchbar}>
           <div className={styles.patientInfo}>
@@ -165,7 +165,7 @@ export default function RNAResultPage() {
         <div className={styles.panel}>
           {/* 제목 영역 */}
           <div className={styles.panelTitleBlock}>
-            <span className={styles.panelTitle}>Top Activated Pathways</span>
+            <span className={styles.panelTitle}>활성화 경로</span>
             {/* 선택된 날짜 표시 */}
             <span className={styles.panelDate}>{selectedData?.measured_at?.split('T')[0] || ''}</span>
           </div>
@@ -214,7 +214,7 @@ export default function RNAResultPage() {
         {/* 2. Heatmap Panel */}
         <div className={styles.panel}>
           <div className={styles.panelTitleBlock}>
-            <span className={styles.panelTitle}>Pathway Expression Heatmap</span>
+            <span className={styles.panelTitle}>경로 발현 히트맵</span>
             <span className={styles.panelDate}>&nbsp;</span>
           </div>
 
@@ -276,8 +276,8 @@ export default function RNAResultPage() {
                 <div className={styles.legendGradient}></div>
               </div>
               <div className={styles.legendLabels} style={{ marginLeft: '220px' }}>
-                <span>Suppressed (Blue)</span>
-                <span>Activated (Red)</span>
+                <span>발현 억제 (Blue)</span>
+                <span>발현 활성 (Red)</span>
               </div>
             </div>
           )}
@@ -287,7 +287,7 @@ export default function RNAResultPage() {
 
       {/* Data Table - selectedData 사용 */}
       <div className={styles.tableSection}>
-        <h3 className={styles.panelTitle}>Comprehensive Pathway Status
+        <h3 className={styles.panelTitle}>경로 상태 종합 분석
           <span style={{ fontSize: '14px', fontWeight: 'normal', marginLeft: '12px' }}>
             {selectedData?.sample_date || ''}
           </span>
