@@ -283,6 +283,16 @@
     background: #38a169;
 }
 
+.btnSecondary {
+    background: #edf2f7;
+    color: #2d3748;
+    border: 1px solid #cbd5e0;
+}
+
+.btnSecondary:hover {
+    background: #e2e8f0;
+}
+
 .btnEdit {
     background: #3182ce;
     color: white;
@@ -473,6 +483,7 @@
     padding: 24px;
     border-radius: 12px;
     width: 450px;
+    max-width: 92vw;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
@@ -499,6 +510,41 @@
 
 .modalDetails {
     margin-bottom: 24px;
+}
+
+.modalForm {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.formGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #4a5568;
+}
+
+.input,
+.select {
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    font-size: 0.95rem;
+}
+
+.input:focus,
+.select:focus,
+.reasonInput:focus {
+    outline: none;
+    border-color: #3182ce;
+    box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.12);
 }
 
 .detailRow {

@@ -93,6 +93,7 @@
   color: #000000;
 }
 
+
 .statusBadge {
   background: var(--sky-300);
   color: var(--sky-text);
@@ -100,6 +101,14 @@
   border-radius: 12px;
   font-size: 12px;
   font-weight: 600;
+}
+
+.workflowBadge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 /* 사이드바 대기 현황 섹션 */

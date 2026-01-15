@@ -483,7 +483,7 @@ function PatientCard({ queueItem, onClick, type }: { queueItem: any, onClick: (i
                 </span>
 
                 {type === 'IN_CLINIC' && (
-                    <span className={styles.badge} style={{
+                    <span className={styles.workflowBadge} style={{
                         background: 'var(--sky-400)',
                         color: 'var(--sky-text-strong)',
                         padding: '4px 12px',
@@ -495,7 +495,7 @@ function PatientCard({ queueItem, onClick, type }: { queueItem: any, onClick: (i
                     </span>
                 )}
                 {queueItem.workflow_state === 'WAITING_RESULTS' && (
-                    <span className={styles.badge} style={{
+                    <span className={styles.workflowBadge} style={{
                         background: 'var(--sky-300)',
                         color: 'var(--sky-text)',
                         padding: '6px 10px',
@@ -507,7 +507,7 @@ function PatientCard({ queueItem, onClick, type }: { queueItem: any, onClick: (i
                     </span>
                 )}
                 {queueItem.workflow_state === 'WAITING_CLINIC' && type !== 'IN_CLINIC' && (
-                    <span className={styles.badge} style={{
+                    <span className={styles.workflowBadge} style={{
                         background: 'var(--sky-300)',
                         color: 'var(--sky-text)',
                         padding: '6px 10px',
@@ -520,7 +520,7 @@ function PatientCard({ queueItem, onClick, type }: { queueItem: any, onClick: (i
                 )}
 
                 {type === 'IMAGING' && (
-                    <span className={styles.badge} style={{
+                    <span className={styles.workflowBadge} style={{
                         background: queueItem.workflow_state === 'WAITING_PAYMENT' ? 'var(--sky-300)' : queueItem.workflow_state === 'IN_IMAGING' ? 'var(--sky-400)' : 'var(--sky-200)',
                         color: queueItem.workflow_state === 'WAITING_PAYMENT' ? 'var(--sky-text)' : 'var(--sky-text-strong)',
                         padding: '4px 12px',

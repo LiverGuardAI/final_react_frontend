@@ -52,6 +52,7 @@ const ScheduleReviewModal: React.FC<ScheduleModalProps> = ({ schedule, onClose, 
         }
     };
 
+
     return (
         <div className={styles.modalOverlay} onClick={onClose}>
             <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
@@ -143,7 +144,7 @@ export default function PersonalSchedulePage() {
     const [isPersonalModalOpen, setIsPersonalModalOpen] = useState(false);
     const [personalEditingData, setPersonalEditingData] = useState<PersonalScheduleData | null>(null);
     const [selectedSchedule, setSelectedSchedule] = useState<DutyScheduleData | null>(null);
-    const [dailyTab, setDailyTab] = useState<'schedule' | 'appointment' | 'personal'>('schedule');
+    const [dailyTab, setDailyTab] = useState<'schedule' | 'appointment'>('schedule');
 
     // Management Modal State
     const [isManagementModalOpen, setIsManagementModalOpen] = useState(false);
@@ -363,6 +364,17 @@ export default function PersonalSchedulePage() {
         }
     };
 
+    const getPersonalScheduleLabel = (type?: string) => {
+        switch (type) {
+            case 'CONFERENCE': return '\uD559\uD68C/\uC138\uBBF8\uB098';
+            case 'VACATION': return '\uD734\uAC00';
+            case 'OTHER': return '\uAE30\uD0C0';
+            case 'OUTPATIENT': return '\uC678\uB798';
+            case 'SURGERY': return '\uC218\uC220';
+            default: return type || '-';
+        }
+    };
+
     // 달력 렌더링
     const getDaysInMonth = (date: Date) => {
         const year = date.getFullYear();
@@ -414,123 +426,137 @@ export default function PersonalSchedulePage() {
         const daySchedules = schedules.filter(s =>
             new Date(s.start_time).toDateString() === currentDate.toDateString()
         ).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+        const dayPersonalSchedules = personalSchedules.filter(s =>
+            new Date(s.schedule_date).toDateString() === currentDate.toDateString()
+        ).sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
+        const combinedSchedules = [
+            ...daySchedules.map(sch => ({
+                kind: 'duty' as const,
+                start: new Date(sch.start_time),
+                end: new Date(sch.end_time),
+                schedule: sch
+            })),
+            ...dayPersonalSchedules.map(sch => ({
+                kind: 'personal' as const,
+                start: new Date(`${sch.schedule_date}T${sch.start_time || '00:00'}`),
+                end: new Date(`${sch.schedule_date}T${sch.end_time || '00:00'}`),
+                schedule: sch
+            }))
+        ].sort((a, b) => a.start.getTime() - b.start.getTime());
+        const hasSelection = !!selectedSchedule || !!selectedPersonalSchedule;
 
         return (
             <>
-                {/* 탭 버튼 */}
+                {/* ? ?? */}
                 <div className={styles.tabButtons}>
                     <button
                         className={`${styles.tabButton} ${dailyTab === 'schedule' ? styles.active : ''}`}
                         onClick={() => setDailyTab('schedule')}
                     >
-                        일정
+                        ??
                     </button>
                     <button
                         className={`${styles.tabButton} ${dailyTab === 'appointment' ? styles.active : ''}`}
                         onClick={() => setDailyTab('appointment')}
                     >
-                        예약
+                        ??
                     </button>
-                    <button
-                        className={`${styles.tabButton} ${dailyTab === 'personal' ? styles.active : ''}`}
-                        onClick={() => setDailyTab('personal')}
-                    >개인 일정</button>
                 </div>
 
-                {/* 일정 탭 내용 */}
+                {/* ?? ? ?? */}
                 {dailyTab === 'schedule' ? (
                     <>
                         <div className={styles.summaryList}>
-                            {daySchedules.length === 0 ? (
-                                <div style={{ color: '#a0aec0', textAlign: 'center', marginTop: '20px' }}>일정이 없습니다.</div>
+                            {combinedSchedules.length === 0 ? (
+                                <div style={{ color: '#a0aec0', textAlign: 'center', marginTop: '20px' }}>??? ????.</div>
                             ) : (
-                                daySchedules.map(sch => (
-                                    <div
-                                        key={sch.schedule_id}
-                                        className={`${styles.summaryItem} ${styles[sch.schedule_status?.toLowerCase() || '']}`}
-                                        onClick={() => setSelectedSchedule(sch)}
-                                        style={{ cursor: 'pointer' }}
-                                    >
-                                        <div className={styles.itemTime}>
-                                            {new Date(sch.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -
-                                            {new Date(sch.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                combinedSchedules.map(item => {
+                                    if (item.kind === 'duty') {
+                                        const sch = item.schedule;
+                                        return (
+                                            <div
+                                                key={`duty-${sch.schedule_id}`}
+                                                className={`${styles.summaryItem} ${styles[sch.schedule_status?.toLowerCase() || '']}`}
+                                                onClick={() => {
+                                                    setSelectedPersonalSchedule(null);
+                                                    setSelectedSchedule(sch);
+                                                }}
+                                                style={{ cursor: 'pointer' }}
+                                            >
+                                                <div className={styles.itemTime}>
+                                                    {new Date(sch.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -
+                                                    {new Date(sch.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
+                                                <div className={styles.itemTitle}>
+                                                    {getShiftTypeLabel(sch.shift_type)}
+                                                </div>
+                                                <span className={`${styles.itemStatus} ${styles[sch.schedule_status?.toLowerCase() || '']}`}>
+                                                    {sch.schedule_status}
+                                                </span>
+                                            </div>
+                                        );
+                                    }
+                                    const sch = item.schedule;
+                                    return (
+                                        <div
+                                            key={`personal-${sch.schedule_id}`}
+                                            className={styles.summaryItem}
+                                            onClick={() => {
+                                                setSelectedSchedule(null);
+                                                setSelectedPersonalSchedule(sch);
+                                            }}
+                                            style={{ cursor: 'pointer' }}
+                                        >
+                                            <div className={styles.itemTime}>
+                                                {sch.start_time?.slice(0, 5)} - {sch.end_time?.slice(0, 5)}
+                                            </div>
+                                            <div className={styles.itemTitle}>
+                                                {getPersonalScheduleLabel(sch.schedule_type)}
+                                            </div>
+                                            <span className={styles.itemStatus}>??</span>
                                         </div>
-                                        <div className={styles.itemTitle}>
-                                            {getShiftTypeLabel(sch.shift_type)}
-                                        </div>
-                                        <span className={`${styles.itemStatus} ${styles[sch.schedule_status?.toLowerCase() || '']}`}>
-                                            {sch.schedule_status}
-                                        </span>
-                                    </div>
-                                ))
+                                    );
+                                })
                             )}
                         </div>
-                        {/* 일정 관리 버튼 */}
+                        {/* ?? ?? ?? */}
                         <div className={styles.scheduleActions}>
-                            <button className={styles.btnAdd} onClick={handleAddSchedule}>일정 추가</button>
+                            <button className={styles.btnAdd} onClick={handleAddSchedule}>?? ?? ??</button>
+                            <button
+                                className={styles.btnSecondary}
+                                onClick={() => { setPersonalEditingData(null); setIsPersonalModalOpen(true); }}
+                            >
+                                ?? ?? ??
+                            </button>
                             <button
                                 className={styles.btnEdit}
-                                disabled={!selectedSchedule}
-                                onClick={handleEditSchedule}
-                            >
-                                수정
-                            </button>
-                            <button
-                                className={styles.btnDelete}
-                                disabled={!selectedSchedule}
-                                onClick={handleDeleteSchedule}
-                            >
-                                삭제
-                            </button>
-                        </div>
-                    </>
-                
-                ) : dailyTab === 'personal' ? (
-                    <>
-                        <div className={styles.summaryList}>
-                            {personalSchedules
-                                .filter(sch => new Date(sch.schedule_date).toDateString() === currentDate.toDateString())
-                                .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
-                                .map((sch) => (
-                                    <div
-                                        key={sch.schedule_id}
-                                        className={styles.summaryItem}
-                                        onClick={() => setSelectedPersonalSchedule(sch)}
-                                        style={{ cursor: 'pointer' }}
-                                    >
-                                        <div className={styles.itemTime}>
-                                            {sch.start_time?.slice(0, 5)} - {sch.end_time?.slice(0, 5)}
-                                        </div>
-                                        <div className={styles.itemTitle}>
-                                            {sch.schedule_type}
-                                        </div>
-                                    </div>
-                                ))}
-                            {personalSchedules.filter(sch => new Date(sch.schedule_date).toDateString() === currentDate.toDateString()).length === 0 && (
-                                <div style={{ color: '#a0aec0', textAlign: 'center', marginTop: '20px' }}>{'개인 일정이 없습니다.'}</div>
-                            )}
-                        </div>
-                        <div className={styles.scheduleActions}>
-                            <button className={styles.btnAdd} onClick={() => { setPersonalEditingData(null); setIsPersonalModalOpen(true); }}>{'개인 일정 추가'}</button>
-                            <button
-                                className={styles.btnEdit}
-                                disabled={!selectedPersonalSchedule}
-                                onClick={() => { setPersonalEditingData(selectedPersonalSchedule); setIsPersonalModalOpen(true); }}
-                            >
-                                {'수정'}
-                            </button>
-                            <button
-                                className={styles.btnDelete}
-                                disabled={!selectedPersonalSchedule}
-                                onClick={async () => {
-                                    if (!selectedPersonalSchedule?.schedule_id) return;
-                                    if (!confirm('정말 삭제할까요?')) return;
-                                    await deletePersonalSchedule(selectedPersonalSchedule.schedule_id);
-                                    setSelectedPersonalSchedule(null);
-                                    fetchPersonalSchedules();
+                                disabled={!hasSelection}
+                                onClick={() => {
+                                    if (selectedPersonalSchedule) {
+                                        setPersonalEditingData(selectedPersonalSchedule);
+                                        setIsPersonalModalOpen(true);
+                                        return;
+                                    }
+                                    handleEditSchedule();
                                 }}
                             >
-                                {'삭제'}
+                                ??
+                            </button>
+                            <button
+                                className={styles.btnDelete}
+                                disabled={!hasSelection}
+                                onClick={async () => {
+                                    if (selectedPersonalSchedule?.schedule_id) {
+                                        if (!confirm('?? ??????')) return;
+                                        await deletePersonalSchedule(selectedPersonalSchedule.schedule_id);
+                                        setSelectedPersonalSchedule(null);
+                                        fetchPersonalSchedules();
+                                        return;
+                                    }
+                                    handleDeleteSchedule();
+                                }}
+                            >
+                                ??
                             </button>
                         </div>
                     </>
@@ -554,7 +580,7 @@ export default function PersonalSchedulePage() {
                                 </div>
                             ))}
                         {appointments.filter(apt => new Date(apt.appointment_date).toDateString() === currentDate.toDateString()).length === 0 && (
-                            <div style={{ color: '#a0aec0', textAlign: 'center', marginTop: '20px' }}>예약이 없습니다.</div>
+                            <div style={{ color: '#a0aec0', textAlign: 'center', marginTop: '20px' }}>??? ????.</div>
                         )}
                     </div>
                 )}
