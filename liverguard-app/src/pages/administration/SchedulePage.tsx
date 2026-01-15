@@ -28,6 +28,7 @@ interface Appointment {
   status?: string;
   notes?: string;
   appointment_type?: string;
+  has_encounter?: boolean;
 }
 
 interface DutySchedule {
@@ -586,6 +587,7 @@ export default function SchedulePage() {
       const now = new Date();
       const encounterData = {
         patient: calendarModalAppointment.patient_id || calendarModalAppointment.patient || '',
+        appointment: calendarModalAppointment.appointment_id, // 문진표 연결을 위해 필수
         doctor: calendarModalAppointment.doctor || 0,
         encounter_date: calendarModalAppointment.appointment_date,
         encounter_time: now.toTimeString().split(' ')[0].substring(0, 8),
@@ -600,6 +602,8 @@ export default function SchedulePage() {
 
       alert('진료 대기열에 추가되었습니다.');
       setCalendarModalAppointment(null);
+      // 예약 목록 새로고침하여 has_encounter 상태 업데이트
+      fetchAppointmentsForDate(selectedDate);
     } catch (error: any) {
       console.error('진료 대기열 추가 실패:', error);
       alert(error.response?.data?.message || error.response?.data?.error || '진료 대기열 추가에 실패했습니다.');
@@ -780,15 +784,19 @@ export default function SchedulePage() {
                       >
                         {appointment ? (
                           <div
-                            className={styles.appointmentBlock}
+                            className={`${styles.appointmentBlock} ${appointment.has_encounter ? styles.inQueue : ''}`}
                             onClick={() => setCalendarModalAppointment(appointment)}
-                            style={{ cursor: 'pointer' }}
+                            style={{
+                              cursor: 'pointer',
+                              backgroundColor: appointment.has_encounter ? '#e8f5e9' : undefined,
+                              borderLeft: appointment.has_encounter ? '3px solid #4caf50' : undefined,
+                            }}
                           >
                             <div className={styles.appointmentPatient}>
                               {appointment.patient_name || '환자'}
                             </div>
                             <div className={styles.appointmentStatus}>
-                              {appointment.status || '예약'}
+                              {appointment.has_encounter ? '대기열 추가됨' : (appointment.status || '예약')}
                             </div>
                           </div>
                         ) : (
@@ -1055,13 +1063,23 @@ export default function SchedulePage() {
               )}
             </div>
             <div className={styles.modalFooter}>
-              <button
-                className={styles.approveButton}
-                onClick={handleAddToQueue}
-                disabled={isAddingToQueue}
-              >
-                {isAddingToQueue ? '추가 중...' : '진료 대기열 추가'}
-              </button>
+              {calendarModalAppointment.has_encounter ? (
+                <button
+                  className={styles.approveButton}
+                  disabled={true}
+                  style={{ backgroundColor: '#9e9e9e', cursor: 'not-allowed' }}
+                >
+                  이미 대기열에 추가됨
+                </button>
+              ) : (
+                <button
+                  className={styles.approveButton}
+                  onClick={handleAddToQueue}
+                  disabled={isAddingToQueue}
+                >
+                  {isAddingToQueue ? '추가 중...' : '진료 대기열 추가'}
+                </button>
+              )}
               <button
                 className={styles.cancelButton}
                 onClick={() => setCalendarModalAppointment(null)}
