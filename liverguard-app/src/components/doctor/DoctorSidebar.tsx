@@ -123,13 +123,13 @@ const DoctorSidebar = memo(function DoctorSidebar({
                       <span
                         onClick={(e) => onResumeConsultation(patient, e)}
                         style={{
-                        background: '#6C5CE7',
-                        color: 'white',
-                        padding: '4px 12px',
-                        borderRadius: '12px',
-                        fontSize: '12px',
-                        fontWeight: 'bold'
-                      }}>
+                          background: '#6C5CE7',
+                          color: 'white',
+                          padding: '4px 12px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: 'bold'
+                        }}>
                         진료중
                       </span>
                     </div>
@@ -175,6 +175,9 @@ const DoctorSidebar = memo(function DoctorSidebar({
                       <button
                         className={`${styles.actionButton} ${styles.start}`}
                         onClick={(e) => onStartConsultation(patient, e)}
+                        disabled={inProgressPatients.length > 0}
+                        style={inProgressPatients.length > 0 ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                        title={inProgressPatients.length > 0 ? '현재 진료 중인 환자가 있습니다' : ''}
                       >
                         진료시작
                       </button>

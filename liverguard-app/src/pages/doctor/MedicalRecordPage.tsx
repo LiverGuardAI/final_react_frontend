@@ -1,14 +1,62 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import styles from './MedicalRecordPage.module.css';
-import { getDoctorMedicalRecords } from '../../api/doctorApi';
+import { getDoctorMedicalRecords, getEncounterDetail } from '../../api/doctorApi';
 import type { EncounterDetail } from '../../api/doctorApi';
 import { useTreatment } from '../../contexts/TreatmentContext';
+
+function RecordDetailModal({ encounterId, onClose }: { encounterId: number; onClose: () => void }) {
+    const [detail, setDetail] = useState<EncounterDetail | null>(null);
+    const [modalLoading, setModalLoading] = useState(false);
+    useEffect(() => {
+        const loadDetail = async () => {
+            setModalLoading(true);
+            try {
+                const data = await getEncounterDetail(encounterId);
+                setDetail(data);
+            } catch (error) {
+                console.error("상세 정보 로드 실패", error);
+            } finally {
+                setModalLoading(false);
+            }
+        };
+        loadDetail();
+    }, [encounterId]);
+    if (modalLoading) return <div className={styles.modalOverlay}><div className={styles.modalContent}>로딩 중...</div></div>;
+    if (!detail) return null;
+    return (
+        <div className={styles.modalOverlay} onClick={onClose}>
+            <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
+                <div className={styles.modalHeader}>
+                    <h2>진료 기록 상세</h2>
+                    <button onClick={onClose}>✕</button>
+                </div>
+                <div className={styles.modalBody}>
+                    <p><strong>환자명:</strong> {detail.patient.name} ({detail.patient.patient_id})</p>
+                    <p><strong>성별/나이:</strong> {detail.patient.gender === 'M' ? '남' : '여'} / {detail.patient.age}세</p>
+                    <p><strong>진료일시:</strong> {detail.encounter_date} {detail.encounter_time}</p>
+                    <p><strong>상태:</strong> {detail.encounter_status_display}</p>
+                    <hr />
+                    <h3>주증상 (CC)</h3>
+                    <p>{detail.chief_complaint || '없음'}</p>
+                    <h3>진단명</h3>
+                    <p>{detail.diagnosis_name || '없음'}</p>
+                    <h3>진료 소견</h3>
+                    <p>{detail.clinical_notes || '없음'}</p>
+                </div>
+                <div className={styles.modalFooter}>
+                    <button onClick={onClose} className={styles.closeButton}>닫기</button>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export default function MedicalRecordPage() {
     const navigate = useNavigate();
     const [records, setRecords] = useState<EncounterDetail[]>([]);
     const [loading, setLoading] = useState(false);
+    const [selectedRecordId, setSelectedRecordId] = useState<number | null>(null);
 
     // 검색 필터
     const [searchText, setSearchText] = useState('');
@@ -67,10 +115,8 @@ export default function MedicalRecordPage() {
 
     const { setSelectedEncounterId, setSelectedPatientId } = useTreatment();
 
-    const handleRowClick = (encounterId: number, patientId: string) => {
-        setSelectedPatientId(patientId);
-        setSelectedEncounterId(encounterId);
-        navigate('/doctor/treatment');
+    const handleRowClick = (encounterId: number) => {
+        setSelectedRecordId(encounterId);
     };
 
     return (
@@ -167,7 +213,7 @@ export default function MedicalRecordPage() {
                             </tr>
                         ) : (
                             records.map((record, index) => (
-                                <tr key={record.encounter_id} onClick={() => handleRowClick(record.encounter_id, record.patient.patient_id)} className={styles.row}>
+                                <tr key={record.encounter_id} onClick={() => handleRowClick(record.encounter_id)} className={styles.row}>
                                     <td>{index + 1}</td>
                                     <td>{record.patient.name}</td>
                                     <td>{record.patient.patient_id}</td>
@@ -186,6 +232,13 @@ export default function MedicalRecordPage() {
                     </tbody>
                 </table>
             </div>
+            {/* [추가] 모달 렌더링 */}
+            {selectedRecordId && (
+                <RecordDetailModal
+                    encounterId={selectedRecordId}
+                    onClose={() => setSelectedRecordId(null)}
+                />
+            )}
         </div>
     );
 }
