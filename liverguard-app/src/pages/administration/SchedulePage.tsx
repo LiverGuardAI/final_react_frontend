@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import styles from './SchedulePage.module.css';
-import { getAvailableDoctors } from '../../api/receptionApi';
-import { getAppointments, createAppointment, updateAppointment, getDutySchedules } from '../../api/receptionApi';
+import { getAvailableDoctors, getAppAppointments, approveAppAppointment, rejectAppAppointment } from '../../api/receptionApi';
+import { getAppointments, createAppointment, getDutySchedules, createEncounter } from '../../api/receptionApi';
 import { usePatients } from '../../hooks/usePatients';
 
 interface Doctor {
@@ -20,10 +20,14 @@ interface Appointment {
   appointment_time: string;
   patient_name?: string;
   patient?: string;
-  doctor?: number;
+  patient_id?: string;
+  doctor?: number | { doctor_id: number; name: string };
+  doctor_id?: number;
   doctor_name?: string;
+  department?: string;
   status?: string;
   notes?: string;
+  appointment_type?: string;
 }
 
 interface DutySchedule {
@@ -42,6 +46,14 @@ interface TimeSlot {
   minute: number;
   appointments: { [doctorId: number]: Appointment | null };
 }
+
+// 로컬 시간 기준으로 날짜를 YYYY-MM-DD 형식으로 변환 (UTC 변환 방지)
+const formatLocalDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const getDaysInMonth = (date: Date) => {
   const year = date.getFullYear();
@@ -64,18 +76,34 @@ export default function SchedulePage() {
   const [dutySchedules, setDutySchedules] = useState<DutySchedule[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // 시간대 탭 상태
+  type TimeSlotPeriod = 'morning' | 'afternoon' | 'evening' | 'night';
+  const [selectedPeriod, setSelectedPeriod] = useState<TimeSlotPeriod>(() => {
+    // 현재 시간에 따라 자동으로 시간대 선택
+    const currentHour = new Date().getHours();
+    if (currentHour >= 9 && currentHour < 13) return 'morning';
+    if (currentHour >= 13 && currentHour < 18) return 'afternoon';
+    if (currentHour >= 18 && currentHour < 22) return 'evening';
+    return 'night';
+  });
+
   // 오른쪽 패널 탭 상태
   const [rightPanelTab, setRightPanelTab] = useState<'onsite' | 'app'>('onsite');
 
   // 앱 예약 승인 관련 상태
   const [pendingAppointments, setPendingAppointments] = useState<Appointment[]>([]);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [pendingAppointmentsDate, setPendingAppointmentsDate] = useState<string>(''); // 빈 값 = 전체 날짜
+
+  // 캘린더 예약 클릭 모달 상태
+  const [calendarModalAppointment, setCalendarModalAppointment] = useState<Appointment | null>(null);
+  const [isAddingToQueue, setIsAddingToQueue] = useState(false);
 
   // 현장 예약 등록 폼 상태
   const [onsiteForm, setOnsiteForm] = useState({
     patient_id: '',
     patient_name: '',
-    appointment_date: new Date().toISOString().split('T')[0],
+    appointment_date: formatLocalDate(new Date()),
     appointment_time: '09:00',
     doctor_id: '',
     notes: ''
@@ -83,89 +111,194 @@ export default function SchedulePage() {
 
   const { patients, fetchPatients } = usePatients();
 
-  // 초기 데이터 로드
-  useEffect(() => {
-    fetchDoctors();
-    fetchPendingAppointments();
-    fetchPatients();
-  }, []);
+  // WebSocket ref (재연결용)
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 날짜 변경 시 예약 데이터 로드
-  useEffect(() => {
-    fetchAppointmentsForDate(selectedDate);
-    fetchSchedulesForDate(selectedDate);
-  }, [selectedDate]);
-
-  const fetchDoctors = async () => {
+  // API 호출 함수들 (useCallback으로 메모이제이션)
+  const fetchDoctors = useCallback(async () => {
     try {
       setLoading(true);
       const response = await getAvailableDoctors();
       setDoctors(response.results || response);
-      // 기본적으로 모든 의사 선택
       setSelectedDoctors((response.results || response).map((d: Doctor) => d.doctor_id));
     } catch (error) {
       console.error('의사 목록 조회 실패:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchAppointmentsForDate = async (date: Date) => {
+  const fetchAppointmentsForDate = useCallback(async (date: Date) => {
     try {
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = formatLocalDate(date);
+      console.log('📅 예약 조회 날짜:', dateStr);
       const response = await getAppointments({ date: dateStr });
+      console.log('📋 조회된 예약:', response.results || response);
       setAppointments(response.results || response);
     } catch (error) {
       console.error('예약 조회 실패:', error);
     }
-  };
+  }, []);
 
-  const fetchPendingAppointments = async () => {
+  const fetchPendingAppointments = useCallback(async (date?: string) => {
     try {
-      const response = await getAppointments({ status: '요청' });
-      setPendingAppointments(response.results || response);
+      const response = await getAppAppointments('대기', date || undefined);
+      const appointments = response.appointments || [];
+      setPendingAppointments(appointments);
     } catch (error) {
       console.error('대기중인 예약 조회 실패:', error);
     }
-  };
+  }, []);
 
-  const fetchSchedulesForDate = async (date: Date) => {
+  const fetchSchedulesForDate = useCallback(async (date: Date) => {
     try {
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = formatLocalDate(date);
       const response = await getDutySchedules(dateStr, dateStr);
       setDutySchedules(response);
     } catch (error) {
       console.error('근무 일정 조회 실패:', error);
     }
+  }, []);
+
+  // WebSocket 연결 (자동 재연결 포함)
+  useEffect(() => {
+    let isMounted = true;
+
+    const connectWebSocket = () => {
+      if (!isMounted) return;
+
+      const wsUrl = 'ws://localhost:8000/ws/clinic/';
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        console.log('✅ WebSocket 연결됨');
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('📩 WebSocket 메시지:', data);
+
+          if (data.type === 'queue_update' && data.data?.event_type === 'new_appointment') {
+            console.log('🔔 새 예약 알림:', data.data.appointment);
+            fetchPendingAppointments();
+          }
+        } catch (error) {
+          console.error('WebSocket 메시지 파싱 에러:', error);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error('❌ WebSocket 에러:', error);
+      };
+
+      ws.onclose = () => {
+        console.log('🔌 WebSocket 연결 종료');
+        wsRef.current = null;
+        // 자동 재연결 (5초 후)
+        if (isMounted) {
+          reconnectTimeoutRef.current = setTimeout(connectWebSocket, 5000);
+        }
+      };
+    };
+
+    connectWebSocket();
+
+    return () => {
+      isMounted = false;
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.close();
+      }
+    };
+  }, [fetchPendingAppointments]);
+
+  // 초기 데이터 로드
+  useEffect(() => {
+    fetchDoctors();
+    fetchPendingAppointments(pendingAppointmentsDate);
+    fetchPatients();
+  }, [fetchDoctors, fetchPendingAppointments, fetchPatients, pendingAppointmentsDate]);
+
+  // 앱 예약 날짜 필터 변경 시 재조회
+  useEffect(() => {
+    fetchPendingAppointments(pendingAppointmentsDate);
+  }, [pendingAppointmentsDate, fetchPendingAppointments]);
+
+  // 날짜 변경 시 예약 데이터 로드
+  useEffect(() => {
+    fetchAppointmentsForDate(selectedDate);
+    fetchSchedulesForDate(selectedDate);
+  }, [selectedDate, fetchAppointmentsForDate, fetchSchedulesForDate]);
+
+  // 시간대별 시간 범위 정의
+  const getPeriodTimeRange = (period: TimeSlotPeriod): { startHour: number; endHour: number; nextDay?: boolean } => {
+    switch (period) {
+      case 'morning':
+        return { startHour: 9, endHour: 13 }; // 09:00 ~ 13:00
+      case 'afternoon':
+        return { startHour: 13, endHour: 18 }; // 13:00 ~ 18:00
+      case 'evening':
+        return { startHour: 18, endHour: 22 }; // 18:00 ~ 22:00
+      case 'night':
+        return { startHour: 22, endHour: 6, nextDay: true }; // 22:00 ~ 06:00 (+1일)
+      default:
+        return { startHour: 9, endHour: 13 };
+    }
   };
 
-  // 30분 단위 타임슬롯 생성 (00:00 ~ 24:00) - 24시간 전체 표시
-  const generateTimeSlots = (): TimeSlot[] => {
+  // 30분 단위 타임슬롯 생성 (시간대별 필터링) - useMemo로 메모이제이션
+  const timeSlots = useMemo((): TimeSlot[] => {
     const slots: TimeSlot[] = [];
-    for (let hour = 0; hour < 24; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
-        const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-        slots.push({
-          time,
-          hour,
-          minute,
-          appointments: {}
-        });
+    const { startHour, endHour, nextDay } = getPeriodTimeRange(selectedPeriod);
+
+    if (nextDay) {
+      // 심야 시간대: 22:00 ~ 23:59
+      for (let hour = startHour; hour < 24; hour++) {
+        for (let minute = 0; minute < 60; minute += 30) {
+          const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+          slots.push({ time, hour, minute, appointments: {} });
+        }
+      }
+      // 다음 날 00:00 ~ 06:00
+      for (let hour = 0; hour < endHour; hour++) {
+        for (let minute = 0; minute < 60; minute += 30) {
+          const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+          slots.push({ time, hour, minute, appointments: {} });
+        }
+      }
+    } else {
+      // 일반 시간대
+      for (let hour = startHour; hour < endHour; hour++) {
+        for (let minute = 0; minute < 60; minute += 30) {
+          const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+          slots.push({ time, hour, minute, appointments: {} });
+        }
       }
     }
+
     return slots;
-  };
+  }, [selectedPeriod]);
 
-  const timeSlots = generateTimeSlots();
-
-  // 타임슬롯에 예약 매핑
-  const getSlotsWithAppointments = (): TimeSlot[] => {
+  // 타임슬롯에 예약 매핑 (승인된 예약만 캘린더에 표시) - useMemo로 메모이제이션
+  const slotsWithAppointments = useMemo((): TimeSlot[] => {
     return timeSlots.map(slot => {
       const slotAppointments: { [doctorId: number]: Appointment | null } = {};
 
       selectedDoctors.forEach(doctorId => {
         const appointment = appointments.find(
-          apt => apt.doctor === doctorId && apt.appointment_time === slot.time
+          apt => {
+            // doctor는 숫자(doctor_id) 또는 객체로 올 수 있음
+            const aptDoctorId = typeof apt.doctor === 'number'
+              ? apt.doctor
+              : (apt.doctor as any)?.doctor_id || apt.doctor_id;
+            // 승인된 예약(예약완료)만 캘린더에 표시
+            return aptDoctorId === doctorId && apt.appointment_time === slot.time && apt.status === '예약완료';
+          }
         );
         slotAppointments[doctorId] = appointment || null;
       });
@@ -175,9 +308,7 @@ export default function SchedulePage() {
         appointments: slotAppointments
       };
     });
-  };
-
-  const slotsWithAppointments = getSlotsWithAppointments();
+  }, [timeSlots, selectedDoctors, appointments]);
 
   // 의사 선택/해제
   const handleDoctorToggle = (doctorId: number) => {
@@ -188,12 +319,25 @@ export default function SchedulePage() {
     );
   };
 
-  // 모두 선택/해제
+  // 모두 선택/해제 (근무 중인 의사만)
   const handleSelectAll = () => {
-    if (selectedDoctors.length === doctors.length) {
+    // 근무 중인 의사 목록 필터링
+    const onDutyDoctors = doctors.filter(doctor => {
+      const doctorSchedules = dutySchedules.filter(
+        s => s.user === doctor.doctor_id && s.schedule_status === 'CONFIRMED'
+      );
+      return doctorSchedules.length > 0;
+    });
+
+    const onDutyDoctorIds = onDutyDoctors.map(d => d.doctor_id);
+    const allOnDutySelected = onDutyDoctorIds.every(id => selectedDoctors.includes(id));
+
+    if (allOnDutySelected) {
+      // 모든 근무 중인 의사가 선택되어 있으면 전체 해제
       setSelectedDoctors([]);
     } else {
-      setSelectedDoctors(doctors.map(d => d.doctor_id));
+      // 근무 중인 의사만 선택
+      setSelectedDoctors(onDutyDoctorIds);
     }
   };
 
@@ -306,7 +450,7 @@ export default function SchedulePage() {
     setSelectedDate(newDate);
     setOnsiteForm(prev => ({
       ...prev,
-      appointment_date: newDate.toISOString().split('T')[0]
+      appointment_date: formatLocalDate(newDate)
     }));
   };
 
@@ -367,7 +511,7 @@ export default function SchedulePage() {
       setOnsiteForm({
         patient_id: '',
         patient_name: '',
-        appointment_date: selectedDate.toISOString().split('T')[0],
+        appointment_date: formatLocalDate(selectedDate),
         appointment_time: '09:00',
         doctor_id: '',
         notes: ''
@@ -382,31 +526,85 @@ export default function SchedulePage() {
   };
 
   // 앱 예약 승인
-  const handleApproveAppointment = async () => {
+  const handleApproveAppAppointment = async () => {
     if (!selectedAppointment) return;
 
+    if (!window.confirm(`${selectedAppointment.patient_name || '환자'}님의 예약을 승인하시겠습니까?\n가장 가까운 빈 시간에 자동으로 배정됩니다.`)) {
+      return;
+    }
+
     try {
-      if (!selectedAppointment.doctor) {
-        alert('담당 의사가 지정되지 않았습니다.');
-        return;
-      }
-      if (!isWithinDutySchedule(selectedAppointment.doctor, selectedAppointment.appointment_date, selectedAppointment.appointment_time)) {
-        alert('해당 시간은 담당 의사의 근무 일정이 아닙니다.');
-        return;
-      }
-      await updateAppointment(selectedAppointment.appointment_id, {
-        status: '승인완료'
-      });
+      const response = await approveAppAppointment(selectedAppointment.appointment_id);
 
-      alert('예약이 승인되었습니다.');
-      setSelectedAppointment(null);
+      if (response.success) {
+        alert(`예약이 승인되었습니다.\n배정 시간: ${response.appointment.appointment_time}`);
+        setSelectedAppointment(null);
 
-      // 목록 새로고침
-      fetchPendingAppointments();
-      fetchAppointmentsForDate(selectedDate);
-    } catch (error) {
+        // 목록 새로고침
+        fetchPendingAppointments();
+        fetchAppointmentsForDate(selectedDate);
+      } else {
+        alert(response.message || '예약 승인에 실패했습니다.');
+      }
+    } catch (error: any) {
       console.error('예약 승인 실패:', error);
-      alert('예약 승인에 실패했습니다.');
+      alert(error.response?.data?.message || '예약 승인에 실패했습니다.');
+    }
+  };
+
+  // 앱 예약 거절
+  const handleRejectAppAppointment = async () => {
+    if (!selectedAppointment) return;
+
+    const reason = window.prompt('거절 사유를 입력해주세요:');
+    if (reason === null) return; // 취소
+
+    try {
+      const response = await rejectAppAppointment(selectedAppointment.appointment_id, reason);
+
+      if (response.success) {
+        alert('예약이 거절되었습니다.');
+        setSelectedAppointment(null);
+
+        // 목록 새로고침
+        fetchPendingAppointments();
+      } else {
+        alert(response.message || '예약 거절에 실패했습니다.');
+      }
+    } catch (error: any) {
+      console.error('예약 거절 실패:', error);
+      alert(error.response?.data?.message || '예약 거절에 실패했습니다.');
+    }
+  };
+
+  // 캘린더 예약 -> 진료 대기열 추가
+  const handleAddToQueue = async () => {
+    if (!calendarModalAppointment) return;
+
+    setIsAddingToQueue(true);
+    try {
+      const now = new Date();
+      const encounterData = {
+        patient: calendarModalAppointment.patient_id || calendarModalAppointment.patient || '',
+        doctor: calendarModalAppointment.doctor || 0,
+        encounter_date: calendarModalAppointment.appointment_date,
+        encounter_time: now.toTimeString().split(' ')[0].substring(0, 8),
+        department: calendarModalAppointment.department || '',
+        priority: 5,
+        workflow_state: 'WAITING_CLINIC',
+      };
+
+      console.log('📋 진료 대기열 추가 요청:', encounterData);
+      const response = await createEncounter(encounterData);
+      console.log('✅ 진료 대기열 추가 응답:', response);
+
+      alert('진료 대기열에 추가되었습니다.');
+      setCalendarModalAppointment(null);
+    } catch (error: any) {
+      console.error('진료 대기열 추가 실패:', error);
+      alert(error.response?.data?.message || error.response?.data?.error || '진료 대기열 추가에 실패했습니다.');
+    } finally {
+      setIsAddingToQueue(false);
     }
   };
 
@@ -467,22 +665,46 @@ export default function SchedulePage() {
                 className={styles.selectAllButton}
                 onClick={handleSelectAll}
               >
-                {selectedDoctors.length === doctors.length ? '전체 해제' : '모두 선택'}
+                {(() => {
+                  const onDutyDoctors = doctors.filter(doctor => {
+                    const doctorSchedules = dutySchedules.filter(
+                      s => s.user === doctor.doctor_id && s.schedule_status === 'CONFIRMED'
+                    );
+                    return doctorSchedules.length > 0;
+                  });
+                  const onDutyDoctorIds = onDutyDoctors.map(d => d.doctor_id);
+                  const allOnDutySelected = onDutyDoctorIds.every(id => selectedDoctors.includes(id));
+                  return allOnDutySelected && onDutyDoctorIds.length > 0 ? '전체 해제' : '근무자 선택';
+                })()}
               </button>
             </div>
             <div className={styles.doctorList}>
-              {doctors.map(doctor => (
-                <label key={doctor.doctor_id} className={styles.doctorCheckbox}>
-                  <input
-                    type="checkbox"
-                    checked={selectedDoctors.includes(doctor.doctor_id)}
-                    onChange={() => handleDoctorToggle(doctor.doctor_id)}
-                  />
-                  <span className={styles.doctorName}>
-                    {doctor.name} ({doctor.department.dept_name})
-                  </span>
-                </label>
-              ))}
+              {doctors.map(doctor => {
+                // 해당 의사의 근무 일정 확인
+                const doctorSchedules = dutySchedules.filter(
+                  s => s.user === doctor.doctor_id && s.schedule_status === 'CONFIRMED'
+                );
+                const isOnDuty = doctorSchedules.length > 0;
+
+                return (
+                  <label
+                    key={doctor.doctor_id}
+                    className={styles.doctorCheckbox}
+                    style={{ opacity: isOnDuty ? 1 : 0.5 }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedDoctors.includes(doctor.doctor_id)}
+                      onChange={() => handleDoctorToggle(doctor.doctor_id)}
+                      disabled={!isOnDuty}
+                    />
+                    <span className={styles.doctorName}>
+                      {doctor.name} ({doctor.department.dept_name})
+                      {!isOnDuty && <span style={{ color: 'gray', fontSize: '0.85em' }}> - 근무 외</span>}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -494,6 +716,34 @@ export default function SchedulePage() {
               <h3 className={styles.weekTitle}>
                 {selectedDate.getFullYear()}년 {selectedDate.getMonth() + 1}월 {selectedDate.getDate()}일 일정
               </h3>
+            </div>
+
+            {/* 시간대 선택 탭 */}
+            <div className={styles.periodTabs}>
+              <button
+                className={`${styles.periodTab} ${selectedPeriod === 'morning' ? styles.active : ''}`}
+                onClick={() => setSelectedPeriod('morning')}
+              >
+                오전 (09:00~13:00)
+              </button>
+              <button
+                className={`${styles.periodTab} ${selectedPeriod === 'afternoon' ? styles.active : ''}`}
+                onClick={() => setSelectedPeriod('afternoon')}
+              >
+                오후 (13:00~18:00)
+              </button>
+              <button
+                className={`${styles.periodTab} ${selectedPeriod === 'evening' ? styles.active : ''}`}
+                onClick={() => setSelectedPeriod('evening')}
+              >
+                야간 (18:00~22:00)
+              </button>
+              <button
+                className={`${styles.periodTab} ${selectedPeriod === 'night' ? styles.active : ''}`}
+                onClick={() => setSelectedPeriod('night')}
+              >
+                심야 (22:00~06:00)
+              </button>
             </div>
 
             {/* 의사별 컬럼 헤더 */}
@@ -516,39 +766,39 @@ export default function SchedulePage() {
 
             {/* 시간 그리드 */}
             <div className={styles.scheduleGrid}>
-              {slotsWithAppointments.map((slot, index) => {
+              {slotsWithAppointments.map((slot, index) => (
+                <div key={index} className={styles.timeSlotRow}>
+                  <div className={styles.timeLabel}>{slot.time}</div>
+                  {selectedDoctors.map(doctorId => {
+                    const appointment = slot.appointments[doctorId];
+                    const isGrayed = isDoctorOffDuty(doctorId, selectedDate, slot.hour, slot.minute);
 
-
-                return (
-                  <div key={index} className={styles.timeSlotRow}>
-                    <div className={styles.timeLabel}>{slot.time}</div>
-                    {selectedDoctors.map(doctorId => {
-                      const appointment = slot.appointments[doctorId];
-                      const isGrayed = isDoctorOffDuty(doctorId, selectedDate, slot.hour, slot.minute);
-
-                      return (
-                        <div
-                          key={doctorId}
-                          className={`${styles.appointmentCell} ${isGrayed ? styles.grayedOut : ''}`}
-                        >
-                          {appointment ? (
-                            <div className={styles.appointmentBlock}>
-                              <div className={styles.appointmentPatient}>
-                                {appointment.patient_name || '환자'}
-                              </div>
-                              <div className={styles.appointmentStatus}>
-                                {appointment.status || '예약'}
-                              </div>
+                    return (
+                      <div
+                        key={doctorId}
+                        className={`${styles.appointmentCell} ${isGrayed ? styles.grayedOut : ''}`}
+                      >
+                        {appointment ? (
+                          <div
+                            className={styles.appointmentBlock}
+                            onClick={() => setCalendarModalAppointment(appointment)}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <div className={styles.appointmentPatient}>
+                              {appointment.patient_name || '환자'}
                             </div>
-                          ) : (
-                            !isGrayed && <div className={styles.emptySlot}>-</div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
+                            <div className={styles.appointmentStatus}>
+                              {appointment.status || '예약'}
+                            </div>
+                          </div>
+                        ) : (
+                          !isGrayed && <div className={styles.emptySlot}>-</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -601,11 +851,24 @@ export default function SchedulePage() {
                       required
                     >
                       <option value="">의사를 선택하세요</option>
-                      {doctors.map(doctor => (
-                        <option key={doctor.doctor_id} value={doctor.doctor_id}>
-                          {doctor.name} ({doctor.department.dept_name})
-                        </option>
-                      ))}
+                      {doctors.map(doctor => {
+                        // 해당 의사의 근무 일정 확인
+                        const doctorSchedules = dutySchedules.filter(
+                          s => s.user === doctor.doctor_id && s.schedule_status === 'CONFIRMED'
+                        );
+                        const isOnDuty = doctorSchedules.length > 0;
+
+                        return (
+                          <option
+                            key={doctor.doctor_id}
+                            value={doctor.doctor_id}
+                            disabled={!isOnDuty}
+                            style={{ color: isOnDuty ? 'black' : 'gray' }}
+                          >
+                            {doctor.name} ({doctor.department.dept_name}) {!isOnDuty ? '- 근무 외' : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
@@ -654,7 +917,15 @@ export default function SchedulePage() {
               ) : (
                 /* 앱 예약 승인 목록 */
                 <div className={styles.appAppointmentsList}>
-                  <h4 className={styles.listTitle}>승인 대기 중인 예약</h4>
+                  <div className={styles.listHeader}>
+                    <h4 className={styles.listTitle}>승인 대기 중인 예약</h4>
+                    <input
+                      type="date"
+                      className={styles.dateFilter}
+                      value={pendingAppointmentsDate}
+                      onChange={(e) => setPendingAppointmentsDate(e.target.value)}
+                    />
+                  </div>
                   {pendingAppointments.length === 0 ? (
                     <div className={styles.emptyList}>
                       승인 대기 중인 예약이 없습니다.
@@ -669,19 +940,26 @@ export default function SchedulePage() {
                         >
                           <div className={styles.appointmentItemHeader}>
                             <span className={styles.appointmentItemPatient}>
-                              {apt.patient_name || '환자'}
+                              {apt.patient_name}
                             </span>
-                            <span className={styles.appointmentItemDate}>
-                              {apt.appointment_date}
+                            <span className={styles.appointmentItemStatus}>
+                              대기
                             </span>
                           </div>
                           <div className={styles.appointmentItemDetails}>
-                            <span>{apt.appointment_time}</span>
-                            <span>{apt.doctor_name || '의사 미배정'}</span>
+                            <span className={styles.appointmentItemDateTime}>
+                              📅 {apt.appointment_date} {apt.appointment_time}
+                            </span>
                           </div>
-                          <div className={styles.appointmentItemNotes}>
-                            {apt.notes || '비고 없음'}
+                          <div className={styles.appointmentItemDetails}>
+                            <span>👨‍⚕️ {apt.doctor_name || '미배정'}</span>
+                            <span>🏥 {apt.department || '-'}</span>
                           </div>
+                          {apt.notes && (
+                            <div className={styles.appointmentItemNotes}>
+                              💬 {apt.notes}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -689,18 +967,27 @@ export default function SchedulePage() {
 
                   {selectedAppointment && (
                     <div className={styles.approvalSection}>
-                      <h4 className={styles.approvalTitle}>예약 승인</h4>
+                      <h4 className={styles.approvalTitle}>예약 승인/거절</h4>
                       <div className={styles.approvalDetails}>
                         <p><strong>환자:</strong> {selectedAppointment.patient_name}</p>
-                        <p><strong>날짜:</strong> {selectedAppointment.appointment_date}</p>
-                        <p><strong>시간:</strong> {selectedAppointment.appointment_time}</p>
+                        <p><strong>진료과:</strong> {selectedAppointment.department || '-'}</p>
+                        <p><strong>의사:</strong> {selectedAppointment.doctor_name || '-'}</p>
+                        <p><strong>예약 날짜:</strong> {selectedAppointment.appointment_date}</p>
+                        <p><strong>요청 시간:</strong> {selectedAppointment.appointment_time}</p>
+                        <p><strong>비고:</strong> {selectedAppointment.notes || '없음'}</p>
                       </div>
                       <div className={styles.approvalActions}>
                         <button
                           className={styles.approveButton}
-                          onClick={handleApproveAppointment}
+                          onClick={handleApproveAppAppointment}
                         >
                           승인
+                        </button>
+                        <button
+                          className={styles.rejectButton}
+                          onClick={handleRejectAppAppointment}
+                        >
+                          거절
                         </button>
                         <button
                           className={styles.cancelButton}
@@ -717,6 +1004,74 @@ export default function SchedulePage() {
           </div>
         </div>
       </div>
+
+      {/* 캘린더 예약 상세 모달 */}
+      {calendarModalAppointment && (
+        <div className={styles.modalOverlay} onClick={() => setCalendarModalAppointment(null)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3>예약 정보</h3>
+              <button
+                className={styles.modalCloseButton}
+                onClick={() => setCalendarModalAppointment(null)}
+              >
+                ×
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.modalInfoRow}>
+                <span className={styles.modalLabel}>환자명</span>
+                <span className={styles.modalValue}>{calendarModalAppointment.patient_name || '-'}</span>
+              </div>
+              <div className={styles.modalInfoRow}>
+                <span className={styles.modalLabel}>환자 ID</span>
+                <span className={styles.modalValue}>{calendarModalAppointment.patient_id || calendarModalAppointment.patient || '-'}</span>
+              </div>
+              <div className={styles.modalInfoRow}>
+                <span className={styles.modalLabel}>예약일</span>
+                <span className={styles.modalValue}>{calendarModalAppointment.appointment_date}</span>
+              </div>
+              <div className={styles.modalInfoRow}>
+                <span className={styles.modalLabel}>예약시간</span>
+                <span className={styles.modalValue}>{calendarModalAppointment.appointment_time}</span>
+              </div>
+              <div className={styles.modalInfoRow}>
+                <span className={styles.modalLabel}>담당의</span>
+                <span className={styles.modalValue}>{calendarModalAppointment.doctor_name || '-'}</span>
+              </div>
+              <div className={styles.modalInfoRow}>
+                <span className={styles.modalLabel}>진료과</span>
+                <span className={styles.modalValue}>{calendarModalAppointment.department || '-'}</span>
+              </div>
+              <div className={styles.modalInfoRow}>
+                <span className={styles.modalLabel}>상태</span>
+                <span className={styles.modalValue}>{calendarModalAppointment.status || '-'}</span>
+              </div>
+              {calendarModalAppointment.notes && (
+                <div className={styles.modalInfoRow}>
+                  <span className={styles.modalLabel}>메모</span>
+                  <span className={styles.modalValue}>{calendarModalAppointment.notes}</span>
+                </div>
+              )}
+            </div>
+            <div className={styles.modalFooter}>
+              <button
+                className={styles.approveButton}
+                onClick={handleAddToQueue}
+                disabled={isAddingToQueue}
+              >
+                {isAddingToQueue ? '추가 중...' : '진료 대기열 추가'}
+              </button>
+              <button
+                className={styles.cancelButton}
+                onClick={() => setCalendarModalAppointment(null)}
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
