@@ -396,6 +396,7 @@ export default function TreatmentPage() {
           onComplete={handleCompleteTreatment}
           disabled={!selectedEncounterId || currentEncounter?.encounter_status === 'COMPLETED'}
           medications={medications}
+          onAddMedication={handleAddMedication}
           onRemoveMedication={handleRemoveMedication}
           onMedicationChange={handleMedicationChange}
           onCancel={handleCancelTreatment}
