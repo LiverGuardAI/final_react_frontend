@@ -7,8 +7,13 @@ import {
     createPersonalSchedule,
     updatePersonalSchedule,
     deletePersonalSchedule,
+    getUserSchedules,
+    createUserSchedule,
+    updateUserSchedule,
+    deleteUserSchedule,
     type DutyScheduleData,
     type PersonalScheduleData,
+    type UserScheduleData,
     confirmDutySchedule,
     rejectDutySchedule,
     createDutySchedule,
@@ -18,6 +23,18 @@ import {
 import { useWebSocketContext } from '../../context/WebSocketContext';
 import ScheduleManagementModal from './ScheduleManagementModal';
 import PersonalScheduleModal from './PersonalScheduleModal';
+
+// Combine types for state
+interface CombinedPersonalSchedule extends Partial<PersonalScheduleData>, Partial<UserScheduleData> {
+    source: 'doctor' | 'user';
+    schedule_id: number;
+    schedule_type: any; // Union of types
+    schedule_date: string;
+    start_time: string; // HH:MM
+    end_time: string;   // HH:MM
+    notes?: string;
+    is_available?: boolean;
+}
 
 interface ScheduleModalProps {
     schedule: DutyScheduleData;
@@ -44,11 +61,11 @@ const ScheduleReviewModal: React.FC<ScheduleModalProps> = ({ schedule, onClose, 
 
     const getShiftTypeLabel = (type?: string) => {
         switch (type) {
-            case 'DAY': return '주간';
-            case 'EVENING': return '저녁';
-            case 'NIGHT': return '심야';
+            case 'DAY': return '주간 근무';
+            case 'EVENING': return '저녁 근무';
+            case 'NIGHT': return '심야 근무';
             case 'OFF': return '휴무';
-            default: return type || '-';
+            default: return type || '';
         }
     };
 
@@ -71,8 +88,8 @@ const ScheduleReviewModal: React.FC<ScheduleModalProps> = ({ schedule, onClose, 
                     <div className={styles.detailRow}>
                         <span className={styles.detailLabel}>시간</span>
                         <span className={styles.detailValue}>
-                            {new Date(schedule.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ~
-                            {new Date(schedule.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(schedule.start_time).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit' })} ~
+                            {new Date(schedule.end_time).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit' })}
                         </span>
                     </div>
                     <div className={styles.detailRow}>
@@ -139,10 +156,13 @@ export default function PersonalSchedulePage() {
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [schedules, setSchedules] = useState<DutyScheduleData[]>([]);
     const [appointments, setAppointments] = useState<any[]>([]);
-    const [personalSchedules, setPersonalSchedules] = useState<PersonalScheduleData[]>([]);
-    const [selectedPersonalSchedule, setSelectedPersonalSchedule] = useState<PersonalScheduleData | null>(null);
+
+    // Updated state type
+    const [personalSchedules, setPersonalSchedules] = useState<CombinedPersonalSchedule[]>([]);
+    const [selectedPersonalSchedule, setSelectedPersonalSchedule] = useState<CombinedPersonalSchedule | null>(null);
     const [isPersonalModalOpen, setIsPersonalModalOpen] = useState(false);
-    const [personalEditingData, setPersonalEditingData] = useState<PersonalScheduleData | null>(null);
+    const [personalEditingData, setPersonalEditingData] = useState<CombinedPersonalSchedule | null>(null);
+
     const [selectedSchedule, setSelectedSchedule] = useState<DutyScheduleData | null>(null);
     const [dailyTab, setDailyTab] = useState<'schedule' | 'appointment'>('schedule');
 
@@ -238,29 +258,34 @@ export default function PersonalSchedulePage() {
 
     const fetchPersonalSchedules = async () => {
         if (!user) return;
-        const isDoctor = user.role === 'doctor' || user.role === 'DOCTOR';
-        if (!isDoctor) {
-            setPersonalSchedules([]);
-            return;
-        }
         try {
             const start = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
             const end = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 2, 0);
-            const data = await getPersonalSchedules(
-                start.toISOString().split('T')[0],
-                end.toISOString().split('T')[0]
-            );
-            setPersonalSchedules(data);
+            const startStr = start.toISOString().split('T')[0];
+            const endStr = end.toISOString().split('T')[0];
+
+            // 1. Fetch User Schedules (All Users)
+            const userSchedules = await getUserSchedules(startStr, endStr);
+            const taggedUserSchedules = userSchedules.map((s: any) => ({ ...s, source: 'user' }));
+
+            // 2. Fetch Doctor Schedules (Doctors Only)
+            let taggedDoctorSchedules: any[] = [];
+            const isDoctor = user.role === 'doctor' || user.role === 'DOCTOR';
+            if (isDoctor) {
+                const doctorSchedules = await getPersonalSchedules(startStr, endStr);
+                taggedDoctorSchedules = doctorSchedules.map((s: any) => ({ ...s, source: 'doctor' }));
+            }
+
+            setPersonalSchedules([...taggedUserSchedules, ...taggedDoctorSchedules]);
         } catch (error) {
-            console.error("Failed to fetch personal schedules", error);
+            console.error("스케줄 조회 실패", error);
         }
     };
 
     const fetchAppointments = async () => {
         if (!user) return;
 
-        // Appointment는 의사에게만 해당되는 데이터입니다.
-        // 원무과(administration) 등 타 직군은 진료 예약 내역이 없으므로 조회하지 않습니다.
+        // 의사만 본인 예약 내역 조회 가능
         const isDoctor = user.role === 'doctor' || user.role === 'DOCTOR';
 
         if (!isDoctor) {
@@ -269,7 +294,6 @@ export default function PersonalSchedulePage() {
         }
 
         try {
-            // Import dynamically or assume it's available
             const { getAppointments } = await import('../../api/receptionApi');
             const doctorInfoRaw = localStorage.getItem('doctor');
             const doctorInfo = doctorInfoRaw ? JSON.parse(doctorInfoRaw) : null;
@@ -285,7 +309,7 @@ export default function PersonalSchedulePage() {
             });
             setAppointments(data.results || data);
         } catch (error) {
-            console.error("Failed to fetch appointments", error);
+            console.error("예약 조회 실패", error);
         }
     };
 
@@ -311,13 +335,6 @@ export default function PersonalSchedulePage() {
         }
     };
 
-    // Management Handlers
-    const handleAddSchedule = () => {
-        setManagementMode('create');
-        setEditingData(null);
-        setIsManagementModalOpen(true);
-    };
-
     const handleEditSchedule = () => {
         if (!selectedSchedule) return;
         setManagementMode('edit');
@@ -326,11 +343,29 @@ export default function PersonalSchedulePage() {
     };
 
     const handleDeleteSchedule = async () => {
-        if (!confirm('\uC815\uB9D0 \uC774 \uC77C\uC815\uC744 \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?')) return;
+        if (!selectedSchedule?.schedule_id) return;
+
+        if (!confirm('정말 이 일정을 삭제하시겠습니까?')) return;
         try {
             await deleteDutySchedule(selectedSchedule.schedule_id);
             fetchSchedules();
             setSelectedSchedule(null);
+        } catch (error) {
+            alert('삭제 실패');
+        }
+    };
+
+    const handleDeletePersonalSchedule = async () => {
+        if (!selectedPersonalSchedule?.schedule_id) return;
+        if (!confirm('정말 이 개인 일정을 삭제하시겠습니까?')) return;
+        try {
+            if (selectedPersonalSchedule.source === 'user') {
+                await deleteUserSchedule(selectedPersonalSchedule.schedule_id);
+            } else {
+                await deletePersonalSchedule(selectedPersonalSchedule.schedule_id);
+            }
+            setSelectedPersonalSchedule(null);
+            fetchPersonalSchedules();
         } catch (error) {
             alert('삭제 실패');
         }
@@ -356,9 +391,9 @@ export default function PersonalSchedulePage() {
 
     const getShiftTypeLabel = (type?: string) => {
         switch (type) {
-            case 'DAY': return '주간';
-            case 'EVENING': return '저녁';
-            case 'NIGHT': return '심야';
+            case 'DAY': return '주간 근무';
+            case 'EVENING': return '저녁 근무';
+            case 'NIGHT': return '심야 근무';
             case 'OFF': return '휴무';
             default: return type || '';
         }
@@ -366,12 +401,12 @@ export default function PersonalSchedulePage() {
 
     const getPersonalScheduleLabel = (type?: string) => {
         switch (type) {
-            case 'CONFERENCE': return '\uD559\uD68C/\uC138\uBBF8\uB098';
-            case 'VACATION': return '\uD734\uAC00';
-            case 'OTHER': return '\uAE30\uD0C0';
-            case 'OUTPATIENT': return '\uC678\uB798';
-            case 'SURGERY': return '\uC218\uC220';
-            default: return type || '-';
+            case 'CONFERENCE': return '학회/세미나';
+            case 'VACATION': return '휴가';
+            case 'OTHER': return '기타';
+            case 'OUTPATIENT': return '외래';
+            case 'SURGERY': return '수술';
+            default: return type || '';
         }
     };
 
@@ -423,12 +458,16 @@ export default function PersonalSchedulePage() {
 
     // Daily Summary
     const renderDailySummary = () => {
+        const isDoctor = user?.role === 'doctor' || user?.role === 'DOCTOR';
+
         const daySchedules = schedules.filter(s =>
             new Date(s.start_time).toDateString() === currentDate.toDateString()
         ).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+
         const dayPersonalSchedules = personalSchedules.filter(s =>
             new Date(s.schedule_date).toDateString() === currentDate.toDateString()
         ).sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
+
         const combinedSchedules = [
             ...daySchedules.map(sch => ({
                 kind: 'duty' as const,
@@ -443,32 +482,35 @@ export default function PersonalSchedulePage() {
                 schedule: sch
             }))
         ].sort((a, b) => a.start.getTime() - b.start.getTime());
+
         const hasSelection = !!selectedSchedule || !!selectedPersonalSchedule;
 
         return (
             <>
-                {/* ? ?? */}
-                <div className={styles.tabButtons}>
-                    <button
-                        className={`${styles.tabButton} ${dailyTab === 'schedule' ? styles.active : ''}`}
-                        onClick={() => setDailyTab('schedule')}
-                    >
-                        ??
-                    </button>
-                    <button
-                        className={`${styles.tabButton} ${dailyTab === 'appointment' ? styles.active : ''}`}
-                        onClick={() => setDailyTab('appointment')}
-                    >
-                        ??
-                    </button>
-                </div>
+                {/* 탭 버튼 (의사만 표시) */}
+                {isDoctor && (
+                    <div className={styles.tabButtons}>
+                        <button
+                            className={`${styles.tabButton} ${dailyTab === 'schedule' ? styles.active : ''}`}
+                            onClick={() => setDailyTab('schedule')}
+                        >
+                            일정
+                        </button>
+                        <button
+                            className={`${styles.tabButton} ${dailyTab === 'appointment' ? styles.active : ''}`}
+                            onClick={() => setDailyTab('appointment')}
+                        >
+                            예약
+                        </button>
+                    </div>
+                )}
 
-                {/* ?? ? ?? */}
+                {/* 일정 목록 */}
                 {dailyTab === 'schedule' ? (
                     <>
                         <div className={styles.summaryList}>
                             {combinedSchedules.length === 0 ? (
-                                <div style={{ color: '#a0aec0', textAlign: 'center', marginTop: '20px' }}>??? ????.</div>
+                                <div style={{ color: '#a0aec0', textAlign: 'center', marginTop: '20px' }}>일정이 없습니다.</div>
                             ) : (
                                 combinedSchedules.map(item => {
                                     if (item.kind === 'duty') {
@@ -481,52 +523,86 @@ export default function PersonalSchedulePage() {
                                                     setSelectedPersonalSchedule(null);
                                                     setSelectedSchedule(sch);
                                                 }}
-                                                style={{ cursor: 'pointer' }}
+                                                style={{
+                                                    cursor: 'pointer',
+                                                    background: '#FFFFFF',
+                                                    border: '1px solid #E0E0E0',
+                                                    borderRadius: '8px',
+                                                    padding: '12px',
+                                                    marginBottom: '8px',
+                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    gap: '8px'
+                                                }}
                                             >
-                                                <div className={styles.itemTime}>
-                                                    {new Date(sch.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -
-                                                    {new Date(sch.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <span className={styles.itemTime} style={{ fontSize: '12px', color: '#666666', fontWeight: 'normal' }}>
+                                                            {new Date(sch.start_time).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit' })} -
+                                                            {new Date(sch.end_time).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit' })}
+                                                        </span>
+                                                        <span className={styles.itemTitle} style={{
+                                                            fontSize: '13px',
+                                                            color: '#52759C',
+                                                            background: '#E3F2FD',
+                                                            padding: '2px 8px',
+                                                            borderRadius: '12px',
+                                                            fontWeight: '500'
+                                                        }}>
+                                                            {getShiftTypeLabel(sch.shift_type)}
+                                                        </span>
+                                                    </div>
                                                 </div>
-                                                <div className={styles.itemTitle}>
-                                                    {getShiftTypeLabel(sch.shift_type)}
-                                                </div>
-                                                <span className={`${styles.itemStatus} ${styles[sch.schedule_status?.toLowerCase() || '']}`}>
-                                                    {sch.schedule_status}
-                                                </span>
                                             </div>
                                         );
                                     }
-                                    const sch = item.schedule;
+                                    // Personal Schedule
+                                    // TypeScript requires explicit type guard or cast usually, but here 'item.schedule' is CombinedPersonalSchedule
+                                    const sch = item.schedule as CombinedPersonalSchedule;
                                     return (
                                         <div
-                                            key={`personal-${sch.schedule_id}`}
+                                            key={`personal-${sch.source}-${sch.schedule_id}`}
                                             className={styles.summaryItem}
                                             onClick={() => {
                                                 setSelectedSchedule(null);
                                                 setSelectedPersonalSchedule(sch);
                                             }}
-                                            style={{ cursor: 'pointer' }}
+                                            style={{
+                                                cursor: 'pointer',
+                                                background: '#FFFFFF',
+                                                border: '1px solid #E0E0E0',
+                                                borderRadius: '8px',
+                                                padding: '12px',
+                                                marginBottom: '8px',
+                                                boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                                            }}
                                         >
-                                            <div className={styles.itemTime}>
-                                                {sch.start_time?.slice(0, 5)} - {sch.end_time?.slice(0, 5)}
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <span className={styles.itemTime} style={{ fontSize: '12px', color: '#666666', fontWeight: 'normal' }}>
+                                                        {sch.start_time?.slice(0, 5)} - {sch.end_time?.slice(0, 5)}
+                                                    </span>
+                                                    <span className={styles.itemTitle} style={{ fontSize: '14px', color: '#666' }}>
+                                                        {sch.notes || getPersonalScheduleLabel(sch.schedule_type)}
+                                                    </span>
+                                                </div>
+                                                <span className={styles.itemStatus} style={{ fontSize: '12px', color: '#999' }}>
+                                                    {sch.source === 'user' ? '개인' : '진료'}
+                                                </span>
                                             </div>
-                                            <div className={styles.itemTitle}>
-                                                {getPersonalScheduleLabel(sch.schedule_type)}
-                                            </div>
-                                            <span className={styles.itemStatus}>??</span>
                                         </div>
                                     );
                                 })
                             )}
-                        </div>
-                        {/* ?? ?? ?? */}
-                        <div className={styles.scheduleActions}>
-                            <button className={styles.btnAdd} onClick={handleAddSchedule}>?? ?? ??</button>
+                        </div >
+                        {/* 하단 액션 버튼 */}
+                        < div className={styles.scheduleActions} >
                             <button
-                                className={styles.btnSecondary}
+                                className={styles.btnEdit}
                                 onClick={() => { setPersonalEditingData(null); setIsPersonalModalOpen(true); }}
                             >
-                                ?? ?? ??
+                                일정 추가
                             </button>
                             <button
                                 className={styles.btnEdit}
@@ -540,35 +616,39 @@ export default function PersonalSchedulePage() {
                                     handleEditSchedule();
                                 }}
                             >
-                                ??
+                                수정
                             </button>
                             <button
                                 className={styles.btnDelete}
                                 disabled={!hasSelection}
                                 onClick={async () => {
                                     if (selectedPersonalSchedule?.schedule_id) {
-                                        if (!confirm('?? ??????')) return;
-                                        await deletePersonalSchedule(selectedPersonalSchedule.schedule_id);
-                                        setSelectedPersonalSchedule(null);
-                                        fetchPersonalSchedules();
+                                        await handleDeletePersonalSchedule();
                                         return;
                                     }
                                     handleDeleteSchedule();
                                 }}
                             >
-                                ??
+                                삭제
                             </button>
-                        </div>
+                        </div >
                     </>
-                ) : (
+                ) : isDoctor ? (
                     <div className={styles.summaryList}>
 
                         {appointments
                             .filter(apt => new Date(apt.appointment_date).toDateString() === currentDate.toDateString())
                             .sort((a, b) => (a.appointment_time || '').localeCompare(b.appointment_time || ''))
                             .map((apt, idx) => (
-                                <div key={idx} className={styles.summaryItem}>
-                                    <div className={styles.itemTime}>
+                                <div key={idx} className={styles.summaryItem} style={{
+                                    background: '#FFFFFF',
+                                    border: '1px solid #E0E0E0',
+                                    borderRadius: '8px',
+                                    padding: '12px',
+                                    marginBottom: '8px',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                                }}>
+                                    <div className={styles.itemTime} style={{ fontSize: '12px', color: '#666666', fontWeight: 'normal' }}>
                                         {apt.appointment_time?.slice(0, 5)}
                                     </div>
                                     <div className={styles.itemTitle}>
@@ -580,10 +660,11 @@ export default function PersonalSchedulePage() {
                                 </div>
                             ))}
                         {appointments.filter(apt => new Date(apt.appointment_date).toDateString() === currentDate.toDateString()).length === 0 && (
-                            <div style={{ color: '#a0aec0', textAlign: 'center', marginTop: '20px' }}>??? ????.</div>
+                            <div style={{ color: '#a0aec0', textAlign: 'center', marginTop: '20px' }}>예약이 없습니다.</div>
                         )}
                     </div>
-                )}
+                ) : null
+                }
             </>
         );
     };
@@ -621,13 +702,18 @@ export default function PersonalSchedulePage() {
 
                         {/* 각 요일 셀 */}
                         {weekDates.map((d, dayIndex) => {
+                            const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                             const daySchedules = schedules.filter(s => {
                                 const sDate = new Date(s.start_time);
                                 return sDate.toDateString() === d.toDateString();
                             });
 
-                            // 이 슬롯 시간에 해당하는 일정 찾기
-                            const schedule = daySchedules.find(s => {
+                            const dayPersonalSchedules = personalSchedules.filter(s =>
+                                s.schedule_date === dStr
+                            );
+
+                            // 이 슬롯 시간에 해당하는 일정 찾기 (Duty)
+                            const rawSchedule = daySchedules.find(s => {
                                 const start = new Date(s.start_time);
                                 const startMinutes = start.getHours() * 60 + start.getMinutes();
                                 const slotMinutes = slot.hour * 60 + slot.minute;
@@ -637,8 +723,20 @@ export default function PersonalSchedulePage() {
                                 return slotMinutes >= startMinutes && slotMinutes < endMinutes;
                             });
 
-                            const isOff = schedule?.shift_type === 'OFF';
-                            const hasSchedule = !!schedule && schedule.schedule_status !== 'CANCELLED';
+                            // Duty가 DAY, EVENING, NIGHT이면 표시하지 않음
+                            const isDutyIgnored = rawSchedule && ['DAY', 'EVENING', 'NIGHT'].includes(rawSchedule.shift_type || '');
+                            const schedule = isDutyIgnored ? null : rawSchedule;
+
+                            // 이 슬롯 시간에 해당하는 개인 일정 찾기 (Personal)
+                            const personalSchedule = dayPersonalSchedules.find(s => {
+                                const [sh, sm] = (s.start_time || '00:00').split(':').map(Number);
+                                const startMinutes = sh * 60 + sm;
+                                const [eh, em] = (s.end_time || '00:00').split(':').map(Number);
+                                const endMinutes = eh * 60 + em;
+                                const slotMinutes = slot.hour * 60 + slot.minute;
+
+                                return slotMinutes >= startMinutes && slotMinutes < endMinutes;
+                            });
 
                             // Appointments for this slot
                             const slotAppointments = appointments.filter(apt => {
@@ -646,26 +744,84 @@ export default function PersonalSchedulePage() {
                                 const [aptH, aptM] = (apt.appointment_time || '00:00:00').split(':').map(Number);
                                 const aptTime = aptH * 60 + aptM;
                                 const slotTime = slot.hour * 60 + slot.minute;
-                                return aptTime >= slotTime && aptTime < slotTime + 30; // 30 min slot logic
+                                return aptTime >= slotTime && aptTime < slotTime + 30; // 30 min slot
                             });
+
+                            let backgroundColor = undefined;
+                            let textColor = '#333333';
+                            if (slotAppointments.length > 0) {
+                                backgroundColor = '#C4F6FF'; // Appointment Priority
+                                textColor = '#006064';
+                            } else if (personalSchedule) {
+                                backgroundColor = '#9ECFF5'; // Personal Schedule
+                                textColor = '#0D47A1';
+                            }
+
+                            // Construct Display Text
+                            const textParts: string[] = [];
+                            slotAppointments.forEach(apt => {
+                                textParts.push(`${apt.patient_name || apt.patient?.name} 님 예약`);
+                            });
+                            if (personalSchedule) {
+                                textParts.push(personalSchedule.notes || getPersonalScheduleLabel(personalSchedule.schedule_type || 'OTHER'));
+                            }
+                            if (schedule && schedule.shift_type === 'OFF') {
+                                textParts.push('휴무');
+                            }
+                            const displayText = textParts.join(', ');
+                            const hasContent = textParts.length > 0;
+
+                            const isOff = schedule?.shift_type === 'OFF';
+                            const isOnDuty = rawSchedule && (rawSchedule as any).schedule_status !== 'CANCELLED' && rawSchedule.shift_type !== 'OFF';
 
                             return (
                                 <div
                                     key={dayIndex}
-                                    className={`${styles.scheduleCell} ${hasSchedule ? styles.onDuty : styles.offDuty} ${isOff ? styles.dayOff : ''}`}
-                                    onClick={() => schedule && setSelectedSchedule(schedule)}
+                                    className={`${styles.scheduleCell} ${isOnDuty ? styles.onDuty : styles.offDuty} ${isOff ? styles.dayOff : ''}`}
+                                    style={{
+                                        backgroundColor: backgroundColor,
+                                        borderLeft: backgroundColor ? 'none' : undefined
+                                    }}
+                                    onClick={() => {
+                                        setCurrentDate(d);
+
+                                        // OFF 상태이고 이미 확정된 경우 -> 보통 수정 불가지만 클릭 무시
+                                        if (schedule?.shift_type === 'OFF' && schedule.schedule_status === 'CONFIRMED') {
+                                            return;
+                                        }
+
+                                        if (personalSchedule) {
+                                            setSelectedPersonalSchedule(personalSchedule as CombinedPersonalSchedule);
+                                            setSelectedSchedule(null);
+                                        } else if (schedule) {
+                                            setSelectedSchedule(schedule);
+                                            setSelectedPersonalSchedule(null);
+                                        } else if (slotAppointments.length === 0) {
+                                            // Empty slot: Open create modal
+                                            const formattedDate = d.toLocaleDateString('en-CA');
+                                            setPersonalEditingData({
+                                                schedule_date: formattedDate,
+                                                start_time: slot.time,
+                                                end_time: slot.time,
+                                                schedule_type: 'OTHER',
+                                                source: 'user'
+                                            } as CombinedPersonalSchedule);
+                                            setIsPersonalModalOpen(true);
+                                        }
+                                    }}
                                 >
-                                    {schedule && schedule.schedule_status !== 'CANCELLED' && (
-                                        <div className={styles.scheduleLabel}>
-                                            {isOff ? '휴무' : getShiftTypeLabel(schedule.shift_type)}
-                                        </div>
-                                    )}
-                                    {/* Appointment Indicators */}
-                                    {slotAppointments.length > 0 && (
-                                        <div className={styles.appointmentIndicator}>
-                                            {slotAppointments.map((apt, i) => (
-                                                <div key={i} className={styles.appointmentDot} title={`${apt.patient_name || apt.patient?.name} - ${apt.appointment_time?.slice(0, 5)}`} />
-                                            ))}
+                                    {hasContent && (
+                                        <div style={{
+                                            fontSize: '11px',
+                                            overflow: 'hidden',
+                                            whiteSpace: 'nowrap',
+                                            textOverflow: 'ellipsis',
+                                            lineHeight: '1.2',
+                                            padding: '2px',
+                                            color: textColor,
+                                            fontWeight: '500'
+                                        }} title={displayText}>
+                                            {displayText}
                                         </div>
                                     )}
                                 </div>
@@ -741,19 +897,32 @@ export default function PersonalSchedulePage() {
             <PersonalScheduleModal
                 isOpen={isPersonalModalOpen}
                 onClose={() => setIsPersonalModalOpen(false)}
-                initialData={personalEditingData}
+                initialData={personalEditingData as any}
+                isDoctor={user?.role === 'doctor' || user?.role === 'DOCTOR'}
                 onSubmit={async (data) => {
+                    const isCommonType = ['VACATION', 'CONFERENCE', 'OTHER'].includes(data.schedule_type);
                     try {
-                        if (personalEditingData?.schedule_id) {
-                            await updatePersonalSchedule(personalEditingData.schedule_id, data);
+                        if (isCommonType) {
+                            // UserSchedule
+                            if (personalEditingData?.schedule_id && personalEditingData.source === 'user') {
+                                await updateUserSchedule(personalEditingData.schedule_id, data as any);
+                            } else {
+                                await createUserSchedule(data as any);
+                            }
                         } else {
-                            await createPersonalSchedule(data);
+                            // DoctorSchedule (Outpatient, Surgery)
+                            if (personalEditingData?.schedule_id && personalEditingData.source === 'doctor') {
+                                await updatePersonalSchedule(personalEditingData.schedule_id, data as any);
+                            } else {
+                                await createPersonalSchedule(data as any);
+                            }
                         }
                         setIsPersonalModalOpen(false);
                         setPersonalEditingData(null);
                         fetchPersonalSchedules();
                     } catch (error) {
-                        alert('\uAC1C\uC778 \uC77C\uC815 \uCC98\uB9AC \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.');
+                        console.error(error);
+                        alert('일정 처리 중 오류가 발생했습니다.');
                     }
                 }}
             />

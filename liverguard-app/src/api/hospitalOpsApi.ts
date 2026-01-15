@@ -294,3 +294,39 @@ export const updatePersonalSchedule = async (scheduleId: number, data: Partial<P
 export const deletePersonalSchedule = async (scheduleId: number) => {
   await apiClient.delete(`doctor/personal-schedules/${scheduleId}/`);
 };
+
+
+// ===========================
+// User personal schedule (UserSchedule - Common)
+// ===========================
+
+export interface UserScheduleData {
+  schedule_id?: number;
+  schedule_date: string; // YYYY-MM-DD
+  schedule_type: 'CONFERENCE' | 'VACATION' | 'OTHER';
+  start_time: string; // HH:MM
+  end_time: string;   // HH:MM
+  notes?: string;
+}
+
+export const getUserSchedules = async (startDate?: string, endDate?: string) => {
+  const params: any = {};
+  if (startDate) params.start_date = startDate;
+  if (endDate) params.end_date = endDate;
+  const response = await apiClient.get("auth/user-schedules/", { params });
+  return response.data;
+};
+
+export const createUserSchedule = async (data: UserScheduleData) => {
+  const response = await apiClient.post("auth/user-schedules/", data);
+  return response.data;
+};
+
+export const updateUserSchedule = async (scheduleId: number, data: Partial<UserScheduleData>) => {
+  const response = await apiClient.patch(`auth/user-schedules/${scheduleId}/`, data);
+  return response.data;
+};
+
+export const deleteUserSchedule = async (scheduleId: number) => {
+  await apiClient.delete(`auth/user-schedules/${scheduleId}/`);
+};

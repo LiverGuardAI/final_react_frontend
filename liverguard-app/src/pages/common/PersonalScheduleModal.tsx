@@ -7,12 +7,13 @@ interface Props {
     onClose: () => void;
     onSubmit: (data: PersonalScheduleData) => void;
     initialData?: PersonalScheduleData | null;
+    isDoctor?: boolean;
 }
 
-export default function PersonalScheduleModal({ isOpen, onClose, onSubmit, initialData }: Props) {
+export default function PersonalScheduleModal({ isOpen, onClose, onSubmit, initialData, isDoctor = true }: Props) {
     const [formData, setFormData] = useState<PersonalScheduleData>({
         schedule_date: '',
-        schedule_type: 'CONFERENCE',
+        schedule_type: isDoctor ? 'CONFERENCE' : 'VACATION',
         start_time: '09:00',
         end_time: '18:00',
         notes: ''
@@ -37,12 +38,12 @@ export default function PersonalScheduleModal({ isOpen, onClose, onSubmit, initi
         const dd = String(today.getDate()).padStart(2, '0');
         setFormData({
             schedule_date: `${yyyy}-${mm}-${dd}`,
-            schedule_type: 'CONFERENCE',
+            schedule_type: isDoctor ? 'CONFERENCE' : 'VACATION',
             start_time: '09:00',
             end_time: '18:00',
             notes: ''
         });
-    }, [isOpen, initialData]);
+    }, [isOpen, initialData, isDoctor]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -86,11 +87,15 @@ export default function PersonalScheduleModal({ isOpen, onClose, onSubmit, initi
                             value={formData.schedule_type}
                             onChange={handleChange}
                         >
-                            <option value="CONFERENCE">{'\uD559\uD68C/\uC138\uBBF8\uB098'}</option>
+                            {isDoctor && <option value="CONFERENCE">{'\uD559\uD68C/\uC138\uBBF8\uB098'}</option>}
                             <option value="VACATION">{'\uD734\uAC00'}</option>
                             <option value="OTHER">{'\uAE30\uD0C0'}</option>
-                            <option value="OUTPATIENT">{'\uC678\uB798'}</option>
-                            <option value="SURGERY">{'\uC218\uC220'}</option>
+                            {isDoctor && (
+                                <>
+                                    <option value="OUTPATIENT">{'\uC678\uB798'}</option>
+                                    <option value="SURGERY">{'\uC218\uC220'}</option>
+                                </>
+                            )}
                         </select>
                     </div>
 

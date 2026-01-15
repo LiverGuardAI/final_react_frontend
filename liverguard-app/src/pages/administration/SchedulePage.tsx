@@ -220,19 +220,19 @@ export default function SchedulePage() {
     const schedules = getDoctorSchedules(doctorId);
     if (schedules.length === 0) return '\uD734\uBB34';
     const uniqueShiftTypes = Array.from(new Set(schedules.map(s => s.shift_type).filter(Boolean)));
-    if (uniqueShiftTypes.length > 1) return '\uBCF5\uC218';
+    if (uniqueShiftTypes.length > 1) return '복수';
     const shiftType = uniqueShiftTypes[0];
     switch (shiftType) {
       case 'DAY':
-        return '\uC8FC\uAC04';
+        return '주간';
       case 'EVENING':
-        return '\uC57C\uAC04';
+        return '야간';
       case 'NIGHT':
-        return '\uC2EC\uC57C';
+        return '심야';
       case 'OFF':
-        return '\uD734\uBB34';
+        return '휴무';
       default:
-        return shiftType || '\uADFC\uBB34';
+        return shiftType || '근무';
     }
   };
 
@@ -348,7 +348,7 @@ export default function SchedulePage() {
     try {
       const doctorId = Number(onsiteForm.doctor_id);
       if (!isWithinDutySchedule(doctorId, onsiteForm.appointment_date, onsiteForm.appointment_time)) {
-        alert('\uD574\uB2F9 \uC2DC\uAC04\uC740 \uADFC\uBB34 \uC77C\uC815\uC774 \uC544\uB2D9\uB2C8\uB2E4. \uB2E4\uB978 \uC2DC\uAC04\uC73C\uB85C \uC608\uC57D\uD574\uC8FC\uC138\uC694.');
+        alert('해당 시간은 근무 일정이 아닙니다. 다른 시간으로 예약해주세요.');
         return;
       }
       await createAppointment({
@@ -387,11 +387,11 @@ export default function SchedulePage() {
 
     try {
       if (!selectedAppointment.doctor) {
-        alert('\uB2F4\uB2F9 \uC758\uC0AC\uAC00 \uC9C0\uC815\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4.');
+        alert('담당 의사가 지정되지 않았습니다.');
         return;
       }
       if (!isWithinDutySchedule(selectedAppointment.doctor, selectedAppointment.appointment_date, selectedAppointment.appointment_time)) {
-        alert('\uD574\uB2F9 \uC2DC\uAC04\uC740 \uB2F4\uB2F9 \uC758\uC0AC\uC758 \uADFC\uBB34 \uC77C\uC815\uC774 \uC544\uB2D9\uB2C8\uB2E4.');
+        alert('해당 시간은 담당 의사의 근무 일정이 아닙니다.');
         return;
       }
       await updateAppointment(selectedAppointment.appointment_id, {
