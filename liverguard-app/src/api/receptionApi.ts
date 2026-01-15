@@ -128,6 +128,11 @@ export const getAvailableDoctors = async () => {
   return res.data;
 };
 
+export const getRadiologists = async () => {
+  const res = await apiClient.get("radiology/list/");
+  return res.data;
+};
+
 // ==================== 대기열 관리 ====================
 export const getWaitingQueue = async (maxCount: number = 10) => {
   const res = await apiClient.get("administration/queue/waiting/", { params: { max_count: maxCount } });
@@ -147,6 +152,25 @@ export const getDutySchedules = async (startDate?: string, endDate?: string, doc
   if (doctorId) params.doctor_id = doctorId;
 
   const res = await apiClient.get("auth/schedules/public/", { params });
+  return res.data;
+};
+
+// ==================== 앱 예약 승인/거절 ====================
+export const approveAppAppointment = async (appointmentId: number) => {
+  const res = await apiClient.post(`patients/appointments/${appointmentId}/approve/`);
+  return res.data;
+};
+
+export const rejectAppAppointment = async (appointmentId: number, reason?: string) => {
+  const res = await apiClient.post(`patients/appointments/${appointmentId}/reject/`, { reason });
+  return res.data;
+};
+
+export const getAppAppointments = async (status?: string, date?: string) => {
+  const params: { status?: string; date?: string } = {};
+  if (status) params.status = status;
+  if (date) params.date = date;
+  const res = await apiClient.get("patients/appointments/list/", { params });
   return res.data;
 };
 

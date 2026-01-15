@@ -55,6 +55,11 @@ export const AdministrationProvider: React.FC<{ children: ReactNode }> = ({ chil
             console.log("Global Stats Update Signal");
             fetchDashboardStats();
         }
+        if (data.type === 'questionnaire_update') {
+            console.log("Global Questionnaire Update Signal", data.data);
+            // 문진표 업데이트 시 대기열 새로고침 (문진표 상태 반영)
+            fetchWaitingQueue();
+        }
     }, [lastMessage, triggerPatientRefresh, fetchWaitingQueue, fetchDashboardStats]);
 
     // Fetch initial data
