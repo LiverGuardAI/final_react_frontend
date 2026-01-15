@@ -459,7 +459,14 @@ function PatientCard({ queueItem, onClick, type }: { queueItem: any, onClick: (i
             style={{ cursor: 'pointer', borderLeft }}
         >
             <div className={styles.patientHeader}>
-                <span className={styles.patientName}>{queueItem.patient_name || '이름 없음'}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className={styles.patientName}>{queueItem.patient_name || '이름 없음'}</span>
+                    {queueItem.doctor_name && (
+                        <span className={styles.patientDetails} style={{ marginBottom: 0 }}>
+                            {`담당: ${queueItem.doctor_name}`}
+                        </span>
+                    )}
+                </div>
                 <span className={styles.genderIcon}>{getGenderSymbol(queueItem.gender)}</span>
             </div>
             <div className={styles.patientDetails}>

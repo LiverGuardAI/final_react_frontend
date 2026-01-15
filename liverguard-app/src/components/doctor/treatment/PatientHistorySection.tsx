@@ -132,7 +132,7 @@ export default function PatientHistorySection({
             <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingTop: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                     <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#2c3e50', paddingLeft: '10px' }}>
-                        📝 문진표
+                        문진표
                     </h3>
                     {questionnaireUpdatedAt && (
                         <span style={{ fontSize: '0.8rem', color: '#888', marginRight: '10px' }}>

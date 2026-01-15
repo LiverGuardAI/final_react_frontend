@@ -214,7 +214,7 @@ export default function AdministrationDashboard() {
   const [orderRefreshTrigger, setOrderRefreshTrigger] = useState(0);
   const [notification, setNotification] = useState<{ message: string, type: string } | null>(null);
 
-  
+
 
   useEffect(() => {
     if (lastMessage && lastMessage.type === 'new_order') {
@@ -252,21 +252,28 @@ export default function AdministrationDashboard() {
       });
 
       sortedDoctors.forEach((doctor) => {
-        const myPatients = waitingQueueData?.queue?.filter((q: any) =>
-          q.doctor_id === doctor.doctor_id || q.doctor === doctor.doctor_id || q.assigned_doctor === doctor.doctor_id
-        ) || [];
+        const myPatients = waitingQueueData?.queue?.filter((q: any) => {
+          const docId = Number(doctor.doctor_id);
+          const qDocId = q.doctor_id ? Number(q.doctor_id) : null;
+          const qDoc = q.doctor ? Number(q.doctor) : null;
+          const qAssignedDoc = q.assigned_doctor ? Number(q.assigned_doctor) : null;
+          return qDocId === docId || qDoc === docId || qAssignedDoc === docId;
+        }) || [];
 
         const formattedPatients = myPatients
           .map((p: any) => {
-            let statusText = 'WAITING';
-            if (p.workflow_state === 'IN_PROGRESS' || p.workflow_state === 'IN_CLINIC') statusText = 'IN_PROGRESS';
-            else if (p.workflow_state === 'WAITING_RESULTS') statusText = 'WAITING_RESULTS';
-            else if (p.workflow_state === 'COMPLETED') statusText = 'COMPLETED';
+            let statusText = '대기중';
+            if (p.workflow_state === 'IN_PROGRESS' || p.workflow_state === 'IN_CLINIC') statusText = '진료중';
+            else if (p.workflow_state === 'WAITING_RESULTS') statusText = '결과대기';
+            else if (p.workflow_state === 'COMPLETED') statusText = '진료완료';
+
+            const gender = p.gender === 'M' ? '남' : p.gender === 'F' ? '여' : p.gender;
+            const patientInfo = `${p.date_of_birth || 'N/A'} | ${p.age || 0}세 | ${gender}`;
 
             return {
               encounterId: p.encounter_id,
               name: p.patient_name || 'Unknown',
-              phone: '010-****-****',
+              phone: patientInfo,
               status: statusText,
               patientId: p.patient || p.patient_id,
               encounter_status: p.workflow_state,
@@ -300,15 +307,18 @@ export default function AdministrationDashboard() {
 
       const imagingPatients = imagingQueueData.queue
         .map((p: any) => {
-          let statusText = 'WAITING';
-          if (p.workflow_state === 'IN_IMAGING') statusText = 'IN_IMAGING';
-          else if (p.workflow_state === 'WAITING_IMAGING') statusText = 'WAITING';
-          else if (p.workflow_state === 'COMPLETED') statusText = 'COMPLETED';
+          let statusText = '대기중';
+          if (p.workflow_state === 'IN_IMAGING') statusText = '촬영중';
+          else if (p.workflow_state === 'WAITING_IMAGING') statusText = '대기중';
+          else if (p.workflow_state === 'COMPLETED') statusText = '완료';
+
+          const gender = p.gender === 'M' ? '남' : p.gender === 'F' ? '여' : p.gender;
+          const patientInfo = `${p.date_of_birth || 'N/A'} | ${p.age || 0}세 | ${gender}`;
 
           return {
             encounterId: p.encounter_id,
             name: p.patient_name || 'Unknown',
-            phone: '010-****-****',
+            phone: patientInfo,
             status: statusText,
             patientId: p.patient || p.patient_id,
             encounter_status: p.workflow_state,
@@ -852,7 +862,7 @@ export default function AdministrationDashboard() {
                     </div>
                   </div>
                   <div className={styles.cardBody}>
-                    {clinic.patients.filter(p => viewMode === 'COMPLETED' ? p.status === '진료완료' : (p.status === '진료중' || p.status === '대기중')).map((p, idx) => (
+                    {clinic.patients.filter(p => viewMode === 'COMPLETED' ? p.status === '진료완료' : (p.status === '진료중' || p.status === '대기중' || p.status === '결과대기')).map((p, idx) => (
                       <div key={idx} className={styles.waitingPatientRow} onClick={() => { if (viewMode === 'COMPLETED') { setSelectedEncounterId(p.encounterId); setSelectedPatientNameForModal(p.name); setIsEncounterModalOpen(true); } }}>
                         <div className={styles.patientDetailRow}>
                           <span className={styles.patientIndex}>{idx + 1}</span>
