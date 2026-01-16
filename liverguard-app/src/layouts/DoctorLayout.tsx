@@ -109,8 +109,8 @@ export default function DoctorLayout() {
         questionnaireData: item.questionnaire_data || null,
       };
 
-      // 진료 완료: 수납 대기, 결과 대기, 촬영 대기/중
-      if (['WAITING_PAYMENT', 'WAITING_RESULTS', 'WAITING_IMAGING', 'IN_IMAGING'].includes(workflowState)) {
+      // 진료 완료: 수납 대기, 결과 대기, 촬영 대기/중, 최종 완료
+      if (['WAITING_PAYMENT', 'WAITING_RESULTS', 'WAITING_IMAGING', 'IN_IMAGING', 'COMPLETED'].includes(workflowState)) {
         completed.push(patient);
       }
       // 진료 중
@@ -127,7 +127,7 @@ export default function DoctorLayout() {
   }, [waitingQueueData]);
 
   const patientStatus = {
-    waiting: stats.clinic_waiting + stats.clinic_in_progress, // 진료 대기 + 진료 중
+    waiting: stats.clinic_waiting, // 진료 대기
     inProgress: stats.clinic_in_progress, // 진료 중
     completed: stats.completed_today, // 수납 대기, 결과 대기, 촬영 대기/중
   };
@@ -329,7 +329,7 @@ export default function DoctorLayout() {
               fetchWaitingQueue,
               fetchStats,
               uniquePatientCounts: {
-                waiting: waitingPatients.length + inProgressPatients.length,
+                waiting: waitingPatients.length,
                 inProgress: inProgressPatients.length,
                 completed: completedPatients.length
               }
