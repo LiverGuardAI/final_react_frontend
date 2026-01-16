@@ -2,13 +2,17 @@ import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
+import { useChatContext } from '../../context/ChatContext';
+import ChatDropdown from '../common/ChatDropdown';
 import styles from "../../pages/administration/Dashboard.module.css"; // 스타일 재사용
 
 export default function AdministrationTopBar() {
     const navigate = useNavigate();
     const { logout } = useAuth();
     const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotification();
+    const { totalUnreadCount: chatUnreadCount } = useChatContext();
     const [showNotifications, setShowNotifications] = useState(false);
+    const [showChat, setShowChat] = useState(false);
 
     const handleLogout = () => {
         localStorage.removeItem('access_token');
@@ -61,19 +65,29 @@ export default function AdministrationTopBar() {
 
             {/* 우측 아이콘 */}
             <div className={styles.topBarIcons}>
-                <button
-                    className={styles.iconButton}
-                    onClick={() => console.log('Messages clicked')}
-                    title="메시지"
-                >
-                    <svg className={styles.messageIcon} width="24" height="24" viewBox="0 0 24 24" fill="none">
-                        <path d="M20 2H4C2.9 2 2.01 2.9 2.01 4L2 22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM18 14H6V12H18V14ZM18 11H6V9H18V11ZM18 8H6V6H18V8Z" fill="currentColor" />
-                    </svg>
-                </button>
                 <div className={styles.notificationContainer}>
                     <button
                         className={styles.iconButton}
-                        onClick={() => setShowNotifications(!showNotifications)}
+                        onClick={() => {
+                            setShowChat(!showChat);
+                            setShowNotifications(false);
+                        }}
+                        title="메시지"
+                    >
+                        <svg className={styles.messageIcon} width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M20 2H4C2.9 2 2.01 2.9 2.01 4L2 22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM18 14H6V12H18V14ZM18 11H6V9H18V11ZM18 8H6V6H18V8Z" fill="currentColor" />
+                        </svg>
+                        {chatUnreadCount > 0 && <span className={styles.badge}>{chatUnreadCount > 9 ? '9+' : chatUnreadCount}</span>}
+                    </button>
+                    <ChatDropdown isOpen={showChat} onClose={() => setShowChat(false)} />
+                </div>
+                <div className={styles.notificationContainer}>
+                    <button
+                        className={styles.iconButton}
+                        onClick={() => {
+                            setShowNotifications(!showNotifications);
+                            setShowChat(false);
+                        }}
                         title="알림"
                     >
                         <svg className={styles.bellIcon} width="24" height="24" viewBox="0 0 24 24" fill="none">
