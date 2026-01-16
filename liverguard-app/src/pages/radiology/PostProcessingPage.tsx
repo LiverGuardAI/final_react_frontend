@@ -127,6 +127,11 @@ const PostProcessingPage: React.FC = () => {
     return value.toFixed(digits);
   };
 
+  const formatPercent = (value?: number | null, digits = 2) => {
+    if (typeof value !== 'number' || Number.isNaN(value)) return '—';
+    return `${value.toFixed(digits)}%`;
+  };
+
   const formatValue = (value?: string | number | null) => {
     if (value === null || value === undefined || value === '') return '—';
     return value;
@@ -135,11 +140,6 @@ const PostProcessingPage: React.FC = () => {
   const formatArray = (values?: Array<string | number> | null) => {
     if (!values || values.length === 0) return '—';
     return values.join(', ');
-  };
-
-  const dedupeWarnings = (warnings?: string[]) => {
-    if (!warnings) return [];
-    return Array.from(new Set(warnings));
   };
 
   const formatRange = (min?: number | null, max?: number | null) => {
@@ -580,9 +580,43 @@ const PostProcessingPage: React.FC = () => {
     setIsGeneratingReport(true);
     setReportError('');
     try {
+      const reportNote = reportNoteRef.current?.value?.trim() || '';
       const payload = {
-        ...tumorAnalysisResult,
-        warnings: dedupeWarnings(tumorAnalysisResult.warnings),
+        note: reportNote,
+        basic_info: {
+          spacing_mm: tumorAnalysisResult.spacing_mm
+            ? {
+                x: tumorAnalysisResult.spacing_mm.x ?? null,
+                y: tumorAnalysisResult.spacing_mm.y ?? null,
+                z: tumorAnalysisResult.spacing_mm.z ?? null,
+              }
+            : null,
+          slice_rows_cols: {
+            slices: tumorAnalysisResult.metadata?.slice_count ?? null,
+            rows: tumorAnalysisResult.metadata?.rows ?? null,
+            cols: tumorAnalysisResult.metadata?.cols ?? null,
+          },
+        },
+        overall_metrics: {
+          tumor_count: analysis?.tumor_count ?? null,
+          total_tumor_volume_ml: analysis?.total_tumor_volume_ml ?? null,
+          liver_volume_ml: analysis?.liver_volume_ml ?? null,
+          tumor_burden_percent: tumorBurdenPercent ?? null,
+        },
+        tumors: analysisComponents.map((component: any, index: number) => ({
+          tumor_index: index + 1,
+          volume_ml: component?.volume_ml ?? null,
+          max_diameter_mm: component?.max_diameter_mm ?? null,
+          centroid_mm: component?.centroid_mm ?? null,
+          surface_area_mm2: component?.boundary_features?.surface_area_mm2 ?? null,
+          surface_area_to_volume_ratio:
+            component?.boundary_features?.surface_area_to_volume_ratio ?? null,
+          distance_to_capsule_mm: component?.distance_to_liver_capsule_mm ?? null,
+          sphericity: component?.shape_metrics?.sphericity ?? null,
+          compactness: component?.shape_metrics?.compactness ?? null,
+          elongation: component?.shape_metrics?.elongation ?? null,
+        })),
+        warnings: analysisWarnings,
       };
       const result = await generateReport(payload);
       setGeneratedReport(result.report || '');
@@ -597,6 +631,11 @@ const PostProcessingPage: React.FC = () => {
   const analysis = tumorAnalysisResult?.analysis;
   const analysisComponents = analysis?.components ?? [];
   const analysisWarnings = tumorAnalysisResult?.warnings ?? [];
+  const tumorBurdenPercent =
+    analysis?.tumor_burden_percent ??
+    (analysis?.tumor_to_liver_ratio !== null && analysis?.tumor_to_liver_ratio !== undefined
+      ? analysis.tumor_to_liver_ratio * 100
+      : null);
 
   return (
     <div className="post-processing-page">
@@ -862,10 +901,6 @@ const PostProcessingPage: React.FC = () => {
                             <div className="analysis-section-title">기본 정보</div>
                             <div className="analysis-grid">
                               <div className="analysis-row">
-                                <span className="analysis-label">Mask Series ID</span>
-                                <span className="analysis-value">{formatValue(tumorAnalysisResult.mask_series_id)}</span>
-                              </div>
-                              <div className="analysis-row">
                                 <span className="analysis-label">Spacing (mm)</span>
                                 <span className="analysis-value">
                                   {formatNumber(tumorAnalysisResult.spacing_mm?.x, 3)} x {formatNumber(tumorAnalysisResult.spacing_mm?.y, 3)} x {formatNumber(tumorAnalysisResult.spacing_mm?.z, 3)}
@@ -875,24 +910,6 @@ const PostProcessingPage: React.FC = () => {
                                 <span className="analysis-label">Slice / Rows / Cols</span>
                                 <span className="analysis-value">
                                   {formatValue(tumorAnalysisResult.metadata?.slice_count)} / {formatValue(tumorAnalysisResult.metadata?.rows)} / {formatValue(tumorAnalysisResult.metadata?.cols)}
-                                </span>
-                              </div>
-                              <div className="analysis-row">
-                                <span className="analysis-label">Tumor Labels</span>
-                                <span className="analysis-value">
-                                  {formatArray(tumorAnalysisResult.labels?.tumor_values)}
-                                </span>
-                              </div>
-                              <div className="analysis-row">
-                                <span className="analysis-label">Liver Labels</span>
-                                <span className="analysis-value">
-                                  {formatArray(tumorAnalysisResult.labels?.liver_values)}
-                                </span>
-                              </div>
-                              <div className="analysis-row full">
-                                <span className="analysis-label">Unique Mask Values</span>
-                                <span className="analysis-value">
-                                  {formatArray(tumorAnalysisResult.labels?.unique_values)}
                                 </span>
                               </div>
                             </div>
@@ -906,20 +923,16 @@ const PostProcessingPage: React.FC = () => {
                                 <span className="analysis-value">{formatValue(analysis?.tumor_count)}</span>
                               </div>
                               <div className="analysis-row">
-                                <span className="analysis-label">총 종양 부피 (mm³)</span>
-                                <span className="analysis-value">{formatNumber(analysis?.total_tumor_volume_mm3, 2)}</span>
+                                <span className="analysis-label">총 종양 부피 (mL)</span>
+                                <span className="analysis-value">{formatNumber(analysis?.total_tumor_volume_ml, 2)}</span>
                               </div>
                               <div className="analysis-row">
-                                <span className="analysis-label">간 부피 (mm³)</span>
-                                <span className="analysis-value">{formatNumber(analysis?.liver_volume_mm3, 2)}</span>
+                                <span className="analysis-label">간 부피 (mL)</span>
+                                <span className="analysis-value">{formatNumber(analysis?.liver_volume_ml, 2)}</span>
                               </div>
                               <div className="analysis-row">
-                                <span className="analysis-label">간 대비 종양 비율</span>
-                                <span className="analysis-value">{formatNumber(analysis?.tumor_to_liver_ratio, 4)}</span>
-                              </div>
-                              <div className="analysis-row">
-                                <span className="analysis-label">Tumor Burden (%)</span>
-                                <span className="analysis-value">{formatNumber(analysis?.tumor_burden_percent, 2)}</span>
+                                <span className="analysis-label">간 대비 종양 비율 (%)</span>
+                                <span className="analysis-value">{formatPercent(tumorBurdenPercent, 2)}</span>
                               </div>
                             </div>
                           </div>
@@ -933,44 +946,32 @@ const PostProcessingPage: React.FC = () => {
                                 {analysisComponents.map((component: any, index: number) => (
                                   <div key={`${component.label}-${index}`} className="analysis-component">
                                     <div className="analysis-component-title">
-                                      종양 {index + 1} (Label {formatValue(component.label)})
+                                      종양 {index + 1}
                                     </div>
                                     <div className="analysis-grid">
                                       <div className="analysis-row">
-                                        <span className="analysis-label">Voxel Count</span>
-                                        <span className="analysis-value">{formatValue(component.voxel_count)}</span>
-                                      </div>
-                                      <div className="analysis-row">
-                                        <span className="analysis-label">Volume (mm³)</span>
-                                        <span className="analysis-value">{formatNumber(component.volume_mm3, 2)}</span>
+                                        <span className="analysis-label">Volume (mL)</span>
+                                        <span className="analysis-value">{formatNumber(component.volume_ml, 2)}</span>
                                       </div>
                                       <div className="analysis-row">
                                         <span className="analysis-label">Max Diameter (mm)</span>
                                         <span className="analysis-value">{formatNumber(component.max_diameter_mm, 2)}</span>
                                       </div>
                                       <div className="analysis-row">
-                                        <span className="analysis-label">BBox Diagonal (mm)</span>
-                                        <span className="analysis-value">{formatNumber(component.bbox_diagonal_mm, 2)}</span>
-                                      </div>
-                                      <div className="analysis-row full">
-                                        <span className="analysis-label">Centroid (voxel)</span>
-                                        <span className="analysis-value">{formatCoord(component.centroid_voxel, 2)}</span>
-                                      </div>
-                                      <div className="analysis-row full">
                                         <span className="analysis-label">Centroid (mm)</span>
                                         <span className="analysis-value">{formatCoord(component.centroid_mm, 2)}</span>
                                       </div>
-                                      <div className="analysis-row full">
-                                        <span className="analysis-label">BBox (voxel)</span>
-                                        <span className="analysis-value">
-                                          Z {formatRange(component.bbox_voxel?.min_z, component.bbox_voxel?.max_z)} / Y {formatRange(component.bbox_voxel?.min_y, component.bbox_voxel?.max_y)} / X {formatRange(component.bbox_voxel?.min_x, component.bbox_voxel?.max_x)}
-                                        </span>
+                                      <div className="analysis-row">
+                                        <span className="analysis-label">Surface Area (mm²)</span>
+                                        <span className="analysis-value">{formatNumber(component.boundary_features?.surface_area_mm2, 2)}</span>
                                       </div>
-                                      <div className="analysis-row full">
-                                        <span className="analysis-label">Extent (mm)</span>
-                                        <span className="analysis-value">
-                                          Z {formatNumber(component.extent_mm?.z, 2)} / Y {formatNumber(component.extent_mm?.y, 2)} / X {formatNumber(component.extent_mm?.x, 2)}
-                                        </span>
+                                      <div className="analysis-row">
+                                        <span className="analysis-label">Surface/Volume</span>
+                                        <span className="analysis-value">{formatNumber(component.boundary_features?.surface_area_to_volume_ratio, 4)}</span>
+                                      </div>
+                                      <div className="analysis-row">
+                                        <span className="analysis-label">Distance to Capsule (mm)</span>
+                                        <span className="analysis-value">{formatNumber(component.distance_to_liver_capsule_mm, 2)}</span>
                                       </div>
                                       <div className="analysis-row">
                                         <span className="analysis-label">Sphericity</span>
@@ -983,22 +984,6 @@ const PostProcessingPage: React.FC = () => {
                                       <div className="analysis-row">
                                         <span className="analysis-label">Elongation</span>
                                         <span className="analysis-value">{formatNumber(component.shape_metrics?.elongation, 4)}</span>
-                                      </div>
-                                      <div className="analysis-row">
-                                        <span className="analysis-label">Surface Area (mm²)</span>
-                                        <span className="analysis-value">{formatNumber(component.boundary_features?.surface_area_mm2, 2)}</span>
-                                      </div>
-                                      <div className="analysis-row">
-                                        <span className="analysis-label">Surface/Volume</span>
-                                        <span className="analysis-value">{formatNumber(component.boundary_features?.surface_area_to_volume_ratio, 4)}</span>
-                                      </div>
-                                      <div className="analysis-row full">
-                                        <span className="analysis-label">Relative to Liver BBox</span>
-                                        <span className="analysis-value">{formatCoord(component.location?.relative_to_liver_bbox, 3)}</span>
-                                      </div>
-                                      <div className="analysis-row">
-                                        <span className="analysis-label">Distance to Capsule (mm)</span>
-                                        <span className="analysis-value">{formatNumber(component.distance_to_liver_capsule_mm, 2)}</span>
                                       </div>
                                     </div>
                                   </div>
