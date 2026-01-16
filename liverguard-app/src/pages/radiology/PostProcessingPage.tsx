@@ -14,8 +14,10 @@ import {
   createSegmentationMask,
   getSegmentationTaskStatus,
   createFeatureExtraction,
-  getFeatureExtractionTaskStatus
+  getFeatureExtractionTaskStatus,
+  generateReport
 } from '../../api/ai_api';
+import { analyzeTumor } from '../../api/radiology_api';
 import './PostProcessingPage.css';
 
 interface Series {
@@ -82,6 +84,12 @@ const PostProcessingPage: React.FC = () => {
   const [featureStatus, setFeatureStatus] = useState<string>('');
   const [featureResult, setFeatureResult] = useState<any | null>(null);
   const [featureTargetSeriesId, setFeatureTargetSeriesId] = useState<string | null>(null);
+  const [isAnalyzingTumor, setIsAnalyzingTumor] = useState<boolean>(false);
+  const [tumorAnalysisResult, setTumorAnalysisResult] = useState<any | null>(null);
+  const [tumorAnalysisError, setTumorAnalysisError] = useState<string>('');
+  const [isGeneratingReport, setIsGeneratingReport] = useState<boolean>(false);
+  const [reportError, setReportError] = useState<string>('');
+  const [generatedReport, setGeneratedReport] = useState<string>('');
   const [measurementEnabled, setMeasurementEnabled] = useState<boolean>(false);
   const [measurementDimensions, setMeasurementDimensions] = useState<{ widthMm: number; heightMm: number } | null>(null);
   const [measurementBoxes, setMeasurementBoxes] = useState<Array<{
@@ -99,6 +107,7 @@ const PostProcessingPage: React.FC = () => {
   const seriesInstancesCacheRef = useRef<Map<string, Instance[]>>(new Map());
   const maskSeriesMapRef = useRef<Map<string, { maskSeriesId: string; maskInstances: Instance[] }>>(new Map());
   const featureResultMapRef = useRef<Map<string, { result: any; status: string }>>(new Map());
+  const reportNoteRef = useRef<HTMLTextAreaElement>(null);
 
   const formatDicomDate = (date?: string) => {
     if (!date) return 'N/A';
@@ -111,6 +120,39 @@ const PostProcessingPage: React.FC = () => {
   const formatPatientName = (name?: string) => {
     if (!name) return 'N/A';
     return name.replace(/\^/g, ' ').trim();
+  };
+
+  const formatNumber = (value?: number | null, digits = 2) => {
+    if (typeof value !== 'number' || Number.isNaN(value)) return '—';
+    return value.toFixed(digits);
+  };
+
+  const formatValue = (value?: string | number | null) => {
+    if (value === null || value === undefined || value === '') return '—';
+    return value;
+  };
+
+  const formatArray = (values?: Array<string | number> | null) => {
+    if (!values || values.length === 0) return '—';
+    return values.join(', ');
+  };
+
+  const dedupeWarnings = (warnings?: string[]) => {
+    if (!warnings) return [];
+    return Array.from(new Set(warnings));
+  };
+
+  const formatRange = (min?: number | null, max?: number | null) => {
+    if (min === null || min === undefined || max === null || max === undefined) return '—';
+    return `${min} ~ ${max}`;
+  };
+
+  const formatCoord = (
+    coord?: { x?: number | null; y?: number | null; z?: number | null } | null,
+    digits = 2
+  ) => {
+    if (!coord) return '—';
+    return `Z ${formatNumber(coord.z ?? null, digits)} / Y ${formatNumber(coord.y ?? null, digits)} / X ${formatNumber(coord.x ?? null, digits)}`;
   };
 
   const buildHeatmapCells = (features: number[], size = 512) => {
@@ -196,6 +238,15 @@ const PostProcessingPage: React.FC = () => {
       setFeatureStatus('');
       setFeatureTaskId(null);
       setIsExtractingFeature(false);
+      setTumorAnalysisResult(null);
+      setTumorAnalysisError('');
+      setIsAnalyzingTumor(false);
+      setIsGeneratingReport(false);
+      setReportError('');
+      setGeneratedReport('');
+      if (reportNoteRef.current) {
+        reportNoteRef.current.value = '';
+      }
       return;
     }
 
@@ -298,6 +349,15 @@ const PostProcessingPage: React.FC = () => {
           setMaskSeriesId(null);
           setMaskInstances([]);
         }
+        setTumorAnalysisResult(null);
+        setTumorAnalysisError('');
+        setIsAnalyzingTumor(false);
+        setIsGeneratingReport(false);
+        setReportError('');
+        setGeneratedReport('');
+        if (reportNoteRef.current) {
+          reportNoteRef.current.value = '';
+        }
       } catch (error) {
         console.error('Failed to fetch series instances:', error);
         setSeriesInstances([]);
@@ -305,6 +365,15 @@ const PostProcessingPage: React.FC = () => {
         setSelectedStudyInfo(null);
         setMaskSeriesId(null);
         setMaskInstances([]);
+        setTumorAnalysisResult(null);
+        setTumorAnalysisError('');
+        setIsAnalyzingTumor(false);
+        setIsGeneratingReport(false);
+        setReportError('');
+        setGeneratedReport('');
+        if (reportNoteRef.current) {
+          reportNoteRef.current.value = '';
+        }
       } finally {
         setIsLoadingInstances(false);
       }
@@ -339,6 +408,15 @@ const PostProcessingPage: React.FC = () => {
             setMaskProgress('Segmentation completed!');
             setIsCreatingMask(false);
             setCurrentTaskId(null);
+            setTumorAnalysisResult(null);
+            setTumorAnalysisError('');
+            setIsAnalyzingTumor(false);
+            setIsGeneratingReport(false);
+            setReportError('');
+            setGeneratedReport('');
+            if (reportNoteRef.current) {
+              reportNoteRef.current.value = '';
+            }
 
             // Fetch mask instances
             const instances = await getSeriesInstances(resultMaskSeriesId);
@@ -467,6 +545,58 @@ const PostProcessingPage: React.FC = () => {
       setIsExtractingFeature(false);
     }
   };
+
+  const handleTumorAnalysis = async () => {
+    if (!maskSeriesId) {
+      alert('마스크 시리즈가 없습니다. 먼저 AI Segmentation을 실행해주세요.');
+      return;
+    }
+    if (isAnalyzingTumor) {
+      return;
+    }
+
+    setIsAnalyzingTumor(true);
+    setTumorAnalysisError('');
+    try {
+      const result = await analyzeTumor(maskSeriesId);
+      setTumorAnalysisResult(result);
+    } catch (error) {
+      console.error('Failed to analyze tumor:', error);
+      setTumorAnalysisError('종양 분석에 실패했습니다.');
+    } finally {
+      setIsAnalyzingTumor(false);
+    }
+  };
+
+  const handleGenerateReport = async () => {
+    if (!tumorAnalysisResult) {
+      alert('종양 분석 결과가 없습니다. 먼저 종양 분석을 실행해주세요.');
+      return;
+    }
+    if (isGeneratingReport) {
+      return;
+    }
+
+    setIsGeneratingReport(true);
+    setReportError('');
+    try {
+      const payload = {
+        ...tumorAnalysisResult,
+        warnings: dedupeWarnings(tumorAnalysisResult.warnings),
+      };
+      const result = await generateReport(payload);
+      setGeneratedReport(result.report || '');
+    } catch (error) {
+      console.error('Failed to generate report:', error);
+      setReportError('자동 보고서 생성에 실패했습니다.');
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
+  const analysis = tumorAnalysisResult?.analysis;
+  const analysisComponents = analysis?.components ?? [];
+  const analysisWarnings = tumorAnalysisResult?.warnings ?? [];
 
   return (
     <div className="post-processing-page">
@@ -710,17 +840,206 @@ const PostProcessingPage: React.FC = () => {
                     <div className="report-form">
                       <label>
                         소견
-                        <textarea rows={4} placeholder="예: 분절 6에 2.4cm 종양, 경계 명확" />
+                        <textarea
+                          ref={reportNoteRef}
+                          rows={4}
+                          placeholder="예: 분절 6에 2.4cm 종양, 경계 명확"
+                        />
                       </label>
                       <button
                         className="tool-btn secondary"
-                        disabled={!maskSeriesId}
-                        onClick={() => {
-                          alert('자동 보고서 생성은 준비 중입니다.');
-                        }}
+                        disabled={!maskSeriesId || isAnalyzingTumor}
+                        onClick={handleTumorAnalysis}
                       >
-                        자동 보고서 생성
+                        {isAnalyzingTumor ? '분석 중...' : '종양 분석'}
                       </button>
+                      {tumorAnalysisError && (
+                        <div className="analysis-error">{tumorAnalysisError}</div>
+                      )}
+                      {tumorAnalysisResult && (
+                        <div className="analysis-details">
+                          <div className="analysis-section">
+                            <div className="analysis-section-title">기본 정보</div>
+                            <div className="analysis-grid">
+                              <div className="analysis-row">
+                                <span className="analysis-label">Mask Series ID</span>
+                                <span className="analysis-value">{formatValue(tumorAnalysisResult.mask_series_id)}</span>
+                              </div>
+                              <div className="analysis-row">
+                                <span className="analysis-label">Spacing (mm)</span>
+                                <span className="analysis-value">
+                                  {formatNumber(tumorAnalysisResult.spacing_mm?.x, 3)} x {formatNumber(tumorAnalysisResult.spacing_mm?.y, 3)} x {formatNumber(tumorAnalysisResult.spacing_mm?.z, 3)}
+                                </span>
+                              </div>
+                              <div className="analysis-row">
+                                <span className="analysis-label">Slice / Rows / Cols</span>
+                                <span className="analysis-value">
+                                  {formatValue(tumorAnalysisResult.metadata?.slice_count)} / {formatValue(tumorAnalysisResult.metadata?.rows)} / {formatValue(tumorAnalysisResult.metadata?.cols)}
+                                </span>
+                              </div>
+                              <div className="analysis-row">
+                                <span className="analysis-label">Tumor Labels</span>
+                                <span className="analysis-value">
+                                  {formatArray(tumorAnalysisResult.labels?.tumor_values)}
+                                </span>
+                              </div>
+                              <div className="analysis-row">
+                                <span className="analysis-label">Liver Labels</span>
+                                <span className="analysis-value">
+                                  {formatArray(tumorAnalysisResult.labels?.liver_values)}
+                                </span>
+                              </div>
+                              <div className="analysis-row full">
+                                <span className="analysis-label">Unique Mask Values</span>
+                                <span className="analysis-value">
+                                  {formatArray(tumorAnalysisResult.labels?.unique_values)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="analysis-section">
+                            <div className="analysis-section-title">전체 지표</div>
+                            <div className="analysis-grid">
+                              <div className="analysis-row">
+                                <span className="analysis-label">종양 개수</span>
+                                <span className="analysis-value">{formatValue(analysis?.tumor_count)}</span>
+                              </div>
+                              <div className="analysis-row">
+                                <span className="analysis-label">총 종양 부피 (mm³)</span>
+                                <span className="analysis-value">{formatNumber(analysis?.total_tumor_volume_mm3, 2)}</span>
+                              </div>
+                              <div className="analysis-row">
+                                <span className="analysis-label">간 부피 (mm³)</span>
+                                <span className="analysis-value">{formatNumber(analysis?.liver_volume_mm3, 2)}</span>
+                              </div>
+                              <div className="analysis-row">
+                                <span className="analysis-label">간 대비 종양 비율</span>
+                                <span className="analysis-value">{formatNumber(analysis?.tumor_to_liver_ratio, 4)}</span>
+                              </div>
+                              <div className="analysis-row">
+                                <span className="analysis-label">Tumor Burden (%)</span>
+                                <span className="analysis-value">{formatNumber(analysis?.tumor_burden_percent, 2)}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="analysis-section">
+                            <div className="analysis-section-title">종양 상세</div>
+                            {analysisComponents.length === 0 ? (
+                              <div className="analysis-empty">종양 정보가 없습니다.</div>
+                            ) : (
+                              <div className="analysis-components">
+                                {analysisComponents.map((component: any, index: number) => (
+                                  <div key={`${component.label}-${index}`} className="analysis-component">
+                                    <div className="analysis-component-title">
+                                      종양 {index + 1} (Label {formatValue(component.label)})
+                                    </div>
+                                    <div className="analysis-grid">
+                                      <div className="analysis-row">
+                                        <span className="analysis-label">Voxel Count</span>
+                                        <span className="analysis-value">{formatValue(component.voxel_count)}</span>
+                                      </div>
+                                      <div className="analysis-row">
+                                        <span className="analysis-label">Volume (mm³)</span>
+                                        <span className="analysis-value">{formatNumber(component.volume_mm3, 2)}</span>
+                                      </div>
+                                      <div className="analysis-row">
+                                        <span className="analysis-label">Max Diameter (mm)</span>
+                                        <span className="analysis-value">{formatNumber(component.max_diameter_mm, 2)}</span>
+                                      </div>
+                                      <div className="analysis-row">
+                                        <span className="analysis-label">BBox Diagonal (mm)</span>
+                                        <span className="analysis-value">{formatNumber(component.bbox_diagonal_mm, 2)}</span>
+                                      </div>
+                                      <div className="analysis-row full">
+                                        <span className="analysis-label">Centroid (voxel)</span>
+                                        <span className="analysis-value">{formatCoord(component.centroid_voxel, 2)}</span>
+                                      </div>
+                                      <div className="analysis-row full">
+                                        <span className="analysis-label">Centroid (mm)</span>
+                                        <span className="analysis-value">{formatCoord(component.centroid_mm, 2)}</span>
+                                      </div>
+                                      <div className="analysis-row full">
+                                        <span className="analysis-label">BBox (voxel)</span>
+                                        <span className="analysis-value">
+                                          Z {formatRange(component.bbox_voxel?.min_z, component.bbox_voxel?.max_z)} / Y {formatRange(component.bbox_voxel?.min_y, component.bbox_voxel?.max_y)} / X {formatRange(component.bbox_voxel?.min_x, component.bbox_voxel?.max_x)}
+                                        </span>
+                                      </div>
+                                      <div className="analysis-row full">
+                                        <span className="analysis-label">Extent (mm)</span>
+                                        <span className="analysis-value">
+                                          Z {formatNumber(component.extent_mm?.z, 2)} / Y {formatNumber(component.extent_mm?.y, 2)} / X {formatNumber(component.extent_mm?.x, 2)}
+                                        </span>
+                                      </div>
+                                      <div className="analysis-row">
+                                        <span className="analysis-label">Sphericity</span>
+                                        <span className="analysis-value">{formatNumber(component.shape_metrics?.sphericity, 4)}</span>
+                                      </div>
+                                      <div className="analysis-row">
+                                        <span className="analysis-label">Compactness</span>
+                                        <span className="analysis-value">{formatNumber(component.shape_metrics?.compactness, 4)}</span>
+                                      </div>
+                                      <div className="analysis-row">
+                                        <span className="analysis-label">Elongation</span>
+                                        <span className="analysis-value">{formatNumber(component.shape_metrics?.elongation, 4)}</span>
+                                      </div>
+                                      <div className="analysis-row">
+                                        <span className="analysis-label">Surface Area (mm²)</span>
+                                        <span className="analysis-value">{formatNumber(component.boundary_features?.surface_area_mm2, 2)}</span>
+                                      </div>
+                                      <div className="analysis-row">
+                                        <span className="analysis-label">Surface/Volume</span>
+                                        <span className="analysis-value">{formatNumber(component.boundary_features?.surface_area_to_volume_ratio, 4)}</span>
+                                      </div>
+                                      <div className="analysis-row full">
+                                        <span className="analysis-label">Relative to Liver BBox</span>
+                                        <span className="analysis-value">{formatCoord(component.location?.relative_to_liver_bbox, 3)}</span>
+                                      </div>
+                                      <div className="analysis-row">
+                                        <span className="analysis-label">Distance to Capsule (mm)</span>
+                                        <span className="analysis-value">{formatNumber(component.distance_to_liver_capsule_mm, 2)}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {analysisWarnings.length > 0 && (
+                            <div className="analysis-section">
+                              <div className="analysis-section-title">경고</div>
+                              <div className="analysis-warning-list">
+                                {analysisWarnings.map((warning: string, index: number) => (
+                                  <div key={`${warning}-${index}`} className="analysis-warning-item">
+                                    {warning}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <button
+                        className="tool-btn secondary"
+                        disabled={!tumorAnalysisResult || isGeneratingReport}
+                        onClick={handleGenerateReport}
+                      >
+                        {isGeneratingReport ? '생성 중...' : '자동 보고서 생성'}
+                      </button>
+                      {reportError && (
+                        <div className="analysis-error">{reportError}</div>
+                      )}
+                      <label>
+                        자동 보고서
+                        <textarea
+                          rows={8}
+                          value={generatedReport}
+                          readOnly
+                          placeholder="자동 보고서 생성 결과가 여기에 표시됩니다."
+                        />
+                      </label>
                       <button
                         className="tool-btn"
                         onClick={() => {
