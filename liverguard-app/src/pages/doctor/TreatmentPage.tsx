@@ -120,16 +120,20 @@ export default function TreatmentPage() {
   // Encounter 데이터 로드
   useEffect(() => {
     const fetchData = async () => {
+      // 이미 로드된 encounter라면 다시 로드하지 않음 (폼 초기화 방지)
+      if (selectedEncounterId && currentEncounter?.encounter_id === selectedEncounterId) {
+        return;
+      }
+
       if (selectedEncounterId) {
         await loadEncounterData(selectedEncounterId);
       } else if (selectedPatientId) {
-        // Encounter 없이 Patient 만 선택된 경우 (예: 진료기록 탭에서 환자 선택 시)
-        // 이 경우 Patient Detail과 History만 로드
+        // Encounter 없이 Patient 만 선택된 경우
         await loadPatientDataOnly(selectedPatientId);
         setCurrentEncounter(null);
         clearForm();
       } else {
-        // 아무것도 선택 안됨 -> 초기화
+        // ID가 모두 없을 때만 초기화
         setCurrentEncounter(null);
         setCurrentPatient(null);
         setEncounterHistory([]);
@@ -325,16 +329,15 @@ export default function TreatmentPage() {
       }
 
       alert(status === 'WAITING_RESULTS' ? '오더가 전송되었습니다.' : '진료가 완료되었습니다.');
+
+      // 홈으로 먼저 이동 (Context 업데이트로 인한 리렌더링 문제 방지)
+      navigate('/doctor/home');
+
       // 목록 리프레시 혹은 초기화
       setSelectedEncounterId(null);
       setSelectedPatientId(null);
-
-      // 홈으로 이동
-      navigate('/doctor/home');
       setCurrentEncounter(null);
       clearForm();
-
-      // 필요한 경우 목록 페이지로 이동하거나 대기열 새로고침 로직 추가 가능
 
     } catch (error) {
       console.error('진료 완료 처리 중 오류:', error);
@@ -351,6 +354,9 @@ export default function TreatmentPage() {
       setLoading(true);
       await cancelEncounter(selectedEncounterId);
       alert('진료가 취소되었습니다.');
+
+      // 홈으로 먼저 이동
+      navigate('/doctor/home');
 
       // 목록 리프레시 및 초기화
       setSelectedEncounterId(null);

@@ -195,6 +195,7 @@
     background-color: #757575;
 }
 
+/* 페이지네이션 스타일 */
 .pagination {
     display: flex;
     justify-content: center;
@@ -206,10 +207,12 @@
 
 .pageButton {
     padding: 8px 14px;
-    border: 1px solid #DDD;
+    border: 1px solid #D7E8FB;
+    /* var(--sky-200) */
     background: #FFFFFF;
-    color: #333333;
-    border-radius: 6px;
+    color: #52759C;
+    /* var(--sky-700) */
+    border-radius: 12px;
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
@@ -218,9 +221,12 @@
 }
 
 .pageButton:hover:not(:disabled) {
-    background: #F8F9FA;
-    border-color: #52759C;
+    background: #E3F2FD;
+    /* var(--sky-100) */
+    border-color: #B3E5FC;
+    /* var(--sky-300) */
     color: #52759C;
+    /* var(--sky-700) */
 }
 
 .pageButton:disabled {
@@ -230,13 +236,17 @@
 
 .activePage {
     background: #52759C;
+    /* var(--sky-700) */
     color: #FFFFFF;
     border-color: #52759C;
+    /* var(--sky-700) */
 }
 
 .activePage:hover {
     background: #405F7F;
+    /* var(--sky-800) */
     border-color: #405F7F;
+    /* var(--sky-800) */
 }
 
 .loading,
@@ -246,4 +256,110 @@
     text-align: center;
     color: #999999;
     font-size: 13px;
+}
+
+/* 리스트 헤더 스타일 */
+.listHeader {
+    display: flex;
+    padding: 12px 16px;
+    background-color: #F8F9FA;
+    border-bottom: 2px solid #E0E0E0;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 13px;
+    color: #333;
+    gap: 12px;
+    align-items: center;
+}
+
+.colStatus {
+    width: 80px;
+    text-align: center;
+}
+
+.colPatient {
+    flex: 1;
+    min-width: 0;
+}
+
+.colOrder {
+    flex: 2;
+    min-width: 0;
+}
+
+.colDoctor {
+    width: 100px;
+    text-align: center;
+}
+
+.colTime {
+    width: 110px;
+    text-align: center;
+}
+
+/* 리스트 아이템 스타일 */
+.listGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.listItem {
+    padding: 12px 16px;
+    background-color: #FFFFFF;
+    border-left: 3px solid #B3E5FC;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.listItem:hover {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    transform: translateX(2px);
+}
+
+.statusBadgeItem {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background-color: #B3E5FC;
+    color: #0056b3;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.patientNameText {
+    font-weight: bold;
+    font-size: 14px;
+    color: #333;
+}
+
+.patientIdText {
+    font-size: 12px;
+    color: #666;
+    margin-left: 6px;
+}
+
+.orderNameText {
+    font-size: 13px;
+    color: #666;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.doctorNameText {
+    font-size: 12px;
+    color: #999;
+    white-space: nowrap;
+}
+
+.timeText {
+    font-size: 12px;
+    color: #888;
+    white-space: nowrap;
 }

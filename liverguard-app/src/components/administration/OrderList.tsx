@@ -223,19 +223,7 @@ export default function OrderList({ refreshTrigger, onOpenVitalCheckModal, showI
         fetchOrders();
     }, [refreshTrigger]);
 
-    if (isLoading && orders.length === 0) {
-        return <div className={styles.loading}>정보를 불러오는 중...</div>;
-    }
 
-    if (error) {
-        return <div className={styles.error}>{error}</div>;
-    }
-
-    if (orders.length === 0) {
-        return <div className={styles.emptyState}>
-            {showInProgressOnly ? '진행 중인 검사가 없습니다.' : '대기 중인 추가 진료(오더)가 없습니다.'}
-        </div>;
-    }
 
     // 영상의학과 의사 필터링
     const radiologyDoctors = doctors.filter((d: Doctor) => d.department?.dept_name === '영상의학과');
@@ -246,86 +234,72 @@ export default function OrderList({ refreshTrigger, onOpenVitalCheckModal, showI
     return (
         <>
             <div className={styles.container}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {currentOrders.map((group) => {
-                        const orderNames = group.orders.map(o => o.order_name).join(', ');
-                        const firstOrder = group.orders[0];
+                <div className={styles.listGroup}>
+                    {/* 리스트 헤더 추가 */}
+                    <div className={styles.listHeader}>
+                        <div className={styles.colStatus}>상태</div>
+                        <div className={styles.colPatient}>환자 정보</div>
+                        <div className={styles.colOrder}>오더 내용</div>
+                        <div className={styles.colDoctor}>요청 의사</div>
+                        <div className={styles.colTime}>요청 시간</div>
+                    </div>
 
-                        return (
-                            <div
-                                key={group.patient_id}
-                                style={{
-                                    padding: '12px 16px',
-                                    backgroundColor: '#FFFFFF',
-                                    borderLeft: '3px solid #B3E5FC',
-                                    borderRadius: '4px',
-                                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    gap: '12px',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s'
-                                }}
-                                onClick={() => openModal(group)}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.1)';
-                                    e.currentTarget.style.transform = 'translateX(2px)';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
-                                    e.currentTarget.style.transform = 'translateX(0)';
-                                }}
-                            >
-                                {/* 상태 배지 */}
-                                <span style={{
-                                    fontSize: '12px',
-                                    padding: '4px 10px',
-                                    borderRadius: '12px',
-                                    backgroundColor: '#B3E5FC',
-                                    color: '#0056b3',
-                                    fontWeight: 'bold',
-                                    whiteSpace: 'nowrap'
-                                }}>
-                                    오더 {group.orders.length}건
-                                </span>
+                    {isLoading && orders.length === 0 ? (
+                        <div className={styles.loading}>정보를 불러오는 중...</div>
+                    ) : error ? (
+                        <div className={styles.error}>{error}</div>
+                    ) : orders.length === 0 ? (
+                        <div className={styles.emptyState}>
+                            {showInProgressOnly ? '진행 중인 검사가 없습니다.' : '대기 중인 추가 진료(오더)가 없습니다.'}
+                        </div>
+                    ) : (
+                        currentOrders.map((group) => {
+                            const orderNames = group.orders.map(o => o.order_name).join(', ');
+                            const firstOrder = group.orders[0];
 
-                                {/* 환자 이름 */}
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <span style={{ fontWeight: 'bold', fontSize: '14px', color: '#333' }}>
-                                        {group.patient_name}
-                                    </span>
-                                    <span style={{ fontSize: '12px', color: '#666', marginLeft: '6px' }}>
-                                        ({group.patient_id})
-                                    </span>
+                            return (
+                                <div
+                                    key={group.patient_id}
+                                    className={styles.listItem}
+                                    onClick={() => openModal(group)}
+                                >
+                                    {/* 상태 배지 */}
+                                    <div className={styles.colStatus}>
+                                        <span className={styles.statusBadgeItem}>
+                                            오더 {group.orders.length}건
+                                        </span>
+                                    </div>
+
+                                    {/* 환자 이름 */}
+                                    <div className={styles.colPatient}>
+                                        <span className={styles.patientNameText}>
+                                            {group.patient_name}
+                                        </span>
+                                        <span className={styles.patientIdText}>
+                                            ({group.patient_id})
+                                        </span>
+                                    </div>
+
+                                    {/* 검사명 */}
+                                    <div className={`${styles.colOrder} ${styles.orderNameText}`}>
+                                        {orderNames}
+                                    </div>
+
+                                    {/* 요청 의사 */}
+                                    <div className={`${styles.colDoctor} ${styles.doctorNameText}`}>
+                                        {firstOrder.doctor_name}
+                                    </div>
+
+                                    {/* 시간 */}
+                                    <div className={`${styles.colTime} ${styles.timeText}`}>
+                                        {new Date(firstOrder.created_at).toLocaleString('ko-KR', {
+                                            month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+                                        })}
+                                    </div>
                                 </div>
-
-                                {/* 검사명 */}
-                                <div style={{
-                                    flex: 2,
-                                    fontSize: '13px',
-                                    color: '#666',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap'
-                                }}>
-                                    {orderNames}
-                                </div>
-
-                                {/* 요청 의사 */}
-                                <div style={{ fontSize: '12px', color: '#999', whiteSpace: 'nowrap' }}>
-                                    {firstOrder.doctor_name}
-                                </div>
-
-                                {/* 시간 */}
-                                <div style={{ fontSize: '12px', color: '#888', whiteSpace: 'nowrap' }}>
-                                    {new Date(firstOrder.created_at).toLocaleString('ko-KR', {
-                                        month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
-                                    })}
-                                </div>
-                            </div>
-                        );
-                    })}
+                            );
+                        })
+                    )}
                 </div>
                 {/* 페이지네이션 버튼 */}
                 <div className={styles.pagination}>
@@ -388,7 +362,7 @@ export default function OrderList({ refreshTrigger, onOpenVitalCheckModal, showI
                             paddingBottom: '15px'
                         }}>
                             <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 'bold', color: '#333' }}>
-                                📩 오더 처리 - {selectedPatient.patient_name} ({selectedPatient.patient_id})
+                                오더 처리 - {selectedPatient.patient_name} ({selectedPatient.patient_id})
                             </h2>
                             <button
                                 onClick={closeModal}
@@ -440,10 +414,10 @@ export default function OrderList({ refreshTrigger, onOpenVitalCheckModal, showI
                                                     </span>
                                                 </div>
                                                 <div style={{ fontSize: '13px', color: '#666', marginBottom: '4px' }}>
-                                                    요청 의사: {order.doctor_name} ({order.department_name})
+                                                    - 요청 의사: {order.doctor_name} ({order.department_name})
                                                 </div>
-                                                <div style={{ fontSize: '12px', color: '#999' }}>
-                                                    요청 시간: {new Date(order.created_at).toLocaleString('ko-KR')}
+                                                <div style={{ fontSize: '13px', color: '#666' }}>
+                                                    - 요청 시간: {new Date(order.created_at).toLocaleString('ko-KR')}
                                                 </div>
                                             </div>
                                         </div>
@@ -454,7 +428,7 @@ export default function OrderList({ refreshTrigger, onOpenVitalCheckModal, showI
                                                     style={{
                                                         padding: '8px 16px',
                                                         backgroundColor: '#B3E5FC',
-                                                        color: '#ffffffff',
+                                                        color: '#0277BD',
                                                         border: 'none',
                                                         borderRadius: '6px',
                                                         fontSize: '13px',
