@@ -7,14 +7,17 @@ import {
   getPatientEncounterHistory,
   getPatientLabResults,
   getPatientImagingOrders,
+  getPatientQuestionnaires,
+  getPatientVitals,
   getDoctorInProgressEncounter,
   createLabOrder,
   createImagingOrder,
   updateEncounter,
+  saveMedicalRecord,
   getPatientDetail, // Added
   cancelEncounter
 } from '../../api/doctorApi';
-import type { EncounterDetail, LabResult, ImagingOrder } from '../../api/doctorApi';
+import type { EncounterDetail, LabResult, ImagingOrder, QuestionnaireRecord, VitalRecord } from '../../api/doctorApi';
 
 interface Medication {
   name: string;
@@ -39,6 +42,8 @@ export default function TreatmentPage() {
   const [encounterHistory, setEncounterHistory] = useState<EncounterDetail[]>([]);
   const [labResults, setLabResults] = useState<LabResult[]>([]);
   const [imagingOrders, setImagingOrders] = useState<ImagingOrder[]>([]);
+  const [questionnaireList, setQuestionnaireList] = useState<QuestionnaireRecord[]>([]);
+  const [vitalList, setVitalList] = useState<VitalRecord[]>([]);
   const [loading, setLoading] = useState(false);
 
   // UI State
@@ -139,6 +144,8 @@ export default function TreatmentPage() {
         setEncounterHistory([]);
         setLabResults([]);
         setImagingOrders([]);
+        setQuestionnaireList([]);
+        setVitalList([]);
         clearForm();
       }
     };
@@ -162,6 +169,12 @@ export default function TreatmentPage() {
       // 영상 검사 결과 로드
       const imagingResponse = await getPatientImagingOrders(patientId, 5);
       setImagingOrders(imagingResponse.results);
+
+      const questionnaireResponse = await getPatientQuestionnaires(patientId, 10);
+      setQuestionnaireList(questionnaireResponse.results);
+
+      const vitalResponse = await getPatientVitals(patientId, 10);
+      setVitalList(vitalResponse.results);
 
     } catch (err) {
       console.error("환자 데이터 로드 실패", err);
@@ -201,6 +214,12 @@ export default function TreatmentPage() {
       const imagingResponse = await getPatientImagingOrders(patientId, 5);
       setImagingOrders(imagingResponse.results);
 
+      const questionnaireResponse = await getPatientQuestionnaires(patientId, 10);
+      setQuestionnaireList(questionnaireResponse.results);
+
+      const vitalResponse = await getPatientVitals(patientId, 10);
+      setVitalList(vitalResponse.results);
+
       // 현재 encounter의 기존 데이터로 폼 초기화
       setChiefComplaint(encounterData.chief_complaint || '');
       setClinicalNotes(encounterData.clinical_notes || '');
@@ -228,6 +247,29 @@ export default function TreatmentPage() {
     setMedications(medications.filter((_, i) => i !== index));
   };
 
+  const handleTempSave = async () => {
+    if (!selectedEncounterId || !currentPatient?.patient_id) {
+      alert('환자 정보가 없습니다.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await saveMedicalRecord({
+        encounter_id: selectedEncounterId,
+        patient_id: currentPatient.patient_id,
+        chief_complaint: chiefComplaint,
+        clinical_notes: clinicalNotes,
+      });
+      alert('임시 저장되었습니다.');
+    } catch (error) {
+      console.error('진료 기록 임시 저장 실패:', error);
+      alert('임시 저장에 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleMedicationChange = (index: number, field: string, value: string) => {
     const newMedications = [...medications];
     newMedications[index] = { ...newMedications[index], [field]: value };
@@ -236,6 +278,10 @@ export default function TreatmentPage() {
 
   const handleCompleteTreatment = async () => {
     if (!currentEncounter || !selectedEncounterId) return;
+    if (!currentPatient?.patient_id) {
+      alert('환자 정보가 없습니다.');
+      return;
+    }
 
     // 의사 정보 (localStorage or context)
     const doctorInfoStr = localStorage.getItem('doctor');
@@ -317,6 +363,14 @@ export default function TreatmentPage() {
 
       await Promise.all(promises);
 
+      await saveMedicalRecord({
+        encounter_id: selectedEncounterId,
+        patient_id: currentPatient.patient_id,
+        chief_complaint: chiefComplaint,
+        clinical_notes: clinicalNotes,
+        record_status: 'COMPLETED',
+      });
+
       // 2. Encounter 상태 업데이트 (COMPLETED or WAITING_RESULTS)
       await updateEncounter(selectedEncounterId, {
         workflow_state: status, // status 변수 사용
@@ -385,8 +439,8 @@ export default function TreatmentPage() {
       <div className={styles.mainLayout}>
         <PatientHistorySection
           encounterHistory={encounterHistory}
-          questionnaireData={currentEncounter?.questionnaire?.data}
-          questionnaireUpdatedAt={currentEncounter?.questionnaire?.updated_at}
+          questionnaireList={questionnaireList}
+          vitalList={vitalList}
         />
 
         <TreatmentWriteSection
@@ -405,6 +459,7 @@ export default function TreatmentPage() {
           hccDetails={hccDetails}
           setHccDetails={setHccDetails}
           onComplete={handleCompleteTreatment}
+          onTempSave={handleTempSave}
           disabled={!selectedEncounterId || currentEncounter?.encounter_status === 'COMPLETED'}
           medications={medications}
           onAddMedication={handleAddMedication}
