@@ -18,7 +18,7 @@ interface WaitingQueueData {
 
 export const useWaitingQueue = () => {
   const [waitingQueueData, setWaitingQueueData] = useState<WaitingQueueData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchWaitingQueue = useCallback(async () => {

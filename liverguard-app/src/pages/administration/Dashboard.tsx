@@ -911,7 +911,7 @@ export default function AdministrationDashboard() {
                     </div>
                   </div>
                   <div className={styles.cardBody}>
-                    {clinic.patients.filter(p => viewMode === 'COMPLETED' ? p.status === '진료완료' : (p.status === '진료중' || p.status === '대기중' || p.status === '결과대기')).map((p, idx) => (
+                    {clinic.patients.filter(p => viewMode === 'COMPLETED' ? (p.status === '진료완료' || p.status === '결과대기') : (p.status === '진료중' || p.status === '대기중')).map((p, idx) => (
                       <div key={idx} className={styles.waitingPatientRow} onClick={() => { if (viewMode === 'COMPLETED') { setSelectedEncounterId(p.encounterId); setSelectedPatientNameForModal(p.name); setIsEncounterModalOpen(true); } }}>
                         <div className={styles.patientDetailRow}>
                           <span className={styles.patientIndex}>{idx + 1}</span>
