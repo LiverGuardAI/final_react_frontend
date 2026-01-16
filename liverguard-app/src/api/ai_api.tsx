@@ -137,6 +137,27 @@ export const getFeatureExtractionTaskStatus = async (
   }
 };
 
+export interface ReportGenerateResponse {
+  report: string;
+}
+
+/**
+ * 자동 보고서 생성
+ * POST /api/ai/openapi/report/generate/
+ */
+export const generateReport = async (findings: any): Promise<ReportGenerateResponse> => {
+  try {
+    const response = await apiClient.post<ReportGenerateResponse>(
+      "ai/openapi/report/generate/",
+      findings
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Failed to generate report:", error);
+    throw error;
+  }
+};
+
 // ===========================
 // BentoML Prediction APIs
 // ===========================
