@@ -17,6 +17,7 @@ interface TreatmentWriteSectionProps {
     hccDetails: any;
     setHccDetails: (value: any) => void;
     onComplete: () => void;
+    onTempSave?: () => void;
     disabled?: boolean;
     medications?: { name: string; dosage: string; frequency: string; days: string }[];
     onAddMedication?: () => void;
@@ -41,6 +42,7 @@ export default function TreatmentWriteSection({
     hccDetails,
     setHccDetails,
     onComplete,
+    onTempSave,
     disabled = false,
     medications = [],
     onAddMedication,
@@ -285,7 +287,13 @@ export default function TreatmentWriteSection({
                                         진료 취소
                                     </button>
                                 )}
-                                <button className={styles.tempSaveButton} disabled={disabled}>임시저장</button>
+                                <button
+                                    className={styles.tempSaveButton}
+                                    onClick={onTempSave}
+                                    disabled={disabled}
+                                >
+                                    임시저장
+                                </button>
                                 <button
                                     className={styles.submitButton}
                                     onClick={onComplete}
