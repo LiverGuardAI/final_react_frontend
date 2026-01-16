@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styles from './TreatmentPage.module.css';
 import { useTreatment } from '../../contexts/TreatmentContext';
 import {
@@ -28,6 +29,7 @@ import PatientHistorySection from '../../components/doctor/treatment/PatientHist
 import TreatmentWriteSection from '../../components/doctor/treatment/TreatmentWriteSection';
 
 export default function TreatmentPage() {
+  const navigate = useNavigate();
   const { selectedEncounterId, setSelectedEncounterId, selectedPatientId, setSelectedPatientId } = useTreatment();
 
   // Data State
@@ -322,10 +324,13 @@ export default function TreatmentPage() {
         sessionStorage.removeItem(`ct-result:${currentPatient.patient_id}`);
       }
 
-      alert(status === 'WAITING_RESULTS' ? '오더가 전송되고 검사 대기(결과 대기) 상태로 전환되었습니다.' : '진료가 완료되었습니다. (수납 대기 상태로 전환)');
+      alert(status === 'WAITING_RESULTS' ? '오더가 전송되었습니다.' : '진료가 완료되었습니다.');
       // 목록 리프레시 혹은 초기화
       setSelectedEncounterId(null);
       setSelectedPatientId(null);
+
+      // 홈으로 이동
+      navigate('/doctor/home');
       setCurrentEncounter(null);
       clearForm();
 

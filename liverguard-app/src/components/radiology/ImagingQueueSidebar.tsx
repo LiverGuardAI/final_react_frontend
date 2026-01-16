@@ -112,10 +112,13 @@ export default function ImagingQueueSidebar() {
             {waitingPatients.length === 0 ? (
               <div className="empty-state">대기 중인 환자가 없습니다</div>
             ) : (
-              waitingPatients.map(patient => (
+              waitingPatients.map((patient, index) => (
                 <div key={patient.encounter_id} className="patient-card">
                   <div className="patient-info">
-                    <div className="patient-name">{patient.patient_name}</div>
+                    <div className="patient-name">
+                      <span style={{ marginRight: '8px', color: '#60a5fa', fontWeight: 'bold' }}>{index + 1}</span>
+                      {patient.patient_name}
+                    </div>
                     <div className="patient-details">
                       {patient.age}세 / {patient.gender === 'M' ? '남' : '여'}
                     </div>

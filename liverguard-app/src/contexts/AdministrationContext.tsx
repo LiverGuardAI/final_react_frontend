@@ -7,6 +7,7 @@ import { useWebSocketContext } from '../context/WebSocketContext';
 interface AdministrationContextType {
     // Stats & Queue
     waitingQueueData: any;
+    isLoadingQueue: boolean;
     dashboardStats: any;
     fetchWaitingQueue: () => Promise<void>;
     fetchDashboardStats: () => Promise<void>;
@@ -23,7 +24,7 @@ interface AdministrationContextType {
 const AdministrationContext = createContext<AdministrationContextType | undefined>(undefined);
 
 export const AdministrationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const { waitingQueueData, fetchWaitingQueue } = useWaitingQueue();
+    const { waitingQueueData, isLoading, fetchWaitingQueue } = useWaitingQueue();
     const { stats: dashboardStats, fetchStats: fetchDashboardStats } = useDashboardStats();
     const { doctors, fetchDoctors } = useDoctors();
 
@@ -74,6 +75,7 @@ export const AdministrationProvider: React.FC<{ children: ReactNode }> = ({ chil
             waitingQueueData,
             dashboardStats,
             fetchWaitingQueue,
+            isLoadingQueue: isLoading, // Expose loading state
             fetchDashboardStats,
             doctors,
             fetchDoctors,

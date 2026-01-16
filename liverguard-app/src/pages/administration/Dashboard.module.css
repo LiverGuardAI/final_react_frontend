@@ -965,6 +965,13 @@
   font-size: 13px;
 }
 
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+  font-size: 14px;
+}
+
 .scheduleTable tbody tr:hover {
   background: #F8F9FA;
 }

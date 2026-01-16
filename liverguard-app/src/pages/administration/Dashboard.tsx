@@ -114,14 +114,15 @@ export default function AdministrationDashboard() {
 
   // Context Data
   const {
-    waitingQueueData: queueData, // Alias to avoid conflict if any, though useAdmissionData returns waitingQueueData
+    waitingQueueData: queueData,
     waitingQueueData,
     dashboardStats,
     fetchDashboardStats,
     doctors: sidebarDoctors,
     fetchDoctors,
     refreshPatientsTrigger,
-    fetchWaitingQueue
+    fetchWaitingQueue,
+    isLoadingQueue // Added loading state
   } = useAdministrationData();
 
   // 영상의학과 대기열 상태
@@ -261,9 +262,10 @@ export default function AdministrationDashboard() {
         }) || [];
 
         const formattedPatients = myPatients
+          .filter((p: any) => ['WAITING_CLINIC', 'IN_CLINIC'].includes(p.workflow_state))
           .map((p: any) => {
             let statusText = '대기중';
-            if (p.workflow_state === 'IN_PROGRESS' || p.workflow_state === 'IN_CLINIC') statusText = '진료중';
+            if (p.workflow_state === 'IN_CLINIC') statusText = '진료중';
             else if (p.workflow_state === 'WAITING_RESULTS') statusText = '결과대기';
             else if (p.workflow_state === 'COMPLETED') statusText = '진료완료';
 
@@ -281,8 +283,8 @@ export default function AdministrationDashboard() {
             };
           })
           .sort((a: any, b: any) => {
-            if (a.encounter_status === 'IN_PROGRESS' && b.encounter_status !== 'IN_PROGRESS') return -1;
-            if (a.encounter_status !== 'IN_PROGRESS' && b.encounter_status === 'IN_PROGRESS') return 1;
+            if (a.encounter_status === 'IN_CLINIC' && b.encounter_status !== 'IN_CLINIC') return -1;
+            if (a.encounter_status !== 'IN_CLINIC' && b.encounter_status === 'IN_CLINIC') return 1;
             return 0;
           });
 
@@ -349,6 +351,14 @@ export default function AdministrationDashboard() {
       .filter((q: any) => q.workflow_state !== 'COMPLETED')
       .map((q: any) => q.patient_id || q.patient)
       .filter(Boolean);
+  }, [waitingQueueData]);
+
+  const additionalPatients = useMemo(() => {
+    return waitingQueueData?.queue?.filter((p: any) => p.workflow_state === 'WAITING_CLINIC' && p.is_returning_patient) || [];
+  }, [waitingQueueData]);
+
+  const paymentPatients = useMemo(() => {
+    return waitingQueueData?.queue?.filter((p: any) => p.workflow_state === 'WAITING_PAYMENT') || [];
   }, [waitingQueueData]);
 
   // --- API Calls ---
@@ -784,53 +794,72 @@ export default function AdministrationDashboard() {
                 {receptionTab === 'testWaiting' && <OrderList refreshTrigger={orderRefreshTrigger} onOpenVitalCheckModal={handleOpenVitalCheckModal} showInProgressOnly={true} />}
                 {receptionTab === 'additional' && (
                   <div className={styles.rightQueueList}>
-                    {waitingQueueData?.queue?.filter((p: any) => p.workflow_state === 'WAITING_CLINIC' && p.is_returning_patient)
-                      .slice((additionalPage - 1) * itemsPerPage, additionalPage * itemsPerPage).map((patient: any) => (
-                        <div key={patient.encounter_id} className={styles.rightQueueItem}>
-                          <div className={styles.rightQueueInfo}>
-                            <div className={styles.rightQueueName}>
-                              {patient.patient_name}
-                              <span className={styles.rightQueueId}>({patient.patient_id})</span>
+                    {isLoadingQueue && !waitingQueueData ? (
+                      <div className={styles.loading}>정보를 불러오는 중...</div>
+                    ) : additionalPatients.length === 0 ? (
+                      <div className={styles.emptyState}>대기 중인 추가 진료 환자가 없습니다.</div>
+                    ) : (
+                      additionalPatients
+                        .slice((additionalPage - 1) * itemsPerPage, additionalPage * itemsPerPage)
+                        .map((patient: any) => (
+                          <div key={patient.encounter_id} className={styles.rightQueueItem}>
+                            <div className={styles.rightQueueInfo}>
+                              <div className={styles.rightQueueName}>
+                                {patient.patient_name}
+                                <span className={styles.rightQueueId}>({patient.patient_id})</span>
+                              </div>
+                              <div className={styles.rightQueueMeta}>
+                                {patient.doctor_name} | {patient.updated_at ? new Date(patient.updated_at).toLocaleTimeString('ko-KR') : '-'}
+                              </div>
                             </div>
-                            <div className={styles.rightQueueMeta}>
-                              {patient.doctor_name} | {patient.updated_at ? new Date(patient.updated_at).toLocaleTimeString('ko-KR') : '-'}
-                            </div>
+                            <div className={`${styles.rightQueueBadge} ${styles.rightQueueBadgeAdditional}`}>추가진료</div>
                           </div>
-                          <div className={`${styles.rightQueueBadge} ${styles.rightQueueBadgeAdditional}`}>추가진료</div>
-                        </div>
-                      ))}
+                        ))
+                    )}
                   </div>
                 )}
                 {receptionTab === 'payment' && (
                   <div className={styles.rightQueueList}>
-                    {waitingQueueData?.queue?.filter((p: any) => p.workflow_state === 'WAITING_PAYMENT').map((patient: any) => (
-                      <div
-                        key={patient.encounter_id}
-                        className={`${styles.rightQueueItem} ${styles.rightQueueClickable}`}
-                        onClick={() => { setSelectedPaymentPatient(patient); setIsPaymentModalOpen(true); }}
-                      >
-                        <div className={styles.rightQueueInfo}>
-                          <div className={styles.rightQueueName}>{patient.patient_name}</div>
-                          <div className={styles.rightQueueMeta}>
-                            {patient.patient_id} | {patient.updated_at ? new Date(patient.updated_at).toLocaleTimeString('ko-KR') : '-'}
+                    {isLoadingQueue && !waitingQueueData ? (
+                      <div className={styles.loading}>정보를 불러오는 중...</div>
+                    ) : paymentPatients.length === 0 ? (
+                      <div className={styles.emptyState}>수납 대기 중인 환자가 없습니다.</div>
+                    ) : (
+                      paymentPatients.map((patient: any) => (
+                        <div
+                          key={patient.encounter_id}
+                          className={`${styles.rightQueueItem} ${styles.rightQueueClickable}`}
+                          onClick={() => { setSelectedPaymentPatient(patient); setIsPaymentModalOpen(true); }}
+                        >
+                          <div className={styles.rightQueueInfo}>
+                            <div className={styles.rightQueueName}>{patient.patient_name}</div>
+                            <div className={styles.rightQueueMeta}>
+                              {patient.patient_id} | {patient.updated_at ? new Date(patient.updated_at).toLocaleTimeString('ko-KR') : '-'}
+                            </div>
                           </div>
+                          <div className={`${styles.rightQueueBadge} ${styles.rightQueueBadgePayment}`}>수납대기</div>
                         </div>
-                        <div className={`${styles.rightQueueBadge} ${styles.rightQueueBadgePayment}`}>수납대기</div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 )}
                 {receptionTab === 'appSync' && (
                   <div style={{ padding: '10px' }}>
-                    {appSyncRequests.map(req => (
-                      <div key={req.request_id} style={{ border: '1px solid #ddd', borderRadius: '5px', padding: '10px', marginBottom: '5px', display: 'flex', justifyContent: 'space-between' }}>
-                        <div>{req.profile_nickname}</div>
-                        <div>
-                          <button onClick={() => handleApproveAppSync(req)} style={{ marginRight: '5px' }}>승인</button>
-                          <button onClick={() => handleRejectAppSync(req)}>거절</button>
+                    {isAppSyncLoading ? (
+                      <div className={styles.loading}>정보를 불러오는 중...</div>
+                    ) : appSyncRequests.length === 0 ? (
+                      <div className={styles.emptyState}>승인 대기 중인 앱 연동 요청이 없습니다.</div>
+                    ) : (
+                      appSyncRequests.map(req => (
+                        <div key={req.request_id} style={{ border: '1px solid #ddd', borderRadius: '5px', padding: '10px', marginBottom: '5px', display: 'flex', justifyContent: 'space-between' }}>
+                          <div>{req.profile_nickname}</div>
+                          <div>
+                            <button onClick={() => handleApproveAppSync(req)} style={{ marginRight: '5px' }}>승인</button>
+                            <button onClick={() => handleRejectAppSync(req)}>거절</button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 )}
               </div>
@@ -911,15 +940,74 @@ export default function AdministrationDashboard() {
       <QuestionnaireModal isOpen={isQuestionnaireModalOpen} patient={questionnairePatient} initialData={questionnaireInitialData} onClose={() => { setIsQuestionnaireModalOpen(false); setQuestionnairePatient(null); }} onSubmit={handleQuestionnaireSubmit} onDelete={handleQuestionnaireDelete} />
       <EncounterDetailModal isOpen={isEncounterModalOpen} encounterId={selectedEncounterId} patientName={selectedPatientNameForModal} onClose={() => setIsEncounterModalOpen(false)} />
       <VitalMeasurementModal isOpen={isVitalCheckModalOpen} order={selectedVitalOrder} onClose={() => setIsVitalCheckModalOpen(false)} onSubmit={handleVitalCheckSubmit} />
-      {/* Payment Modal (Simplified inline structure) */}
+      {/* Payment Modal (Enhanced) */}
       {isPaymentModalOpen && selectedPaymentPatient && (
-        <div className={styles.modalOverlay}><div className={styles.modalContent}>
-          <h2>수납 결제: {selectedPaymentPatient.patient_name}</h2>
-          <div className={styles.modalActions}>
-            <button className={styles.submitButton} onClick={handlePaymentSubmit}>수납 완료</button>
-            <button className={styles.cancelButton} onClick={() => setIsPaymentModalOpen(false)}>취소</button>
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent} style={{ width: '450px', padding: '0', overflow: 'hidden' }}>
+            <div className={styles.modalHeader} style={{ padding: '20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+              <h2 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                💳 수납 결제
+                <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 'normal' }}>
+                  | {selectedPaymentPatient.patient_name} ({selectedPaymentPatient.patient_id})
+                </span>
+              </h2>
+            </div>
+
+            <div style={{ padding: '24px' }}>
+              {/* 청구 내역 요약 */}
+              <div style={{ marginBottom: '24px' }}>
+                <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#334155' }}>청구 내역</h3>
+                <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '16px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', color: '#64748b' }}>
+                    <span>진찰료</span>
+                    <span>15,000원</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', color: '#64748b' }}>
+                    <span>검사료 (본인부담금)</span>
+                    <span>35,000원</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '14px', color: '#64748b' }}>
+                    <span>처방료</span>
+                    <span>5,000원</span>
+                  </div>
+                  <div style={{ borderTop: '1px dashed #cbd5e1', margin: '12px 0' }}></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: '600', color: '#334155' }}>총 청구 금액</span>
+                    <span style={{ fontSize: '20px', fontWeight: '700', color: '#0f172a' }}>55,000원</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 결제 수단 */}
+              <div style={{ marginBottom: '24px' }}>
+                <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#334155' }}>결제 수단</h3>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <label style={{
+                    flex: 1, cursor: 'pointer', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px',
+                    display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '500'
+                  }}>
+                    <input type="radio" name="paymentMethod" defaultChecked /> 신용카드
+                  </label>
+                  <label style={{
+                    flex: 1, cursor: 'pointer', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px',
+                    display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '500'
+                  }}>
+                    <input type="radio" name="paymentMethod" /> 현금
+                  </label>
+                </div>
+              </div>
+
+              <div className={styles.modalActions} style={{ marginTop: '0' }}>
+                <button className={styles.submitButton} onClick={handlePaymentSubmit} style={{ flex: 2, padding: '12px', fontSize: '15px' }}>
+                  55,000원 결제하기
+                </button>
+                <button className={styles.cancelButton} onClick={() => setIsPaymentModalOpen(false)} style={{ flex: 1, padding: '12px', fontSize: '15px' }}>
+                  취소
+                </button>
+              </div>
+            </div>
           </div>
-        </div></div>
+        </div>
       )}
       {/* Notification */}
       {notification && <div style={{ position: 'fixed', top: '20px', right: '20px', background: '#333', color: 'white', padding: '15px', borderRadius: '5px', zIndex: 9999 }}>{notification.message}</div>}

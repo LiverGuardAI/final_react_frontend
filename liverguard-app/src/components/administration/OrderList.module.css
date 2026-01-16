@@ -238,3 +238,12 @@
     background: #405F7F;
     border-color: #405F7F;
 }
+
+.loading,
+.error,
+.emptyState {
+    padding: 18px;
+    text-align: center;
+    color: #999999;
+    font-size: 13px;
+}
