@@ -27,7 +27,7 @@ export default function OrderList({ refreshTrigger, onOpenVitalCheckModal, showI
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
 
-    const { doctors } = useAdministrationData();
+    const { doctors, radiologists } = useAdministrationData();
 
     const fetchOrders = async () => {
         try {
@@ -225,8 +225,8 @@ export default function OrderList({ refreshTrigger, onOpenVitalCheckModal, showI
 
 
 
-    // 영상의학과 의사 필터링
-    const radiologyDoctors = doctors.filter((d: Doctor) => d.department?.dept_name === '영상의학과');
+    // 영상의학과 의사 필터링 (Deprecated)
+    // const radiologyDoctors = doctors.filter((d: Doctor) => d.department?.dept_name === '영상의학과');
 
     const totalPages = Math.ceil(groupedOrders.length / itemsPerPage);
     const currentOrders = groupedOrders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -477,9 +477,9 @@ export default function OrderList({ refreshTrigger, onOpenVitalCheckModal, showI
                                                                 onChange={(e) => setSelectedDoctor(Number(e.target.value))}
                                                             >
                                                                 <option value="">의사 선택</option>
-                                                                {radiologyDoctors.map((doc: Doctor) => (
-                                                                    <option key={doc.doctor_id} value={doc.doctor_id}>
-                                                                        {doc.name} ({doc.room_number || '방 미배정'})
+                                                                {radiologists.map((doc: any) => (
+                                                                    <option key={doc.radiologic_id} value={doc.radiologic_id}>
+                                                                        {doc.name} ({doc.department?.dept_name || '영상의학과'})
                                                                     </option>
                                                                 ))}
                                                             </select>

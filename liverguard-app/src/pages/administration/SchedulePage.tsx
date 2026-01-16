@@ -114,7 +114,7 @@ export default function SchedulePage() {
 
   // WebSocket ref (재연결용)
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // API 호출 함수들 (useCallback으로 메모이제이션)
   const fetchDoctors = useCallback(async () => {
@@ -585,10 +585,13 @@ export default function SchedulePage() {
     setIsAddingToQueue(true);
     try {
       const now = new Date();
+      const appointmentDoctorId = typeof calendarModalAppointment.doctor === 'number'
+        ? calendarModalAppointment.doctor
+        : calendarModalAppointment.doctor?.doctor_id;
       const encounterData = {
         patient: calendarModalAppointment.patient_id || calendarModalAppointment.patient || '',
         appointment: calendarModalAppointment.appointment_id, // 문진표 연결을 위해 필수
-        doctor: calendarModalAppointment.doctor || 0,
+        doctor: appointmentDoctorId || 0,
         encounter_date: calendarModalAppointment.appointment_date,
         encounter_time: now.toTimeString().split(' ')[0].substring(0, 8),
         department: calendarModalAppointment.department || '',

@@ -16,6 +16,10 @@ interface AdministrationContextType {
     doctors: any[];
     fetchDoctors: () => Promise<void>;
 
+    // Radiologists
+    radiologists: any[];
+    fetchRadiologists: () => Promise<void>;
+
     // Patients
     refreshPatientsTrigger: number;
     triggerPatientRefresh: () => void;
@@ -27,6 +31,19 @@ export const AdministrationProvider: React.FC<{ children: ReactNode }> = ({ chil
     const { waitingQueueData, isLoading, fetchWaitingQueue } = useWaitingQueue();
     const { stats: dashboardStats, fetchStats: fetchDashboardStats } = useDashboardStats();
     const { doctors, fetchDoctors } = useDoctors();
+
+    // Radiologists State
+    const [radiologists, setRadiologists] = useState<any[]>([]);
+
+    const fetchRadiologists = useCallback(async () => {
+        try {
+            const { getRadiologists } = await import('../api/receptionApi');
+            const data = await getRadiologists();
+            setRadiologists(data.results || data);
+        } catch (err) {
+            console.error("Failed to fetch radiologists:", err);
+        }
+    }, []);
 
     const [refreshPatientsTrigger, setRefreshPatientsTrigger] = useState(0);
 
@@ -66,6 +83,7 @@ export const AdministrationProvider: React.FC<{ children: ReactNode }> = ({ chil
     // Fetch initial data
     useEffect(() => {
         fetchDoctors();
+        fetchRadiologists();
         fetchWaitingQueue();
         fetchDashboardStats();
     }, [fetchDoctors, fetchWaitingQueue, fetchDashboardStats]);
@@ -79,6 +97,8 @@ export const AdministrationProvider: React.FC<{ children: ReactNode }> = ({ chil
             fetchDashboardStats,
             doctors,
             fetchDoctors,
+            radiologists,
+            fetchRadiologists,
             refreshPatientsTrigger,
             triggerPatientRefresh
         }}>
