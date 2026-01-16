@@ -18,7 +18,7 @@ import {
   generateReport,
   generateReportV2
 } from '../../api/ai_api';
-import { analyzeTumor } from '../../api/radiology_api';
+import { analyzeTumor, saveCtReport } from '../../api/radiology_api';
 import './PostProcessingPage.css';
 
 interface Series {
@@ -92,6 +92,8 @@ const PostProcessingPage: React.FC = () => {
   const [reportError, setReportError] = useState<string>('');
   const [isGeneratingReportV2, setIsGeneratingReportV2] = useState<boolean>(false);
   const [reportV2Error, setReportV2Error] = useState<string>('');
+  const [isSavingReport, setIsSavingReport] = useState<boolean>(false);
+  const [saveReportError, setSaveReportError] = useState<string>('');
   const [generatedReport, setGeneratedReport] = useState<string>('');
   const [measurementEnabled, setMeasurementEnabled] = useState<boolean>(false);
   const [measurementDimensions, setMeasurementDimensions] = useState<{ widthMm: number; heightMm: number } | null>(null);
@@ -625,6 +627,33 @@ const PostProcessingPage: React.FC = () => {
     }
   };
 
+  const handleSaveReport = async () => {
+    if (!generatedReport.trim()) {
+      alert('저장할 보고서가 없습니다.');
+      return;
+    }
+    const seriesInstanceUid = selectedSeriesInfo?.MainDicomTags?.SeriesInstanceUID;
+    if (!seriesInstanceUid) {
+      alert('SeriesInstanceUID가 없습니다. 다른 시리즈를 선택해주세요.');
+      return;
+    }
+    if (isSavingReport) {
+      return;
+    }
+
+    setIsSavingReport(true);
+    setSaveReportError('');
+    try {
+      await saveCtReport(seriesInstanceUid, generatedReport);
+      alert('보고서가 저장되었습니다.');
+    } catch (error) {
+      console.error('Failed to save CT report:', error);
+      setSaveReportError('보고서 저장에 실패했습니다.');
+    } finally {
+      setIsSavingReport(false);
+    }
+  };
+
   const analysis = tumorAnalysisResult?.analysis;
   const analysisComponents = analysis?.components ?? [];
   const analysisWarnings = tumorAnalysisResult?.warnings ?? [];
@@ -1078,12 +1107,14 @@ const PostProcessingPage: React.FC = () => {
                       </label>
                       <button
                         className="tool-btn"
-                        onClick={() => {
-                          alert('보고서 저장은 준비 중입니다.');
-                        }}
+                        disabled={isSavingReport || !generatedReport.trim()}
+                        onClick={handleSaveReport}
                       >
-                        저장
+                        {isSavingReport ? '저장 중...' : '저장'}
                       </button>
+                      {saveReportError && (
+                        <div className="analysis-error">{saveReportError}</div>
+                      )}
                     </div>
                   </div>
                 </div>
