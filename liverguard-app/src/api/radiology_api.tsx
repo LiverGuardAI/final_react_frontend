@@ -106,3 +106,26 @@ export const analyzeTumor = async (maskSeriesId: string): Promise<TumorAnalysisR
   );
   return response.data;
 };
+
+export interface CTReportResponse {
+  report_id: number;
+  series_instance_uid: string;
+  report_text: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * CT 보고서 저장
+ * POST /api/radiology/ct-reports/
+ */
+export const saveCtReport = async (
+  seriesInstanceUid: string,
+  reportText: string
+): Promise<CTReportResponse> => {
+  const response = await apiClient.post<CTReportResponse>("radiology/ct-reports/", {
+    series_instance_uid: seriesInstanceUid,
+    report_text: reportText
+  });
+  return response.data;
+};
