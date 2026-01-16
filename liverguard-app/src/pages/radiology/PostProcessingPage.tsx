@@ -15,7 +15,8 @@ import {
   getSegmentationTaskStatus,
   createFeatureExtraction,
   getFeatureExtractionTaskStatus,
-  generateReport
+  generateReport,
+  generateReportV2
 } from '../../api/ai_api';
 import { analyzeTumor } from '../../api/radiology_api';
 import './PostProcessingPage.css';
@@ -89,6 +90,8 @@ const PostProcessingPage: React.FC = () => {
   const [tumorAnalysisError, setTumorAnalysisError] = useState<string>('');
   const [isGeneratingReport, setIsGeneratingReport] = useState<boolean>(false);
   const [reportError, setReportError] = useState<string>('');
+  const [isGeneratingReportV2, setIsGeneratingReportV2] = useState<boolean>(false);
+  const [reportV2Error, setReportV2Error] = useState<string>('');
   const [generatedReport, setGeneratedReport] = useState<string>('');
   const [measurementEnabled, setMeasurementEnabled] = useState<boolean>(false);
   const [measurementDimensions, setMeasurementDimensions] = useState<{ widthMm: number; heightMm: number } | null>(null);
@@ -573,51 +576,18 @@ const PostProcessingPage: React.FC = () => {
       alert('종양 분석 결과가 없습니다. 먼저 종양 분석을 실행해주세요.');
       return;
     }
-    if (isGeneratingReport) {
+    if (isGeneratingReport || isGeneratingReportV2) {
       return;
     }
 
     setIsGeneratingReport(true);
     setReportError('');
     try {
-      const reportNote = reportNoteRef.current?.value?.trim() || '';
-      const payload = {
-        note: reportNote,
-        basic_info: {
-          spacing_mm: tumorAnalysisResult.spacing_mm
-            ? {
-                x: tumorAnalysisResult.spacing_mm.x ?? null,
-                y: tumorAnalysisResult.spacing_mm.y ?? null,
-                z: tumorAnalysisResult.spacing_mm.z ?? null,
-              }
-            : null,
-          slice_rows_cols: {
-            slices: tumorAnalysisResult.metadata?.slice_count ?? null,
-            rows: tumorAnalysisResult.metadata?.rows ?? null,
-            cols: tumorAnalysisResult.metadata?.cols ?? null,
-          },
-        },
-        overall_metrics: {
-          tumor_count: analysis?.tumor_count ?? null,
-          total_tumor_volume_ml: analysis?.total_tumor_volume_ml ?? null,
-          liver_volume_ml: analysis?.liver_volume_ml ?? null,
-          tumor_burden_percent: tumorBurdenPercent ?? null,
-        },
-        tumors: analysisComponents.map((component: any, index: number) => ({
-          tumor_index: index + 1,
-          volume_ml: component?.volume_ml ?? null,
-          max_diameter_mm: component?.max_diameter_mm ?? null,
-          centroid_mm: component?.centroid_mm ?? null,
-          surface_area_mm2: component?.boundary_features?.surface_area_mm2 ?? null,
-          surface_area_to_volume_ratio:
-            component?.boundary_features?.surface_area_to_volume_ratio ?? null,
-          distance_to_capsule_mm: component?.distance_to_liver_capsule_mm ?? null,
-          sphericity: component?.shape_metrics?.sphericity ?? null,
-          compactness: component?.shape_metrics?.compactness ?? null,
-          elongation: component?.shape_metrics?.elongation ?? null,
-        })),
-        warnings: analysisWarnings,
-      };
+      const payload = buildReportPayload();
+      if (!payload) {
+        setReportError('종양 분석 결과가 없습니다.');
+        return;
+      }
       const result = await generateReport(payload);
       setGeneratedReport(result.report || '');
     } catch (error) {
@@ -625,6 +595,33 @@ const PostProcessingPage: React.FC = () => {
       setReportError('자동 보고서 생성에 실패했습니다.');
     } finally {
       setIsGeneratingReport(false);
+    }
+  };
+
+  const handleGenerateReportV2 = async () => {
+    if (!tumorAnalysisResult) {
+      alert('종양 분석 결과가 없습니다. 먼저 종양 분석을 실행해주세요.');
+      return;
+    }
+    if (isGeneratingReport || isGeneratingReportV2) {
+      return;
+    }
+
+    setIsGeneratingReportV2(true);
+    setReportV2Error('');
+    try {
+      const payload = buildReportPayload();
+      if (!payload) {
+        setReportV2Error('종양 분석 결과가 없습니다.');
+        return;
+      }
+      const result = await generateReportV2(payload);
+      setGeneratedReport(result.report || '');
+    } catch (error) {
+      console.error('Failed to generate report v2:', error);
+      setReportV2Error('자동 보고서 생성 V2에 실패했습니다.');
+    } finally {
+      setIsGeneratingReportV2(false);
     }
   };
 
@@ -636,6 +633,50 @@ const PostProcessingPage: React.FC = () => {
     (analysis?.tumor_to_liver_ratio !== null && analysis?.tumor_to_liver_ratio !== undefined
       ? analysis.tumor_to_liver_ratio * 100
       : null);
+
+  const buildReportPayload = () => {
+    if (!tumorAnalysisResult) {
+      return null;
+    }
+    const reportNote = reportNoteRef.current?.value?.trim() || '';
+    return {
+      note: reportNote,
+      basic_info: {
+        spacing_mm: tumorAnalysisResult.spacing_mm
+          ? {
+              x: tumorAnalysisResult.spacing_mm.x ?? null,
+              y: tumorAnalysisResult.spacing_mm.y ?? null,
+              z: tumorAnalysisResult.spacing_mm.z ?? null,
+            }
+          : null,
+        slice_rows_cols: {
+          slices: tumorAnalysisResult.metadata?.slice_count ?? null,
+          rows: tumorAnalysisResult.metadata?.rows ?? null,
+          cols: tumorAnalysisResult.metadata?.cols ?? null,
+        },
+      },
+      overall_metrics: {
+        tumor_count: analysis?.tumor_count ?? null,
+        total_tumor_volume_ml: analysis?.total_tumor_volume_ml ?? null,
+        liver_volume_ml: analysis?.liver_volume_ml ?? null,
+        tumor_burden_percent: tumorBurdenPercent ?? null,
+      },
+      tumors: analysisComponents.map((component: any, index: number) => ({
+        tumor_index: index + 1,
+        volume_ml: component?.volume_ml ?? null,
+        max_diameter_mm: component?.max_diameter_mm ?? null,
+        centroid_mm: component?.centroid_mm ?? null,
+        surface_area_mm2: component?.boundary_features?.surface_area_mm2 ?? null,
+        surface_area_to_volume_ratio:
+          component?.boundary_features?.surface_area_to_volume_ratio ?? null,
+        distance_to_capsule_mm: component?.distance_to_liver_capsule_mm ?? null,
+        sphericity: component?.shape_metrics?.sphericity ?? null,
+        compactness: component?.shape_metrics?.compactness ?? null,
+        elongation: component?.shape_metrics?.elongation ?? null,
+      })),
+      warnings: analysisWarnings,
+    };
+  };
 
   return (
     <div className="post-processing-page">
@@ -1008,13 +1049,23 @@ const PostProcessingPage: React.FC = () => {
                       )}
                       <button
                         className="tool-btn secondary"
-                        disabled={!tumorAnalysisResult || isGeneratingReport}
+                        disabled={!tumorAnalysisResult || isGeneratingReport || isGeneratingReportV2}
                         onClick={handleGenerateReport}
                       >
                         {isGeneratingReport ? '생성 중...' : '자동 보고서 생성'}
                       </button>
                       {reportError && (
                         <div className="analysis-error">{reportError}</div>
+                      )}
+                      <button
+                        className="tool-btn secondary"
+                        disabled={!tumorAnalysisResult || isGeneratingReport || isGeneratingReportV2}
+                        onClick={handleGenerateReportV2}
+                      >
+                        {isGeneratingReportV2 ? '생성 중...' : '자동 보고서 생성 V2'}
+                      </button>
+                      {reportV2Error && (
+                        <div className="analysis-error">{reportV2Error}</div>
                       )}
                       <label>
                         자동 보고서
