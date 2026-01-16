@@ -216,7 +216,7 @@
 }
 
 .viewer-tools {
-  width: 220px;
+  width: 340px;
   flex-shrink: 0;
   background-color: #121824;
   border: 1px solid #2d3748;
@@ -225,6 +225,7 @@
   flex-direction: column;
   gap: 10px;
   color: #e2e8f0;
+  overflow-y: auto;
 }
 
 .viewer-tools h4 {
@@ -362,6 +363,110 @@
 
 .report-form textarea {
   resize: vertical;
+}
+
+.analysis-error {
+  padding: 6px 8px;
+  background-color: #3b1d1d;
+  border: 1px solid #7f1d1d;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #fecaca;
+}
+
+.analysis-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.analysis-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px;
+  background-color: #0f1419;
+  border: 1px solid #2d3748;
+  border-radius: 4px;
+}
+
+.analysis-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.analysis-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px 8px;
+  font-size: 11px;
+}
+
+.analysis-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.analysis-row.full {
+  grid-column: 1 / -1;
+}
+
+.analysis-label {
+  color: #94a3b8;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.analysis-value {
+  color: #e2e8f0;
+  text-align: right;
+  word-break: break-word;
+  flex: 1 1 auto;
+}
+
+.analysis-components {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.analysis-component {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px;
+  background-color: #121824;
+  border: 1px solid #2d3748;
+  border-radius: 4px;
+}
+
+.analysis-component-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.analysis-empty {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.analysis-warning-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: #fcd34d;
+}
+
+.analysis-warning-item {
+  padding: 4px 6px;
+  background-color: #2a2414;
+  border: 1px solid #524018;
+  border-radius: 4px;
 }
 
 .empty-state {

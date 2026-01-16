@@ -25,8 +25,6 @@ const PREFETCH_CONCURRENCY = 12;
 const FIXED_MASK_COLORS: { [key: number]: { r: number; g: number; b: number; a: number } } = {
   1: { r: 255, g: 0, b: 0, a: 180 },      // Red - Liver (일반적으로 1)
   2: { r: 0, g: 255, b: 0, a: 180 },      // Green - Tumor (일반적으로 2)
-  1000: { r: 255, g: 0, b: 0, a: 180 },   // Red - Liver (큰 값 사용 시)
-  2000: { r: 0, g: 255, b: 0, a: 180 },   // Green - Tumor (큰 값 사용 시)
   3: { r: 0, g: 0, b: 255, a: 180 },      // Blue
   4: { r: 255, g: 255, b: 0, a: 180 },    // Yellow
   5: { r: 255, g: 0, b: 255, a: 180 },    // Magenta
@@ -42,6 +40,12 @@ const FALLBACK_COLOR_PALETTE = [
   { r: 255, g: 192, b: 203, a: 180 },  // Pink
   { r: 165, g: 42, b: 42, a: 180 },    // Brown
 ];
+
+const normalizeMaskValue = (value: number) => {
+  if (value === 1000) return 1;
+  if (value === 2000) return 2;
+  return value;
+};
 
 // Helper function to get color for any mask value
 const getColorForMaskValue = (maskValue: number, unknownColorMap: Map<number, { r: number; g: number; b: number; a: number }>): { r: number; g: number; b: number; a: number } => {
@@ -303,7 +307,7 @@ const MaskOverlayViewer = ({
       if (showOverlayRef.current && maskPixelData) {
         const uniqueMaskValues = new Set<number>();
         for (let i = 0; i < maskPixelData.length; i++) {
-          const maskValue = maskPixelData[i];
+          const maskValue = normalizeMaskValue(maskPixelData[i]);
           if (maskValue > 0) {
             uniqueMaskValues.add(maskValue);
           }
@@ -354,10 +358,10 @@ const MaskOverlayViewer = ({
         for (let y = 0; y < maskHeight; y++) {
           for (let x = 0; x < maskWidth; x++) {
             const maskIndex = y * maskWidth + x;
-            const maskValue = maskPixelData[maskIndex];
+            const maskValue = normalizeMaskValue(maskPixelData[maskIndex]);
 
-          const isLiver = maskValue === 1 || maskValue === 1000;
-          const isTumor = maskValue === 2 || maskValue === 2000;
+          const isLiver = maskValue === 1;
+          const isTumor = maskValue === 2;
           const shouldDraw = maskFilter === 'all' || (maskFilter === 'liver' && isLiver) || (maskFilter === 'tumor' && isTumor);
 
           if (maskValue > 0 && shouldDraw) {
@@ -621,7 +625,7 @@ const MaskOverlayViewer = ({
           const maskPixelData = maskImage.getPixelData();
           const uniqueValues = new Set<number>();
           for (let i = 0; i < maskPixelData.length; i++) {
-            uniqueValues.add(maskPixelData[i]);
+            uniqueValues.add(normalizeMaskValue(maskPixelData[i]));
           }
           console.log('[MaskOverlay] Mask loaded:', Array.from(uniqueValues).sort(), `(${maskImage.width}x${maskImage.height})`);
         } catch (maskErr) {

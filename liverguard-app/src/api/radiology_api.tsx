@@ -65,3 +65,44 @@ export const endFilming = async (patientId: string): Promise<EndFilmingResponse>
   );
   return response.data;
 };
+
+export interface TumorAnalysisResponse {
+  success: boolean;
+  mask_series_id: string;
+  spacing_mm: {
+    x: number;
+    y: number;
+    z: number;
+  };
+  analysis: {
+    tumor_count: number;
+    total_tumor_volume_mm3: number;
+    total_tumor_volume_ml: number;
+    liver_volume_mm3?: number | null;
+    tumor_to_liver_ratio?: number | null;
+    tumor_burden_percent?: number | null;
+    components: Array<{
+      label: number;
+      voxel_count: number;
+      volume_mm3: number;
+      volume_ml: number;
+      centroid_voxel: { z: number; y: number; x: number };
+      centroid_mm: { z: number; y: number; x: number };
+      max_diameter_mm: number;
+      distance_to_liver_capsule_mm?: number | null;
+    }>;
+  };
+  warnings?: string[];
+}
+
+/**
+ * 종양 분석 요청
+ * POST /api/radiology/tumor-analysis/
+ */
+export const analyzeTumor = async (maskSeriesId: string): Promise<TumorAnalysisResponse> => {
+  const response = await apiClient.post<TumorAnalysisResponse>(
+    "radiology/tumor-analysis/",
+    { mask_series_id: maskSeriesId }
+  );
+  return response.data;
+};
