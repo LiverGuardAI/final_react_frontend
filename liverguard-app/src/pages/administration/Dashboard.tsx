@@ -192,6 +192,7 @@ export default function AdministrationDashboard() {
   const [isVitalCheckModalOpen, setIsVitalCheckModalOpen] = useState(false);
   const [selectedVitalOrder, setSelectedVitalOrder] = useState<PendingOrder | null>(null);
   const [isLastVitalOrder, setIsLastVitalOrder] = useState(false);
+  const [hasCTOrderForVital, setHasCTOrderForVital] = useState(false);
 
   // Payment Modal
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -614,9 +615,10 @@ export default function AdministrationDashboard() {
     }
   };
 
-  const handleOpenVitalCheckModal = (order: PendingOrder, isLastOrder: boolean = false) => {
+  const handleOpenVitalCheckModal = (order: PendingOrder, isLastOrder: boolean = false, hasCTOrder: boolean = false) => {
     setSelectedVitalOrder(order);
     setIsLastVitalOrder(isLastOrder);
+    setHasCTOrderForVital(hasCTOrder);
     setIsVitalCheckModalOpen(true);
   };
 
@@ -628,8 +630,13 @@ export default function AdministrationDashboard() {
       const encounterId = selectedVitalOrder.encounter_id;
 
       if (!isLastVitalOrder) {
+        // 마지막 오더가 아님 → 다음 오더 진행
         alert('검사 데이터가 저장되었습니다. 다음 오더를 진행해주세요.');
+      } else if (hasCTOrderForVital) {
+        // CT 오더가 있음 → 백엔드에서 자동으로 WAITING_IMAGING 처리하므로 선택 안 물어봄
+        alert('검사 데이터가 저장되었습니다. 환자가 CT 대기열로 이동합니다.');
       } else if (encounterId) {
+        // CT 오더 없고 마지막 오더 → 수납/추가진료 선택
         if (window.confirm('모든 오더가 처리되었습니다.\n환자를 수납(귀가) 대기로 이동시키겠습니까?')) {
           await updateEncounter(encounterId, { workflow_state: 'WAITING_PAYMENT' });
           alert('환자가 수납 대기 상태로 이동되었습니다.');
@@ -645,6 +652,7 @@ export default function AdministrationDashboard() {
       setIsVitalCheckModalOpen(false);
       setSelectedVitalOrder(null);
       setIsLastVitalOrder(false);
+      setHasCTOrderForVital(false);
       setOrderRefreshTrigger(prev => prev + 1);
       fetchWaitingQueue();
       fetchDashboardStats();

@@ -6,7 +6,7 @@ import styles from './OrderList.module.css';
 
 interface OrderListProps {
     refreshTrigger?: number;
-    onOpenVitalCheckModal?: (order: PendingOrder, isLastOrder: boolean) => void;
+    onOpenVitalCheckModal?: (order: PendingOrder, isLastOrder: boolean, hasCTOrder: boolean) => void;
     showInProgressOnly?: boolean;
 }
 
@@ -62,7 +62,8 @@ export default function OrderList({ refreshTrigger, onOpenVitalCheckModal, showI
         return Object.values(groups);
     }, [orders]);
 
-    // 유전체/혈액검사 오더: 개별 접수 후 마지막 오더일 때 분기 처리
+    // 유전체/혈액검사 오더: 개별 접수 후 처리
+    // 유전체/혈액검사는 당일 결과가 안 나오므로, CT 없이 마지막 오더면 무조건 수납 대기
     const handleGenomicOrBloodOrder = async (orderId: string, type: 'LAB' | 'IMAGING', encounterId?: number) => {
         if (!window.confirm('이 외부 검사 요청을 접수하시겠습니까?')) {
             return;
@@ -73,27 +74,14 @@ export default function OrderList({ refreshTrigger, onOpenVitalCheckModal, showI
 
             // 현재 상태에서 마지막 오더인지 확인 (state 업데이트 전이므로 length === 1 체크)
             const isLastOrder = selectedPatient && selectedPatient.orders.length === 1;
+            // CT 오더가 있는지 확인
+            const hasCTOrder = selectedPatient?.orders.some(o => o.type === 'IMAGING');
 
-            if (isLastOrder && encounterId) {
-                alert('접수되었습니다.');
-
-                // 수납 대기 여부 확인
-                if (window.confirm('모든 오더가 처리되었습니다.\n환자를 수납(귀가) 대기로 이동시키겠습니까?')) {
-                    await updateEncounter(encounterId, { workflow_state: 'WAITING_PAYMENT' });
-                    alert('환자가 수납 대기 상태로 이동되었습니다.');
-                    closeModal();
-                }
-                // 진료 대기 여부 확인
-                else if (window.confirm('그럼 환자를 진료실 대기(추가 진료)로 이동시키겠습니까?')) {
-                    await updateEncounter(encounterId, { workflow_state: 'WAITING_CLINIC' });
-                    alert('환자가 진료 대기 상태로 이동되었습니다.');
-                    closeModal();
-                }
-                // 그냥 닫기
-                else {
-                    closeModal();
-                }
-
+            if (isLastOrder && encounterId && !hasCTOrder) {
+                // CT 오더가 없고 마지막 오더 → 유전체/혈액검사는 무조건 수납 대기
+                await updateEncounter(encounterId, { workflow_state: 'WAITING_PAYMENT' });
+                alert('접수되었습니다. 환자가 수납 대기 상태로 이동되었습니다.');
+                closeModal();
                 fetchOrders();
             } else {
                 alert('접수되었습니다.');
@@ -123,16 +111,19 @@ export default function OrderList({ refreshTrigger, onOpenVitalCheckModal, showI
         // 남은 오더가 1개인지 확인
         const patientGroup = groupedOrders.find(g => g.patient_id === order.patient_id);
         const isLastOrder = patientGroup ? patientGroup.orders.length === 1 : true;
+        // CT 오더가 있는지 확인
+        const hasCTOrder = patientGroup ? patientGroup.orders.some(o => o.type === 'IMAGING') : false;
 
         if (onOpenVitalCheckModal) {
-            onOpenVitalCheckModal(order, isLastOrder);
+            onOpenVitalCheckModal(order, isLastOrder, hasCTOrder);
         } else {
             alert('검사 입력 기능이 준비 중입니다.');
         }
     };
 
     // 영상의학과 오더: 의사 배정 후 대기열에 추가
-    const handleImagingOrder = async (orderId: string, encounterId?: number) => {
+    // CT 오더는 백엔드에서 자동으로 WAITING_IMAGING으로 전환하므로 프론트에서 상태 변경하지 않음
+    const handleImagingOrder = async (orderId: string) => {
         if (!selectedDoctor) {
             alert('촬영을 담당할 영상의학과 의사를 선택해주세요.');
             return;
@@ -144,47 +135,24 @@ export default function OrderList({ refreshTrigger, onOpenVitalCheckModal, showI
 
         try {
             await assignDoctorToImagingOrder(orderId, selectedDoctor);
-
-            const isLastOrder = selectedPatient && selectedPatient.orders.length === 1;
-
-            if (isLastOrder && encounterId) {
-                alert('촬영 오더가 배정되었습니다.');
-
-                // 수납 대기 여부 확인
-                if (window.confirm('모든 오더가 처리되었습니다.\n환자를 수납(귀가) 대기로 이동시키겠습니까?')) {
-                    await updateEncounter(encounterId, { workflow_state: 'WAITING_PAYMENT' });
-                    alert('환자가 수납 대기 상태로 이동되었습니다.');
-                    closeModal();
-                }
-                // 진료 대기 여부 확인
-                else if (window.confirm('그럼 환자를 진료실 대기(추가 진료)로 이동시키겠습니까?')) {
-                    await updateEncounter(encounterId, { workflow_state: 'WAITING_CLINIC' });
-                    alert('환자가 진료 대기 상태로 이동되었습니다.');
-                    closeModal();
-                }
-                // 그냥 닫기
-                else {
-                    closeModal();
-                }
-            } else {
-                alert('촬영 오더가 배정되었습니다.');
-                await fetchOrders();
-                if (selectedPatient) {
-                    const updatedOrders = selectedPatient.orders.filter(o => o.id !== orderId);
-                    if (updatedOrders.length === 0) {
-                        closeModal();
-                    } else {
-                        setSelectedPatient({
-                            ...selectedPatient,
-                            orders: updatedOrders
-                        });
-                    }
-                }
-            }
+            alert('촬영 오더가 배정되었습니다. 환자가 CT 대기열로 이동합니다.');
 
             setShowDoctorSelect(null);
             setSelectedDoctor(null);
-            fetchOrders();
+            await fetchOrders();
+
+            // 모달에서 해당 오더 제거
+            if (selectedPatient) {
+                const updatedOrders = selectedPatient.orders.filter(o => o.id !== orderId);
+                if (updatedOrders.length === 0) {
+                    closeModal();
+                } else {
+                    setSelectedPatient({
+                        ...selectedPatient,
+                        orders: updatedOrders
+                    });
+                }
+            }
         } catch (err) {
             console.error('영상의학과 오더 배정 실패:', err);
             alert('오더 배정 중 오류가 발생했습니다.');
@@ -494,7 +462,7 @@ export default function OrderList({ refreshTrigger, onOpenVitalCheckModal, showI
                                                                     fontWeight: 'bold',
                                                                     cursor: 'pointer'
                                                                 }}
-                                                                onClick={() => handleImagingOrder(order.id, order.encounter_id)}
+                                                                onClick={() => handleImagingOrder(order.id)}
                                                             >
                                                                 배정
                                                             </button>
