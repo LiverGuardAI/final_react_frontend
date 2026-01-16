@@ -13,9 +13,11 @@ const DoctorLayout = lazy(() => import("../layouts/DoctorLayout"));
 const DoctorHomePage = lazy(() => import("../pages/doctor/HomePage"));
 const SchedulePage = lazy(() => import("../pages/common/PersonalSchedulePage"));
 const TreatmentPage = lazy(() => import("../pages/doctor/TreatmentPage"));
+const EncounterDetailPopupPage = lazy(() => import("../pages/doctor/EncounterDetailPopupPage"));
 const CTResultPage = lazy(() => import("../pages/doctor/CTResult"));
 const RNAResultPage = lazy(() => import("../pages/doctor/RNAResult"));
 const BloodResultPage = lazy(() => import("../pages/doctor/BloodResult"));
+const IntegratedResultPage = lazy(() => import("../pages/doctor/IntegratedResult"));
 const StagePredictionPage = lazy(() => import("../pages/doctor/StagePrediction"));
 const RecurrencePredictionPage = lazy(() => import("../pages/doctor/RecurrencePrediction"));
 const SurvivalAnalysisPage = lazy(() => import("../pages/doctor/SurvivalAnalysis"));
@@ -62,6 +64,14 @@ const router = createBrowserRouter(
       {/* doctor - nested routes with shared layout */}
       <Route path="/doctor/login" element={<Suspense fallback={<LoadingFallback />}><UnifiedLoginPage initialRole="doctor" /></Suspense>} />
       <Route
+        path="/doctor/encounter/:encounterId"
+        element={
+          <ProtectedRoute requiredRole="doctor">
+            <Suspense fallback={<LoadingFallback />}><EncounterDetailPopupPage /></Suspense>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/doctor"
         errorElement={<Suspense fallback={<LoadingFallback />}><ErrorPage /></Suspense>}
         element={
@@ -76,6 +86,7 @@ const router = createBrowserRouter(
         <Route path="ct-result" element={<Suspense fallback={<LoadingFallback />}><CTResultPage /></Suspense>} />
         <Route path="mrna-result" element={<Suspense fallback={<LoadingFallback />}><RNAResultPage /></Suspense>} />
         <Route path="blood-result" element={<Suspense fallback={<LoadingFallback />}><BloodResultPage /></Suspense>} />
+        <Route path="integrated-result" element={<Suspense fallback={<LoadingFallback />}><IntegratedResultPage /></Suspense>} />
         <Route path="ai-stage-prediction/:patientId?" element={<Suspense fallback={<LoadingFallback />}><StagePredictionPage /></Suspense>} />
         <Route path="ai-recurrence-prediction/:patientId?" element={<Suspense fallback={<LoadingFallback />}><RecurrencePredictionPage /></Suspense>} />
         <Route path="ai-survival-analysis/:patientId?" element={<Suspense fallback={<LoadingFallback />}><SurvivalAnalysisPage /></Suspense>} />

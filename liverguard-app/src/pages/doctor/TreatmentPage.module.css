@@ -155,6 +155,265 @@
   overflow: hidden;
 }
 
+.historyStack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.historyCard {
+  background: #FAFAFA;
+  border-radius: 12px;
+  border: 1px solid #E0E0E0;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+}
+
+.cardHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.cardHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cardTitle {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  color: #333;
+}
+
+.cardMeta {
+  font-size: 12px;
+  color: #888;
+}
+
+.cardSelect {
+  border: 1px solid #E0E0E0;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: #FFF;
+  color: #333;
+}
+
+.cardSelect:focus {
+  outline: none;
+  border-color: #6C5CE7;
+  box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.15);
+}
+
+.vitalGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.vitalCard {
+  text-align: left;
+  background: #F8F9FA;
+  border: 1px solid #E9ECEF;
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.vitalCard:hover {
+  border-color: #C7C9F9;
+}
+
+.vitalCard:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.vitalCardActive {
+  border-color: #6C5CE7;
+  box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.15);
+  background: #F6F4FF;
+}
+
+.vitalChart {
+  background: #FFF;
+  border: 1px solid #E0E0E0;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vitalChartHeader {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.vitalChartSvg {
+  width: 100%;
+  height: 175px;
+}
+
+.vitalChartLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: #64748B;
+}
+
+.vitalLegendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vitalLegendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.vitalChartFooter {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #94A3B8;
+}
+
+.vitalChartEmpty {
+  background: #FFF;
+  border: 1px dashed #E0E0E0;
+  border-radius: 8px;
+  padding: 16px;
+  font-size: 12px;
+  color: #94A3B8;
+  text-align: center;
+}
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+}
+
+.modalContent {
+  background: #FFF;
+  border-radius: 12px;
+  width: min(680px, 90vw);
+  max-height: 80vh;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.2);
+  display: flex;
+  flex-direction: column;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.modalTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1F2937;
+}
+
+.modalCloseButton {
+  border: none;
+  background: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #64748B;
+}
+
+.modalBody {
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.modalSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modalRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 14px;
+}
+
+.modalLabel {
+  font-weight: 600;
+  color: #475569;
+  min-width: 80px;
+}
+
+.modalValue {
+  color: #1F2937;
+}
+
+.modalDivider {
+  height: 1px;
+  background: #E5E7EB;
+  margin: 4px 0;
+}
+
+.modalBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.modalText {
+  margin: 0;
+  color: #334155;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.modalLoading,
+.modalError {
+  font-size: 14px;
+  color: #64748B;
+  text-align: center;
+  padding: 24px 0;
+}
+.cardBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 /* 왼쪽 탭 헤더 */
 .leftTabHeader {
   display: flex;
@@ -213,37 +472,66 @@
 .recordList {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-height: 400px;
+  gap: 0;
+  --record-columns: 1.1fr 0.9fr 1.4fr 2fr auto;
+  flex: 1;
+  min-height: 260px;
+  max-height: 260px;
   overflow-y: auto;
+  border: 1px solid #E0E0E0;
+  border-radius: 12px;
+  background: #FFF;
+}
+
+.recordHeader {
+  display: grid;
+  grid-template-columns: var(--record-columns);
+  gap: 16px;
+  padding: 10px 16px;
+  background: #F8FAFC;
+  border-bottom: 1px solid #E5E7EB;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  align-items: center;
+}
+
+.recordHeaderAction {
+  text-align: right;
 }
 
 .recordItem {
-  background: #FFF;
-  padding: 16px;
-  border-radius: 8px;
-  border: 1px solid #E0E0E0;
+  display: grid;
+  grid-template-columns: var(--record-columns);
+  gap: 16px;
+  padding: 12px 16px;
+  align-items: center;
+  border-bottom: 1px solid #F1F5F9;
 }
 
-.recordDate {
-  font-weight: 700;
-  font-size: 15px;
-  color: #333;
-  margin-bottom: 8px;
+.recordItem:last-child {
+  border-bottom: none;
 }
 
-.recordDetail {
+.recordCell {
   font-size: 14px;
-  color: #666;
-  margin: 4px 0;
-  line-height: 1.4;
+  color: #374151;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.recordCell:first-child {
+  font-weight: 600;
+  color: #1F2937;
 }
 
 .detailButton {
-  margin-top: 10px;
   padding: 6px 14px;
   background: #6C5CE7;
   color: white;
@@ -253,6 +541,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
+  justify-self: end;
 }
 
 .detailButton:hover {
@@ -339,8 +628,16 @@
   padding: 16px;
   border-radius: 8px;
   border: 1px solid #E0E0E0;
-  max-height: 500px;
+  flex: 1;
+  min-height: 240px;
+  max-height: 240px;
   overflow-y: auto;
+}
+
+.vitalContent {
+  display: flex;
+  flex-direction: column;
+  min-height: 320px;
 }
 
 .questionnaireData pre {
@@ -453,7 +750,7 @@
   border: 1px solid #DDD;
   border-radius: 8px;
   font-size: 15px;
-  min-height: 120px;
+  min-height: 360px;
   resize: vertical;
   font-family: inherit;
   transition: border-color 0.2s;

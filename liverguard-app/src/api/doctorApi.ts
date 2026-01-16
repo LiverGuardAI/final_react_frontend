@@ -212,8 +212,10 @@ export interface EncounterDetail {
   questionnaire_status_display: string;
   questionnaire_data?: any;
   clinic_room?: string;
-  encounter_date: string;
-  encounter_time: string;
+  encounter_date?: string;
+  encounter_time?: string;
+  record_date?: string;
+  record_time?: string;
   encounter_start?: string;
   encounter_end?: string;
   chief_complaint?: string;
@@ -234,12 +236,54 @@ export interface EncounterDetail {
   updated_at: string;
 }
 
+export interface SaveMedicalRecordPayload {
+  encounter_id: number;
+  patient_id: string;
+  chief_complaint?: string;
+  clinical_notes?: string;
+  record_status?: 'DRAFT' | 'COMPLETED' | 'AMENDED';
+}
+
+export interface QuestionnaireRecord {
+  questionnaire_id: number;
+  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+  status_display: string;
+  data: any;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VitalRecord {
+  vital_id: number;
+  measured_at: string;
+  sbp?: number | null;
+  dbp?: number | null;
+  heart_rate?: number | null;
+  temperature?: number | null;
+  systolic_bp?: number | null;
+  diastolic_bp?: number | null;
+  heartRate?: number | null;
+  body_temperature?: number | null;
+  patient?: string;
+  medical_record?: number | null;
+}
+
 /**
  * Encounter 상세 정보 조회
  * @param encounterId - Encounter ID
  */
 export const getEncounterDetail = async (encounterId: number): Promise<EncounterDetail> => {
   const response = await apiClient.get(`/doctor/encounter/${encounterId}/`);
+  return response.data;
+};
+
+/**
+ * 진료 기록 임시 저장
+ */
+export const saveMedicalRecord = async (
+  payload: SaveMedicalRecordPayload
+): Promise<EncounterDetail> => {
+  const response = await apiClient.post('/doctor/medical-records/save/', payload);
   return response.data;
 };
 
@@ -253,6 +297,36 @@ export const getPatientEncounterHistory = async (
   limit?: number
 ): Promise<{ count: number; results: EncounterDetail[] }> => {
   const response = await apiClient.get(`/doctor/patient/${patientId}/encounters/`, {
+    params: limit ? { limit } : {},
+  });
+  return response.data;
+};
+
+/**
+ * 특정 환자의 문진표 목록 조회
+ * @param patientId - 환자 ID
+ * @param limit - 조회할 최대 건수 (선택)
+ */
+export const getPatientQuestionnaires = async (
+  patientId: string,
+  limit?: number
+): Promise<{ count: number; results: QuestionnaireRecord[] }> => {
+  const response = await apiClient.get(`/doctor/patient/${patientId}/questionnaires/`, {
+    params: limit ? { limit } : {},
+  });
+  return response.data;
+};
+
+/**
+ * 특정 환자의 바이탈 기록 목록 조회
+ * @param patientId - 환자 ID
+ * @param limit - 조회할 최대 건수 (선택)
+ */
+export const getPatientVitals = async (
+  patientId: string,
+  limit?: number
+): Promise<{ count: number; results: VitalRecord[] }> => {
+  const response = await apiClient.get(`/doctor/patient/${patientId}/vitals/`, {
     params: limit ? { limit } : {},
   });
   return response.data;
@@ -552,5 +626,3 @@ export const createImagingOrder = async (data: CreateImagingOrderRequest) => {
   const response = await apiClient.post('/doctor/doctor-to-radiology-orders/', data);
   return response.data;
 };
-
-
