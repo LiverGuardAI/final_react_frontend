@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import "./HomePage.css";
 import { useState, useEffect } from "react";
+import ImagingQueueSidebar from "../../components/radiology/ImagingQueueSidebar";
 
 export default function RadiologyHomePage() {
   const navigate = useNavigate();
@@ -80,18 +81,24 @@ export default function RadiologyHomePage() {
         </button>
       </header>
 
-      <div className="radiology-content">
-        <div className="nav-cards">
-          <div className="nav-card" onClick={() => navigate("/radiology/acquisition")}>
-            <div className="card-icon">📷</div>
-            <h2>촬영 페이지</h2>
-            <p>DICOM 영상 촬영 및 업로드</p>
-          </div>
+      <div className="radiology-content-with-sidebar">
+        {/* 왼쪽 사이드바 - 촬영 대기열 */}
+        <ImagingQueueSidebar />
 
-          <div className="nav-card" onClick={() => navigate("/radiology/post-processing")}>
-            <div className="card-icon">🖼️</div>
-            <h2>영상 후처리 페이지</h2>
-            <p>Segmentation 및 후처리 작업</p>
+        {/* 오른쪽 메인 컨텐츠 */}
+        <div className="radiology-main-content">
+          <div className="nav-cards">
+            <div className="nav-card" onClick={() => navigate("/radiology/acquisition")}>
+              <div className="card-icon">📷</div>
+              <h2>촬영 페이지</h2>
+              <p>DICOM 영상 촬영 및 업로드</p>
+            </div>
+
+            <div className="nav-card" onClick={() => navigate("/radiology/post-processing")}>
+              <div className="card-icon">🖼️</div>
+              <h2>영상 후처리 페이지</h2>
+              <p>Segmentation 및 후처리 작업</p>
+            </div>
           </div>
         </div>
       </div>
