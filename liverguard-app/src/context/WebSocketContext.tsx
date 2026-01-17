@@ -24,8 +24,10 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
   const WS_URL = React.useMemo(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const hostname = window.location.hostname;
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+    const port = isLocalhost ? ':8000' : '';
     const token = localStorage.getItem('access_token');
-    return `${protocol}//${hostname}:8000/ws/clinic/${token ? `?token=${token}` : ''}`;
+    return `${protocol}//${hostname}${port}/ws/clinic/${token ? `?token=${token}` : ''}`;
   }, [isAuthenticated]);
 
   const handleMessage = useCallback((data: any) => {
