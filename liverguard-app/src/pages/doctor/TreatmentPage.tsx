@@ -18,6 +18,7 @@ import {
   getPatientDetail, // Added
   cancelEncounter
 } from '../../api/doctorApi';
+import { generateClinicalNoteSuggestion } from '../../api/ai_api';
 import type {
   EncounterDetail,
   GenomicDataItem,
@@ -57,6 +58,7 @@ export default function TreatmentPage() {
 
   // UI State
   const [rightTab, setRightTab] = useState<'record' | 'prescription'>('record');
+  const [aiSuggesting, setAiSuggesting] = useState(false);
 
   // Form State
   const [chiefComplaint, setChiefComplaint] = useState('');
@@ -249,6 +251,37 @@ export default function TreatmentPage() {
     }
   };
 
+
+
+  const handleAiSuggestion = async () => {
+    if (!selectedEncounterId) {
+      alert('Encounter is not selected.');
+      return;
+    }
+
+    setAiSuggesting(true);
+    try {
+      const questionnaireData = currentEncounter?.questionnaire?.data
+        ?? currentEncounter?.questionnaire_data
+        ?? null;
+
+      const response = await generateClinicalNoteSuggestion({
+        encounter_id: selectedEncounterId,
+        chief_complaint: chiefComplaint,
+        clinical_notes: clinicalNotes,
+        questionnaire_data: questionnaireData,
+      });
+
+      if (response?.suggestion) {
+        setClinicalNotes(response.suggestion);
+      }
+    } catch (error) {
+      console.error('Failed to generate AI suggestion:', error);
+      alert('Failed to generate AI suggestion.');
+    } finally {
+      setAiSuggesting(false);
+    }
+  };
   const handleOrderToggle = (order: string) => {
     setSelectedOrders((prev) =>
       prev.includes(order) ? prev.filter((o) => o !== order) : [...prev, order]
@@ -478,6 +511,8 @@ export default function TreatmentPage() {
           setHccDetails={setHccDetails}
           onComplete={handleCompleteTreatment}
           onTempSave={handleTempSave}
+          onAiSuggest={handleAiSuggestion}
+          aiSuggesting={aiSuggesting}
           disabled={!selectedEncounterId || currentEncounter?.encounter_status === 'COMPLETED'}
           medications={medications}
           onAddMedication={handleAddMedication}

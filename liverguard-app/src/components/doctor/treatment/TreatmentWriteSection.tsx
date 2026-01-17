@@ -18,6 +18,8 @@ interface TreatmentWriteSectionProps {
     setHccDetails: (value: any) => void;
     onComplete: () => void;
     onTempSave?: () => void;
+    onAiSuggest?: () => void;
+    aiSuggesting?: boolean;
     disabled?: boolean;
     medications?: { name: string; dosage: string; frequency: string; days: string }[];
     onAddMedication?: () => void;
@@ -43,6 +45,8 @@ export default function TreatmentWriteSection({
     setHccDetails,
     onComplete,
     onTempSave,
+    onAiSuggest,
+    aiSuggesting = false,
     disabled = false,
     medications = [],
     onAddMedication,
@@ -66,7 +70,9 @@ export default function TreatmentWriteSection({
                             className={`${styles.tabButton} ${rightTab === 'record' ? styles.active : ''}`}
                         >
                             진료기록 작성
-                        </button>
+                        
+                                        {aiSuggesting ? "AI \uC791\uC131\uC911..." : "AI \uC81C\uC548"}
+                                    </button>
                         <button
                             onClick={() => setRightTab('prescription')}
                             className={`${styles.tabButton} ${rightTab === 'prescription' ? styles.active : ''}`}
@@ -95,7 +101,13 @@ export default function TreatmentWriteSection({
                             <div className={styles.formGroup}>
                                 <div className={styles.formLabelRow}>
                                     <label className={styles.formLabel}>진료 내용</label>
-                                    <button className={styles.aiButton} disabled={disabled}>🤖 AI 제안</button>
+                                    <button
+                                        className={styles.aiButton}
+                                        onClick={() => onAiSuggest?.()}
+                                        disabled={disabled || aiSuggesting}
+                                    >
+                                        {aiSuggesting ? "AI \uC791\uC131\uC911..." : "AI \uC81C\uC548"}
+                                    </button>
                                 </div>
                                 <textarea
                                     placeholder="진료 내용을 입력하세요"

@@ -175,6 +175,38 @@ export const generateReportV2 = async (findings: any): Promise<ReportGenerateRes
   }
 };
 
+
+
+export interface ClinicalNoteSuggestionRequest {
+  encounter_id: number;
+  chief_complaint: string;
+  clinical_notes: string;
+  questionnaire_data?: any;
+}
+
+export interface ClinicalNoteSuggestionResponse {
+  suggestion: string;
+}
+
+/**
+ * Clinical note suggestion
+ * POST /api/ai/openapi/clinical-note/generate/
+ */
+export const generateClinicalNoteSuggestion = async (
+  payload: ClinicalNoteSuggestionRequest
+): Promise<ClinicalNoteSuggestionResponse> => {
+  try {
+    const response = await apiClient.post<ClinicalNoteSuggestionResponse>(
+      "ai/openapi/clinical-note/generate/",
+      payload
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Failed to generate clinical note suggestion:", error);
+    throw error;
+  }
+};
+
 // ===========================
 // BentoML Prediction APIs
 // ===========================
