@@ -6,6 +6,7 @@ import {
   getEncounterDetail,
   getPatientEncounterHistory,
   getPatientLabResults,
+  getPatientGenomicData,
   getPatientImagingOrders,
   getPatientQuestionnaires,
   getPatientVitals,
@@ -17,7 +18,14 @@ import {
   getPatientDetail, // Added
   cancelEncounter
 } from '../../api/doctorApi';
-import type { EncounterDetail, LabResult, ImagingOrder, QuestionnaireRecord, VitalRecord } from '../../api/doctorApi';
+import type {
+  EncounterDetail,
+  GenomicDataItem,
+  LabResult,
+  ImagingOrder,
+  QuestionnaireRecord,
+  VitalRecord
+} from '../../api/doctorApi';
 
 interface Medication {
   name: string;
@@ -41,6 +49,7 @@ export default function TreatmentPage() {
 
   const [encounterHistory, setEncounterHistory] = useState<EncounterDetail[]>([]);
   const [labResults, setLabResults] = useState<LabResult[]>([]);
+  const [genomicResults, setGenomicResults] = useState<GenomicDataItem[]>([]);
   const [imagingOrders, setImagingOrders] = useState<ImagingOrder[]>([]);
   const [questionnaireList, setQuestionnaireList] = useState<QuestionnaireRecord[]>([]);
   const [vitalList, setVitalList] = useState<VitalRecord[]>([]);
@@ -143,6 +152,7 @@ export default function TreatmentPage() {
         setCurrentPatient(null);
         setEncounterHistory([]);
         setLabResults([]);
+        setGenomicResults([]);
         setImagingOrders([]);
         setQuestionnaireList([]);
         setVitalList([]);
@@ -166,6 +176,9 @@ export default function TreatmentPage() {
       const labResponse = await getPatientLabResults(patientId, 5);
       setLabResults(labResponse.results);
 
+      const genomicResponse = await getPatientGenomicData(patientId);
+      setGenomicResults(genomicResponse.results);
+
       // 영상 검사 결과 로드
       const imagingResponse = await getPatientImagingOrders(patientId, 5);
       setImagingOrders(imagingResponse.results);
@@ -173,7 +186,7 @@ export default function TreatmentPage() {
       const questionnaireResponse = await getPatientQuestionnaires(patientId, 10);
       setQuestionnaireList(questionnaireResponse.results);
 
-      const vitalResponse = await getPatientVitals(patientId, 10);
+      const vitalResponse = await getPatientVitals(patientId);
       setVitalList(vitalResponse.results);
 
     } catch (err) {
@@ -210,6 +223,9 @@ export default function TreatmentPage() {
       const labResponse = await getPatientLabResults(patientId, 5);
       setLabResults(labResponse.results);
 
+      const genomicResponse = await getPatientGenomicData(patientId);
+      setGenomicResults(genomicResponse.results);
+
       // 영상 검사 결과 로드
       const imagingResponse = await getPatientImagingOrders(patientId, 5);
       setImagingOrders(imagingResponse.results);
@@ -217,7 +233,7 @@ export default function TreatmentPage() {
       const questionnaireResponse = await getPatientQuestionnaires(patientId, 10);
       setQuestionnaireList(questionnaireResponse.results);
 
-      const vitalResponse = await getPatientVitals(patientId, 10);
+      const vitalResponse = await getPatientVitals(patientId);
       setVitalList(vitalResponse.results);
 
       // 현재 encounter의 기존 데이터로 폼 초기화
@@ -437,11 +453,13 @@ export default function TreatmentPage() {
       />
 
       <div className={styles.mainLayout}>
-        <PatientHistorySection
-          encounterHistory={encounterHistory}
-          questionnaireList={questionnaireList}
-          vitalList={vitalList}
-        />
+      <PatientHistorySection
+        encounterHistory={encounterHistory}
+        questionnaireList={questionnaireList}
+        vitalList={vitalList}
+        labResults={labResults}
+        genomicData={genomicResults}
+      />
 
         <TreatmentWriteSection
           rightTab={rightTab}

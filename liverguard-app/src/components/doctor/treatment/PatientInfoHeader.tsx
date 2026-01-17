@@ -34,7 +34,6 @@ export default function PatientInfoHeader({ patient, labResults, imagingOrders }
                         {patient.age ? `, ${patient.age}세` : ''})
                     </span>
                 </div>
-                <div className={styles.patientInfoItem}>{patient.patient_id}</div>
                 <div className={styles.patientInfoItem}>
                     생년월일: {patient.date_of_birth || 'N/A'}
                 </div>
