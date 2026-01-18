@@ -113,9 +113,8 @@ export default function SchedulePage() {
 
   const { patients, fetchPatients } = usePatients();
 
-  // WebSocket ref (재연결용)
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // WebSocket (Global Context 사용)
+  const { lastMessage } = useWebSocketContext();
 
   // API 호출 함수들 (useCallback으로 메모이제이션)
   const fetchDoctors = useCallback(async () => {
