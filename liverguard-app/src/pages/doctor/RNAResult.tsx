@@ -18,12 +18,12 @@ const PATHWAY_KEYS = [
 ];
 
 export default function RNAResultPage() {
-  const { patientId: urlPatientId } = useParams<{ patientId: string }>();
-  const { selectedPatientId } = useTreatment();
-  const patientId = selectedPatientId || urlPatientId || '';
+  // const { patientId: urlPatientId } = useParams<{ patientId: string }>();
+  // const { selectedPatientId } = useTreatment();
+  // const patientId = selectedPatientId || urlPatientId || '';
   // 개발 테스트를 위해 특정 환자 ID로 고정
-  // const { patientId: routePatientId } = useParams<{ patientId: string }>();
-  // const patientId = 'P20240009';
+  const { patientId: routePatientId } = useParams<{ patientId: string }>();
+  const patientId = 'P20240009';
 
   const [dataList, setDataList] = useState<GenomicDataItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -223,7 +223,7 @@ export default function RNAResultPage() {
               {loading ? 'Loading history...' : 'No history data to display heatmap'}
             </div>
           ) : (
-            <div className={styles.heatmapWrapper}>
+            <div className={styles.heatmapWrapper} style={{ overflow: 'hidden' }}>
               {/* 
                    Grid Template:
                    첫 번째 컬럼(라벨): 180px
@@ -260,7 +260,7 @@ export default function RNAResultPage() {
                               pathway,
                               date: data.measured_at?.split('T')[0] || data.sample_date || '-',
                               score: score ?? 0,
-                              x: rect.left + rect.width / 2,
+                              x: Math.min(rect.left + rect.width / 2, window.innerWidth - 100),
                               y: rect.top - 10
                             });
                           }}
@@ -279,74 +279,97 @@ export default function RNAResultPage() {
                 <span>발현 억제 (Blue)</span>
                 <span>발현 활성 (Red)</span>
               </div>
+              {/* 툴팁 */}
+              {hoveredCell && (
+                <div style={{
+                  position: 'fixed',
+                  left: hoveredCell.x,
+                  top: hoveredCell.y,
+                  transform: 'translate(-50%, -100%)',
+                  background: '#1f2937',
+                  color: 'white',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+                  pointerEvents: 'none',
+                  zIndex: 9999,
+                  whiteSpace: 'nowrap'
+                }}>
+                  <div style={{ fontWeight: 600, color: hoveredCell.score > 0 ? '#f87171' : '#60a5fa' }}>
+                    {hoveredCell.pathway}
+                  </div>
+                  <div>Date: {hoveredCell.date}</div>
+                  <div>Score: {hoveredCell.score.toFixed(3)}</div>
+                </div>
+              )}
             </div>
           )}
         </div>
 
       </div>
 
-      {/* Data Table - selectedData 사용 */}
+      {/* Data Table - 날짜별 컬럼 형태 */}
       <div className={styles.tableSection}>
-        <h3 className={styles.panelTitle}>경로 상태 종합 분석
-          <span style={{ fontSize: '14px', fontWeight: 'normal', marginLeft: '12px' }}>
-            {selectedData?.sample_date || ''}
-          </span>
-        </h3>
+        <h3 className={styles.panelTitle}>경로 상태 종합 분석</h3>
         <div className={styles.tableResponsive}>
           <table className={styles.dataTable}>
             <thead>
               <tr>
-                <th>Pathway Name</th>
-                <th>Score</th>
-                <th>Status</th>
+                <th style={{ textAlign: 'left', minWidth: '200px' }}>Pathway Name</th>
+                {dataList.map((data, idx) => (
+                  <th key={idx} style={{ textAlign: 'center', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                    {data.measured_at?.split('T')[0]}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {/* selectedData 사용 */}
-              {selectedData && selectedData.pathway_scores ? (
-                Object.entries(selectedData.pathway_scores)
-                  .sort(([, a], [, b]) => b - a)  // 점수 내림차순 정렬
-                  .map(([key, value]) => (
-                    <tr key={key}>
-                      <td>{key}</td>
-                      <td className={styles.scoreValue}>{value.toFixed(3)}</td>
-                      <td>
-                        {value > 0.5 ? (
-                          <span className={`${styles.badge} ${styles.high}`}>Activated</span>
-                        ) : value < -0.5 ? (
-                          <span className={`${styles.badge} ${styles.low}`}>Suppressed</span>
-                        ) : (
-                          <span className={`${styles.badge} ${styles.neutral}`}>Neutral</span>
-                        )}
-                        {hoveredCell && (
-                          <div style={{
-                            position: 'fixed',
-                            left: hoveredCell.x,
-                            top: hoveredCell.y,
-                            transform: 'translate(-50%, -100%)',
-                            background: '#1f2937',
-                            color: 'white',
-                            padding: '8px 10px',
-                            borderRadius: '6px',
-                            fontSize: '11px',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-                            pointerEvents: 'none',
-                            zIndex: 1000,
-                            lineHeight: 1.4
-                          }}>
-                            <div style={{ fontWeight: 600, color: hoveredCell.score > 0 ? '#f87171' : '#60a5fa' }}>
-                              {hoveredCell.pathway}
-                            </div>
-                            <div>Date: {hoveredCell.date}</div>
-                            <div>Score: {hoveredCell.score.toFixed(3)}
-                            </div>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+              {dataList.length === 0 ? (
+                <tr>
+                  <td colSpan={dataList.length + 1} className={styles.emptyText}>
+                    {loading ? 'Loading...' : 'No data available'}
+                  </td>
+                </tr>
               ) : (
-                <tr><td colSpan={3} className={styles.emptyText}>No data available</td></tr>
+                PATHWAY_KEYS.map((pathway) => (
+                  <tr key={pathway}>
+                    <td style={{ fontWeight: '500' }}>{pathway}</td>
+                    {dataList.map((data, idx) => {
+                      const score = data.pathway_scores ? (data.pathway_scores as Record<string, number>)[pathway] : 0;
+                      // Status 결정
+                      let status: 'activated' | 'neutral' | 'suppressed' = 'neutral';
+                      let bgColor = '#f3f4f6'; // 회색 (Neutral)
+                      let textColor = '#6b7280';
+
+                      if (score > 0.5) {
+                        status = 'activated';
+                        bgColor = '#fee2e2'; // 연한 빨강
+                        textColor = '#dc2626';
+                      } else if (score < -0.5) {
+                        status = 'suppressed';
+                        bgColor = '#dbeafe'; // 연한 파랑
+                        textColor = '#2563eb';
+                      }
+
+                      return (
+                        <td key={idx} style={{ textAlign: 'center', padding: '6px 4px' }}>
+                          <span style={{
+                            display: 'inline-block',
+                            fontSize: '11px',
+                            fontWeight: '500',
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            background: bgColor,
+                            color: textColor
+                          }}>
+                            {score?.toFixed(2) ?? '-'}
+                          </span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))
               )}
             </tbody>
           </table>

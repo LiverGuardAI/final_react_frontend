@@ -140,7 +140,7 @@ const DoctorSidebar = memo(function DoctorSidebar({
                 ))}
 
                 {/* 대기중인 환자 */}
-                {waitingPatients.map((patient) => (
+                {waitingPatients.map((patient, index) => (
                   <div
                     key={patient.encounterId}
                     className={styles.patientCard}
@@ -148,7 +148,10 @@ const DoctorSidebar = memo(function DoctorSidebar({
                     style={{ cursor: 'pointer' }}
                   >
                     <div className={styles.patientHeader}>
-                      <span className={styles.patientName}>{patient.name}</span>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <span style={{ marginRight: '8px', color: '#52759C', fontWeight: 'bold' }}>{index + 1}</span>
+                        <span className={styles.patientName}>{patient.name}</span>
+                      </div>
                       <span className={styles.genderIcon}>{patient.gender === '여' ? '♀' : '♂'}</span>
                     </div>
                     <div className={styles.patientDetails}>

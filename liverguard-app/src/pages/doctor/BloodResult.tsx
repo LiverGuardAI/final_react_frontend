@@ -26,7 +26,7 @@ const LAB_CONFIG: Record<string, { label: string; unit: string; min?: number; ma
 };
 
 const LINE_COLORS: Record<string, string> = {
-  afp: '#2563eb',
+  afp: '#204ba8ff',
   albumin: '#059669',
   bilirubin_total: '#e9dd37ff',
   platelet: '#7c3aed',
@@ -34,17 +34,17 @@ const LINE_COLORS: Record<string, string> = {
   creatinine: '#0284c7',
   child_pugh_class: '#ca8a04',
   meld_score: '#dc2626',
-  albi_score: '#310303ff',
-  albi_grade: '#083f2dff',
+  albi_score: '#180303ff',
+  albi_grade: '#064b34ff',
 };
 
 export default function BloodResultPage() {
-  const { patientId: urlPatientId } = useParams<{ patientId: string }>();
-  const { selectedPatientId } = useTreatment();
-  const patientId = selectedPatientId || urlPatientId || '';
+  // const { patientId: urlPatientId } = useParams<{ patientId: string }>();
+  // const { selectedPatientId } = useTreatment();
+  // const patientId = selectedPatientId || urlPatientId || '';
   // 개발 테스트를 위해 특정 환자 ID로 고정
-  // const { patientId: routePatientId } = useParams<{ patientId: string }>();
-  // const patientId = 'P20240009';
+  const { patientId: routePatientId } = useParams<{ patientId: string }>();
+  const patientId = 'P20240009';
 
   const [results, setResults] = useState<LabResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -57,9 +57,30 @@ export default function BloodResultPage() {
     }
     setLoading(true);
     getPatientLabResults(patientId).then(data => {
-      // 과거 -> 최신 순으로 정렬 (그래프용)
-      const sorted = data.results
-        .slice()
+      const uniqueLabMap = new Map<string, LabResult>();
+      data.results.forEach(item => {
+        const date = (item.measured_at || item.test_date).split('T')[0];
+        const existing = uniqueLabMap.get(date);
+
+        if (!existing) {
+          uniqueLabMap.set(date, item);
+        } else {
+          // Platelet 수치가 더 높은 것(실제 데이터) 우선, 같다면 최신 시간 우선
+          const existingPlatelet = existing.platelet || 0;
+          const newPlatelet = item.platelet || 0;
+
+          if (newPlatelet > existingPlatelet) {
+            uniqueLabMap.set(date, item);
+          } else if (newPlatelet === existingPlatelet) {
+            const t1 = new Date(existing.measured_at || existing.test_date).getTime();
+            const t2 = new Date(item.measured_at || item.test_date).getTime();
+            if (t2 > t1) uniqueLabMap.set(date, item);
+          }
+        }
+      });
+
+      // Map -> Array 변환 및 날짜순 정렬
+      const sorted = Array.from(uniqueLabMap.values())
         .sort((a, b) =>
           new Date(a.measured_at || a.test_date).getTime() - new Date(b.measured_at || b.test_date).getTime()
         );
@@ -85,7 +106,7 @@ export default function BloodResultPage() {
   const selectedData = selectedDateIndex >= 0 && results[selectedDateIndex]
     ? results[selectedDateIndex]
     : undefined;
-  // 멀티라인 그래프용 데이터 변환 (모든 지표 정규화)
+  // 멀티라인 그래프용 데이터 변환 (구간별 선형 정규화)
   const multiLineChartData = useMemo(() => {
     return results.map(r => {
       const dataPoint: Record<string, any> = {
@@ -99,47 +120,48 @@ export default function BloodResultPage() {
           return;
         }
 
-        // 정규화: (측정값 - min) / (max - min) * 100
-        // 정규화: 정상범위 중앙값을 50으로 고정
         const min = conf.min ?? 0;
         const max = conf.max ?? 100;
-        const mid = (min + max) / 2; // 정상범위 중앙
-        const range = (max - min) / 2 || 1; // 중앙에서 상/하한까지 거리
-
-        const normalized = 50 + ((rawValue - mid) / range) * 20;
+        let normalized = 50;
+        // 구간별 선형 정규화: 정상 범위(min~max)를 30~70으로 매핑
+        if (rawValue >= min && rawValue <= max) {
+          // 정상 범위 내: 30 ~ 70
+          normalized = 30 + ((rawValue - min) / (max - min || 1)) * 40;
+        } else if (rawValue > max) {
+          // 정상 초과: 70 ~ 100
+          const overflow = (rawValue - max) / (Math.abs(max) || 1);
+          normalized = 70 + Math.min(overflow * 30, 30);
+        } else {
+          // 정상 미달: 0 ~ 30
+          const underflow = (min - rawValue) / (Math.abs(min) || 1);
+          normalized = 30 - Math.min(underflow * 30, 30);
+        }
         dataPoint[key] = Math.min(Math.max(normalized, 0), 100);
         dataPoint[`${key}_raw`] = rawValue; // 툴팁용 원본 값
       });
-
       return dataPoint;
     });
   }, [results]);
 
   return (
     <div className={styles.container}>
-      <header className={styles.header}>
-        <div className={styles.patientInfo}>
-          Patient ID : {patientId || '-'}
-          <span className={styles.divider}>|</span>
-          {/*"Sample Date" + 선택된 날짜 표시 */}
-          Sample Date : {selectedData?.measured_at?.split('T')[0] || '-'}
+      <header className={styles.header} style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '15px 20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+        <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#334155' }}>
+          Patient ID : <span style={{ color: '#2563eb' }}>{patientId}</span>
+          <span style={{ margin: '0 15px', color: '#e2e8f0' }}>|</span>
+          Date : <span style={{ color: '#2563eb', fontWeight: 'bold' }}>{selectedData?.measured_at?.split('T')[0] || '-'}</span>
         </div>
-
-        {/* 오른쪽에 날짜 선택 드롭다운 */}
-        <div className={styles.dateSelector}>
-          <span className={styles.dateSelectorLabel}>날짜 선택:</span>
-          <select
-            value={selectedDateIndex}
-            onChange={(e) => setSelectedDateIndex(Number(e.target.value))}
-            className={styles.dateDropdown}
-          >
-            {results.map((r, idx) => (
-              <option key={idx} value={idx}>
-                {r.test_date.split('T')[0]}
-              </option>
-            ))}
-          </select>
-        </div>
+        <select
+          value={selectedDateIndex}
+          onChange={(e) => setSelectedDateIndex(Number(e.target.value))}
+          style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px' }}
+        >
+          {[...results].reverse().map((r, idx) => (
+            <option key={idx} value={results.length - 1 - idx}>
+              {r.test_date.split('T')[0]}
+            </option>
+          ))}
+        </select>
       </header>
 
       <div className={styles.cardsGrid}>
@@ -186,7 +208,7 @@ export default function BloodResultPage() {
           {/* 그래프 영역 */}
           <div style={{ flex: 1 }}>
             <ResponsiveContainer width="100%" height={360}>
-              <LineChart data={multiLineChartData} margin={{ top: 20, right: 30, left: 10, bottom: 10 }}>
+              <LineChart data={multiLineChartData} margin={{ top: 20, right: 40, left: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                 <ReferenceArea y1={30} y2={70} fill="#22c55e" fillOpacity={0.1} />
                 <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} dy={10} />
@@ -234,7 +256,22 @@ export default function BloodResultPage() {
           </div>
 
           {/* 우측 범례 (체크박스) */}
-          <div style={{ width: '180px', display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px', background: '#f9fafb', borderRadius: '8px' }}>
+          <div style={{ width: '180px', display: 'flex', flexDirection: 'column', gap: '10px', padding: '18px', background: '#f9fafb', borderRadius: '8px', marginTop: '5px' }}>
+            {/* 전체 선택 체크박스 */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', color: '#1e293b', borderBottom: '1px solid #e5e7eb', paddingBottom: '8px', marginBottom: '4px' }}>
+              <input
+                type="checkbox"
+                checked={Object.values(visibleMetrics).every(v => v)}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  const newVisible: Record<string, boolean> = {};
+                  Object.keys(LAB_CONFIG).forEach(k => newVisible[k] = checked);
+                  setVisibleMetrics(newVisible);
+                }}
+                style={{ accentColor: '#3b82f6' }}
+              />
+              <span>Select All</span>
+            </label>
             {Object.entries(LAB_CONFIG).map(([key, conf]) => (
               <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#374151' }}>
                 <input
@@ -282,7 +319,7 @@ export default function BloodResultPage() {
                         <td key={key} style={{ textAlign: 'center', padding: '8px 4px' }}>
                           <span style={{
                             fontSize: '12px',
-                            color: status === 'normal' ? '#166534' : status === 'danger' ? '#991b1b' : '#92400e'
+                            color: status === 'normal' ? '#2bd46cff' : status === 'danger' ? '#bd3636ff' : '#d16e30ff'
                           }}>
                             {val ?? '-'}
                           </span>

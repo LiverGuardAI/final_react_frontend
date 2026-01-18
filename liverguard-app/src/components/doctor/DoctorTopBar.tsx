@@ -38,6 +38,8 @@ const DoctorTopBar = memo(function DoctorTopBar({ activeTab }: DoctorTopBarProps
       navigate('/doctor/mrna-result');
     } else if (item === '혈액 검사 결과') {
       navigate('/doctor/blood-result');
+    } else if (item === '통합 분석') {
+      navigate('/doctor/integrated-result');
     } else if (item === '병기예측') {
       navigate('/doctor/ai-stage-prediction');
     } else if (item === '조기재발예측') {
@@ -123,6 +125,12 @@ const DoctorTopBar = memo(function DoctorTopBar({ activeTab }: DoctorTopBarProps
                 onClick={() => handleDropdownItemClick('혈액 검사 결과')}
               >
                 혈액 검사 결과
+              </button>
+              <button
+                className={styles.dropdownItem}
+                onClick={() => handleDropdownItemClick('통합 분석')}
+              >
+                통합 분석
               </button>
             </div>
           )}

@@ -1,19 +1,32 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styles from './TreatmentPage.module.css';
 import { useTreatment } from '../../contexts/TreatmentContext';
 import {
   getEncounterDetail,
   getPatientEncounterHistory,
   getPatientLabResults,
+  getPatientGenomicData,
   getPatientImagingOrders,
+  getPatientQuestionnaires,
+  getPatientVitals,
   getDoctorInProgressEncounter,
   createLabOrder,
   createImagingOrder,
   updateEncounter,
+  saveMedicalRecord,
   getPatientDetail, // Added
   cancelEncounter
 } from '../../api/doctorApi';
-import type { EncounterDetail, LabResult, ImagingOrder } from '../../api/doctorApi';
+import { generateClinicalNoteSuggestion } from '../../api/ai_api';
+import type {
+  EncounterDetail,
+  GenomicDataItem,
+  LabResult,
+  ImagingOrder,
+  QuestionnaireRecord,
+  VitalRecord
+} from '../../api/doctorApi';
 
 interface Medication {
   name: string;
@@ -28,6 +41,7 @@ import PatientHistorySection from '../../components/doctor/treatment/PatientHist
 import TreatmentWriteSection from '../../components/doctor/treatment/TreatmentWriteSection';
 
 export default function TreatmentPage() {
+  const navigate = useNavigate();
   const { selectedEncounterId, setSelectedEncounterId, selectedPatientId, setSelectedPatientId } = useTreatment();
 
   // Data State
@@ -36,11 +50,15 @@ export default function TreatmentPage() {
 
   const [encounterHistory, setEncounterHistory] = useState<EncounterDetail[]>([]);
   const [labResults, setLabResults] = useState<LabResult[]>([]);
+  const [genomicResults, setGenomicResults] = useState<GenomicDataItem[]>([]);
   const [imagingOrders, setImagingOrders] = useState<ImagingOrder[]>([]);
+  const [questionnaireList, setQuestionnaireList] = useState<QuestionnaireRecord[]>([]);
+  const [vitalList, setVitalList] = useState<VitalRecord[]>([]);
   const [loading, setLoading] = useState(false);
 
   // UI State
   const [rightTab, setRightTab] = useState<'record' | 'prescription'>('record');
+  const [aiSuggesting, setAiSuggesting] = useState(false);
 
   // Form State
   const [chiefComplaint, setChiefComplaint] = useState('');
@@ -118,21 +136,28 @@ export default function TreatmentPage() {
   // Encounter 데이터 로드
   useEffect(() => {
     const fetchData = async () => {
+      // 이미 로드된 encounter라면 다시 로드하지 않음 (폼 초기화 방지)
+      if (selectedEncounterId && currentEncounter?.encounter_id === selectedEncounterId) {
+        return;
+      }
+
       if (selectedEncounterId) {
         await loadEncounterData(selectedEncounterId);
       } else if (selectedPatientId) {
-        // Encounter 없이 Patient 만 선택된 경우 (예: 진료기록 탭에서 환자 선택 시)
-        // 이 경우 Patient Detail과 History만 로드
+        // Encounter 없이 Patient 만 선택된 경우
         await loadPatientDataOnly(selectedPatientId);
         setCurrentEncounter(null);
         clearForm();
       } else {
-        // 아무것도 선택 안됨 -> 초기화
+        // ID가 모두 없을 때만 초기화
         setCurrentEncounter(null);
         setCurrentPatient(null);
         setEncounterHistory([]);
         setLabResults([]);
+        setGenomicResults([]);
         setImagingOrders([]);
+        setQuestionnaireList([]);
+        setVitalList([]);
         clearForm();
       }
     };
@@ -153,9 +178,18 @@ export default function TreatmentPage() {
       const labResponse = await getPatientLabResults(patientId, 5);
       setLabResults(labResponse.results);
 
+      const genomicResponse = await getPatientGenomicData(patientId);
+      setGenomicResults(genomicResponse.results);
+
       // 영상 검사 결과 로드
       const imagingResponse = await getPatientImagingOrders(patientId, 5);
       setImagingOrders(imagingResponse.results);
+
+      const questionnaireResponse = await getPatientQuestionnaires(patientId, 10);
+      setQuestionnaireList(questionnaireResponse.results);
+
+      const vitalResponse = await getPatientVitals(patientId);
+      setVitalList(vitalResponse.results);
 
     } catch (err) {
       console.error("환자 데이터 로드 실패", err);
@@ -191,9 +225,18 @@ export default function TreatmentPage() {
       const labResponse = await getPatientLabResults(patientId, 5);
       setLabResults(labResponse.results);
 
+      const genomicResponse = await getPatientGenomicData(patientId);
+      setGenomicResults(genomicResponse.results);
+
       // 영상 검사 결과 로드
       const imagingResponse = await getPatientImagingOrders(patientId, 5);
       setImagingOrders(imagingResponse.results);
+
+      const questionnaireResponse = await getPatientQuestionnaires(patientId, 10);
+      setQuestionnaireList(questionnaireResponse.results);
+
+      const vitalResponse = await getPatientVitals(patientId);
+      setVitalList(vitalResponse.results);
 
       // 현재 encounter의 기존 데이터로 폼 초기화
       setChiefComplaint(encounterData.chief_complaint || '');
@@ -208,6 +251,37 @@ export default function TreatmentPage() {
     }
   };
 
+
+
+  const handleAiSuggestion = async () => {
+    if (!selectedEncounterId) {
+      alert('Encounter is not selected.');
+      return;
+    }
+
+    setAiSuggesting(true);
+    try {
+      const questionnaireData = currentEncounter?.questionnaire?.data
+        ?? currentEncounter?.questionnaire_data
+        ?? null;
+
+      const response = await generateClinicalNoteSuggestion({
+        encounter_id: selectedEncounterId,
+        chief_complaint: chiefComplaint,
+        clinical_notes: clinicalNotes,
+        questionnaire_data: questionnaireData,
+      });
+
+      if (response?.suggestion) {
+        setClinicalNotes(response.suggestion);
+      }
+    } catch (error) {
+      console.error('Failed to generate AI suggestion:', error);
+      alert('Failed to generate AI suggestion.');
+    } finally {
+      setAiSuggesting(false);
+    }
+  };
   const handleOrderToggle = (order: string) => {
     setSelectedOrders((prev) =>
       prev.includes(order) ? prev.filter((o) => o !== order) : [...prev, order]
@@ -222,6 +296,29 @@ export default function TreatmentPage() {
     setMedications(medications.filter((_, i) => i !== index));
   };
 
+  const handleTempSave = async () => {
+    if (!selectedEncounterId || !currentPatient?.patient_id) {
+      alert('환자 정보가 없습니다.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await saveMedicalRecord({
+        encounter_id: selectedEncounterId,
+        patient_id: currentPatient.patient_id,
+        chief_complaint: chiefComplaint,
+        clinical_notes: clinicalNotes,
+      });
+      alert('임시 저장되었습니다.');
+    } catch (error) {
+      console.error('진료 기록 임시 저장 실패:', error);
+      alert('임시 저장에 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleMedicationChange = (index: number, field: string, value: string) => {
     const newMedications = [...medications];
     newMedications[index] = { ...newMedications[index], [field]: value };
@@ -230,6 +327,10 @@ export default function TreatmentPage() {
 
   const handleCompleteTreatment = async () => {
     if (!currentEncounter || !selectedEncounterId) return;
+    if (!currentPatient?.patient_id) {
+      alert('환자 정보가 없습니다.');
+      return;
+    }
 
     // 의사 정보 (localStorage or context)
     const doctorInfoStr = localStorage.getItem('doctor');
@@ -311,6 +412,14 @@ export default function TreatmentPage() {
 
       await Promise.all(promises);
 
+      await saveMedicalRecord({
+        encounter_id: selectedEncounterId,
+        patient_id: currentPatient.patient_id,
+        chief_complaint: chiefComplaint,
+        clinical_notes: clinicalNotes,
+        record_status: 'COMPLETED',
+      });
+
       // 2. Encounter 상태 업데이트 (COMPLETED or WAITING_RESULTS)
       await updateEncounter(selectedEncounterId, {
         workflow_state: status, // status 변수 사용
@@ -322,14 +431,16 @@ export default function TreatmentPage() {
         sessionStorage.removeItem(`ct-result:${currentPatient.patient_id}`);
       }
 
-      alert(status === 'WAITING_RESULTS' ? '오더가 전송되고 검사 대기(결과 대기) 상태로 전환되었습니다.' : '진료가 완료되었습니다. (수납 대기 상태로 전환)');
+      alert(status === 'WAITING_RESULTS' ? '오더가 전송되었습니다.' : '진료가 완료되었습니다.');
+
+      // 홈으로 먼저 이동 (Context 업데이트로 인한 리렌더링 문제 방지)
+      navigate('/doctor/home');
+
       // 목록 리프레시 혹은 초기화
       setSelectedEncounterId(null);
       setSelectedPatientId(null);
       setCurrentEncounter(null);
       clearForm();
-
-      // 필요한 경우 목록 페이지로 이동하거나 대기열 새로고침 로직 추가 가능
 
     } catch (error) {
       console.error('진료 완료 처리 중 오류:', error);
@@ -346,6 +457,9 @@ export default function TreatmentPage() {
       setLoading(true);
       await cancelEncounter(selectedEncounterId);
       alert('진료가 취소되었습니다.');
+
+      // 홈으로 먼저 이동
+      navigate('/doctor/home');
 
       // 목록 리프레시 및 초기화
       setSelectedEncounterId(null);
@@ -372,11 +486,13 @@ export default function TreatmentPage() {
       />
 
       <div className={styles.mainLayout}>
-        <PatientHistorySection
-          encounterHistory={encounterHistory}
-          questionnaireData={currentEncounter?.questionnaire?.data}
-          questionnaireUpdatedAt={currentEncounter?.questionnaire?.updated_at}
-        />
+      <PatientHistorySection
+        encounterHistory={encounterHistory}
+        questionnaireList={questionnaireList}
+        vitalList={vitalList}
+        labResults={labResults}
+        genomicData={genomicResults}
+      />
 
         <TreatmentWriteSection
           rightTab={rightTab}
@@ -394,8 +510,12 @@ export default function TreatmentPage() {
           hccDetails={hccDetails}
           setHccDetails={setHccDetails}
           onComplete={handleCompleteTreatment}
+          onTempSave={handleTempSave}
+          onAiSuggest={handleAiSuggestion}
+          aiSuggesting={aiSuggesting}
           disabled={!selectedEncounterId || currentEncounter?.encounter_status === 'COMPLETED'}
           medications={medications}
+          onAddMedication={handleAddMedication}
           onRemoveMedication={handleRemoveMedication}
           onMedicationChange={handleMedicationChange}
           onCancel={handleCancelTreatment}

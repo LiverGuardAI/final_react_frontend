@@ -62,11 +62,12 @@ apiClient.interceptors.response.use(
     const isTokenInvalid = data?.code === "token_not_valid";
     const url = originalRequest.url || "";
 
-    // 로그인 요청에서 발생한 401 에러는 인터셉터 처리하지 않음 (컴포넌트에서 에러 메시지 표시)
+    // 로그인 및 토큰 갱신 요청에서 발생한 에러는 인터셉터 처리하지 않음 (무한 루프 방지)
     if (url.includes("auth/login") ||
       url.includes("auth/doctor/login") ||
       url.includes("auth/administration/login") ||
-      url.includes("auth/radiology/login")) {
+      url.includes("auth/radiology/login") ||
+      url.includes("auth/refresh/")) {
       return Promise.reject(error);
     }
 
@@ -97,7 +98,13 @@ apiClient.interceptors.response.use(
           });
 
           const newAccessToken = response.data.access;
+          const newRefreshToken = response.data.refresh;
+
           localStorage.setItem("access_token", newAccessToken);
+          if (newRefreshToken) {
+            localStorage.setItem("refresh_token", newRefreshToken);
+            console.log("Refresh token updated via rotation.");
+          }
 
           console.log("Token refreshed successfully.");
           apiClient.defaults.headers.common["Authorization"] = `Bearer ${newAccessToken}`;

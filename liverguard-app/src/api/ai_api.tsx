@@ -137,6 +137,76 @@ export const getFeatureExtractionTaskStatus = async (
   }
 };
 
+export interface ReportGenerateResponse {
+  report: string;
+}
+
+/**
+ * 자동 보고서 생성
+ * POST /api/ai/openapi/ct-report/generate/
+ */
+export const generateReport = async (findings: any): Promise<ReportGenerateResponse> => {
+  try {
+    const response = await apiClient.post<ReportGenerateResponse>(
+      "ai/openapi/ct-report/generate/",
+      findings
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Failed to generate report:", error);
+    throw error;
+  }
+};
+
+/**
+ * 자동 보고서 생성 (LMStudio)
+ * POST /api/ai/lmstudio/ct-report/generate/
+ */
+export const generateReportV2 = async (findings: any): Promise<ReportGenerateResponse> => {
+  try {
+    const response = await apiClient.post<ReportGenerateResponse>(
+      "ai/lmstudio/ct-report/generate/",
+      findings
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Failed to generate report v2:", error);
+    throw error;
+  }
+};
+
+
+
+export interface ClinicalNoteSuggestionRequest {
+  encounter_id: number;
+  chief_complaint: string;
+  clinical_notes: string;
+  questionnaire_data?: any;
+}
+
+export interface ClinicalNoteSuggestionResponse {
+  suggestion: string;
+}
+
+/**
+ * Clinical note suggestion
+ * POST /api/ai/openapi/clinical-note/generate/
+ */
+export const generateClinicalNoteSuggestion = async (
+  payload: ClinicalNoteSuggestionRequest
+): Promise<ClinicalNoteSuggestionResponse> => {
+  try {
+    const response = await apiClient.post<ClinicalNoteSuggestionResponse>(
+      "ai/openapi/clinical-note/generate/",
+      payload
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Failed to generate clinical note suggestion:", error);
+    throw error;
+  }
+};
+
 // ===========================
 // BentoML Prediction APIs
 // ===========================

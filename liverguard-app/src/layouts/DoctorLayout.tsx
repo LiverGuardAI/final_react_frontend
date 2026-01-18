@@ -90,15 +90,13 @@ export default function DoctorLayout() {
       // workflow_state 직접 사용하여 분류
       const workflowState = item.workflow_state;
 
-      // EncounterSerializer provides 'patient' as nested object
       const patientObj = (typeof item.patient === 'object' && item.patient !== null) ? item.patient : null;
 
-      // Status mapping for display
+      // 화면 표시용 상태 매핑
       const status = mapWorkflowStateToStatus(workflowState);
 
       const patient: Patient = {
         encounterId: item.encounter_id,
-        // patient_id is inside the nested patient object
         patientId: patientObj?.patient_id || 'N/A',
         name: item.patient_name || patientObj?.name || '이름 없음',
         birthDate: patientObj?.date_of_birth || 'N/A',
@@ -111,8 +109,8 @@ export default function DoctorLayout() {
         questionnaireData: item.questionnaire_data || null,
       };
 
-      // 진료 완료: 수납 대기, 결과 대기, 촬영 대기/중
-      if (['WAITING_PAYMENT', 'WAITING_RESULTS', 'WAITING_IMAGING', 'IN_IMAGING'].includes(workflowState)) {
+      // 진료 완료: 수납 대기, 결과 대기, 촬영 대기/중, 최종 완료
+      if (['WAITING_PAYMENT', 'WAITING_RESULTS', 'WAITING_IMAGING', 'IN_IMAGING', 'COMPLETED'].includes(workflowState)) {
         completed.push(patient);
       }
       // 진료 중
@@ -129,7 +127,7 @@ export default function DoctorLayout() {
   }, [waitingQueueData]);
 
   const patientStatus = {
-    waiting: stats.clinic_waiting + stats.clinic_in_progress, // 진료 대기 + 진료 중
+    waiting: stats.clinic_waiting, // 진료 대기
     inProgress: stats.clinic_in_progress, // 진료 중
     completed: stats.completed_today, // 수납 대기, 결과 대기, 촬영 대기/중
   };
@@ -151,34 +149,27 @@ export default function DoctorLayout() {
   // 진료 시작 핸들러
   const handleStartConsultation = useCallback(async (patient: Patient, event: React.MouseEvent) => {
     event.stopPropagation(); // 카드 클릭 이벤트 전파 방지
-    console.log(`[DoctorLayout] Starting consultation for patient: ${patient.name} (${patient.patientId})`);
+
+    // 1. 즉시 화면 전환 - API 응답을 기다리지 않고 먼저 이동하여 체감 속도 향상
+    setSelectedEncounterId(patient.encounterId);
+    setSelectedPatientId(patient.patientId);
+    navigate('/doctor/treatment');
 
     try {
-      // 1. 상태 업데이트
+      // 2. 백그라운드에서 상태 업데이트
       await updateEncounter(patient.encounterId, {
         workflow_state: 'IN_CLINIC'
       });
-      console.log('[DoctorLayout] Encounter status updated to IN_CLINIC');
 
-      // 2. 대기열 및 통계 새로고침 (병렬 처리)
+      // 3. 대기열 및 통계 새로고침 (병렬 처리)
       await Promise.all([
         fetchWaitingQueue(),
         fetchStats()
       ]);
-      console.log('[DoctorLayout] Queue and stats refreshed');
-
-      // 3. 선택된 encounter ID 및 Patient ID 설정
-      setSelectedEncounterId(patient.encounterId);
-      setSelectedPatientId(patient.patientId);
-      console.log(`[DoctorLayout] Set context - EncounterId: ${patient.encounterId}, PatientId: ${patient.patientId}`);
-
-      // 4. 진료 페이지로 이동
-      console.log('[DoctorLayout] Navigating to /doctor/treatment');
-      navigate('/doctor/treatment');
 
     } catch (error: any) {
-      console.error('진료 시작 실패:', error);
-      alert(error.response?.data?.message || '진료 시작에 실패했습니다.');
+      console.error('진료 시작 처리 실패:', error);
+      // 이미 화면이 이동되었으므로 사용자에게 방해가 되지 않도록 조용히 처리하거나 토스트 메시지 등을 고려
     }
   }, [fetchWaitingQueue, fetchStats, setSelectedEncounterId, setSelectedPatientId, navigate]);
 
@@ -187,7 +178,6 @@ export default function DoctorLayout() {
 
   useEffect(() => {
     if (lastMessage && lastMessage.type === 'queue_update') {
-      console.log("🔔 실시간 업데이트 (DoctorLayout):", lastMessage.message);
       fetchWaitingQueue();
       fetchStats();
     }
@@ -226,7 +216,7 @@ export default function DoctorLayout() {
       return;
     }
     try {
-      const inProgress = await getDoctorInProgressEncounter(doctorId);
+      const inProgress: any = await getDoctorInProgressEncounter(doctorId);
       if (!inProgress) {
         return;
       }
@@ -259,13 +249,7 @@ export default function DoctorLayout() {
     const userId = user?.user_id ?? user?.id;
     if (!userId) return;
     try {
-      // Fetch all schedules for this user (future optimization: filter by status in backend)
-      // Since backend param doesn't support status yet, we fetch and client-side filter
-      // Or we can add status param to backend. For now client-side.
-      // We fetching reasonably large range or just all? API defaults to all if no date.
-      // Let's fetch next 30 days or similar? Or just all.
-      // Step 196: API takes startDate, endDate, userId.
-      // If I pass nothing for dates, it returns all? Yes.
+      // 사용자(의사)의 모든 근무 일정 조회 (추후 백엔드 필터링 최적화 필요)
       const { getDutySchedules } = await import('../api/hospitalOpsApi');
       const data = await getDutySchedules(undefined, undefined, userId, 'PENDING');
       const pending = data;
@@ -345,7 +329,7 @@ export default function DoctorLayout() {
               fetchWaitingQueue,
               fetchStats,
               uniquePatientCounts: {
-                waiting: waitingPatients.length + inProgressPatients.length,
+                waiting: waitingPatients.length,
                 inProgress: inProgressPatients.length,
                 completed: completedPatients.length
               }

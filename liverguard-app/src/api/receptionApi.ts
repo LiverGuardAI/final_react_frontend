@@ -81,8 +81,11 @@ export const deleteAppointment = async (appointmentId: number) => {
 };
 
 // ==================== 진료 기록 (접수) ====================
-export const getEncounters = async (patientId?: string) => {
-  const params = patientId ? { patient_id: patientId } : {};
+export const getEncounters = async (patientId?: string, date?: string) => {
+  const params: any = {};
+  if (patientId) params.patient_id = patientId;
+  if (date) params.date = date;
+  console.log('getEncounters params:', params);
   const res = await apiClient.get("administration/encounters/", { params });
   return res.data;
 };
@@ -139,10 +142,17 @@ export const getWaitingQueue = async (maxCount: number = 10) => {
   return res.data;
 };
 
+
 export const getDashboardStats = async () => {
   const res = await apiClient.get("administration/dashboard/stats/");
   return res.data;
 };
+
+export const getDailyPatientStatus = async () => {
+  const res = await apiClient.get("administration/dashboard/patient-status/");
+  return res.data;
+};
+
 
 // ==================== 근무 일정 (Schedule) ====================
 export const getDutySchedules = async (startDate?: string, endDate?: string, doctorId?: number) => {

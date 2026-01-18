@@ -341,7 +341,7 @@ export default function AdministrationSidebar({
                                 <>
                                     {activeTab === 'clinic' ? (
                                         <>
-                                            {uniqueClinicPatients.inClinic.map((queueItem: any) => (
+                                            {uniqueClinicPatients.inClinic.slice(0, 50).map((queueItem: any) => (
                                                 <PatientCard
                                                     key={`in-clinic-${queueItem.encounter_id}`}
                                                     queueItem={queueItem}
@@ -349,7 +349,7 @@ export default function AdministrationSidebar({
                                                     type="IN_CLINIC"
                                                 />
                                             ))}
-                                            {uniqueClinicPatients.waiting.map((queueItem: any) => (
+                                            {uniqueClinicPatients.waiting.slice(0, 50).map((queueItem: any) => (
                                                 <PatientCard
                                                     key={`waiting-${queueItem.encounter_id}`}
                                                     queueItem={queueItem}
@@ -363,7 +363,7 @@ export default function AdministrationSidebar({
                                         </>
                                     ) : (
                                         <>
-                                            {uniqueResultPatients.map((queueItem: any) => (
+                                            {uniqueResultPatients.slice(0, 50).map((queueItem: any) => (
                                                 <PatientCard
                                                     key={`result-${queueItem.encounter_id}`}
                                                     queueItem={queueItem}

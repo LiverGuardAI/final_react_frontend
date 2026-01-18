@@ -7,6 +7,7 @@ import { useWebSocketContext } from '../context/WebSocketContext';
 interface AdministrationContextType {
     // Stats & Queue
     waitingQueueData: any;
+    isLoadingQueue: boolean;
     dashboardStats: any;
     fetchWaitingQueue: () => Promise<void>;
     fetchDashboardStats: () => Promise<void>;
@@ -14,6 +15,10 @@ interface AdministrationContextType {
     // Doctors
     doctors: any[];
     fetchDoctors: () => Promise<void>;
+
+    // Radiologists
+    radiologists: any[];
+    fetchRadiologists: () => Promise<void>;
 
     // Patients
     refreshPatientsTrigger: number;
@@ -23,9 +28,22 @@ interface AdministrationContextType {
 const AdministrationContext = createContext<AdministrationContextType | undefined>(undefined);
 
 export const AdministrationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const { waitingQueueData, fetchWaitingQueue } = useWaitingQueue();
+    const { waitingQueueData, isLoading, fetchWaitingQueue } = useWaitingQueue();
     const { stats: dashboardStats, fetchStats: fetchDashboardStats } = useDashboardStats();
     const { doctors, fetchDoctors } = useDoctors();
+
+    // Radiologists State
+    const [radiologists, setRadiologists] = useState<any[]>([]);
+
+    const fetchRadiologists = useCallback(async () => {
+        try {
+            const { getRadiologists } = await import('../api/receptionApi');
+            const data = await getRadiologists();
+            setRadiologists(data.results || data);
+        } catch (err) {
+            console.error("Failed to fetch radiologists:", err);
+        }
+    }, []);
 
     const [refreshPatientsTrigger, setRefreshPatientsTrigger] = useState(0);
 
@@ -65,6 +83,7 @@ export const AdministrationProvider: React.FC<{ children: ReactNode }> = ({ chil
     // Fetch initial data
     useEffect(() => {
         fetchDoctors();
+        fetchRadiologists();
         fetchWaitingQueue();
         fetchDashboardStats();
     }, [fetchDoctors, fetchWaitingQueue, fetchDashboardStats]);
@@ -74,9 +93,12 @@ export const AdministrationProvider: React.FC<{ children: ReactNode }> = ({ chil
             waitingQueueData,
             dashboardStats,
             fetchWaitingQueue,
+            isLoadingQueue: isLoading, // Expose loading state
             fetchDashboardStats,
             doctors,
             fetchDoctors,
+            radiologists,
+            fetchRadiologists,
             refreshPatientsTrigger,
             triggerPatientRefresh
         }}>
