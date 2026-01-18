@@ -222,7 +222,7 @@ export default function DoctorLayout() {
       }
       const patientObj =
         typeof inProgress.patient === 'object' && inProgress.patient !== null
-          ? inProgress.patient
+          ? (inProgress.patient as { patient_id?: string })
           : null;
       const patientId = patientObj?.patient_id || inProgress.patient_id || null;
       if (patientId) {

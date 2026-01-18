@@ -20,15 +20,13 @@ interface WebSocketProviderProps {
 export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }) => {
   const { isAuthenticated } = useAuth();
   const [lastMessage, setLastMessage] = useState<any | null>(null);
+  const token = localStorage.getItem('access_token');
 
   const WS_URL = React.useMemo(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const hostname = window.location.hostname;
-    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
-    const port = isLocalhost ? ':8000' : '';
-    const token = localStorage.getItem('access_token');
-    return `${protocol}//${hostname}${port}/ws/clinic/${token ? `?token=${token}` : ''}`;
-  }, [isAuthenticated]);
+    return `${protocol}//${hostname}:8000/ws/clinic/${token ? `?token=${token}` : ''}`;
+  }, [token]);
 
   const handleMessage = useCallback((data: any) => {
     // console.log('Global WS Message:', data); 
@@ -37,9 +35,9 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
 
   const { sendMessage, disconnect, reconnect, isConnected } = useWebSocket(WS_URL, {
     onMessage: handleMessage,
-    onOpen: () => console.log('✅ Global WebSocket Connected'),
-    onClose: () => console.log('⚠️ Global WebSocket Disconnected'),
-    enabled: isAuthenticated && !!localStorage.getItem('access_token'), // 토큰이 있을 때만 연결
+    onOpen: () => console.log('[ClinicQueue] ✅ Clinic WebSocket Connected'),
+    onClose: () => console.log('[ClinicQueue] ⚠️ Clinic WebSocket Disconnected'),
+    enabled: isAuthenticated && !!token, // 토큰이 있을 때만 연결
   });
 
   return (

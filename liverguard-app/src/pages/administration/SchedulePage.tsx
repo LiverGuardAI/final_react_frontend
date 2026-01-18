@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import styles from './SchedulePage.module.css';
 import { getAvailableDoctors, getAppAppointments, approveAppAppointment, rejectAppAppointment } from '../../api/receptionApi';
 import { getAppointments, createAppointment, getDutySchedules, createEncounter } from '../../api/receptionApi';
 import { usePatients } from '../../hooks/usePatients';
+import { useWebSocketContext } from '../../context/WebSocketContext';
 
 interface Doctor {
   doctor_id: number;
@@ -112,9 +113,8 @@ export default function SchedulePage() {
 
   const { patients, fetchPatients } = usePatients();
 
-  // WebSocket ref (재연결용)
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // WebSocket (Global Context 사용)
+  const { lastMessage } = useWebSocketContext();
 
   // API 호출 함수들 (useCallback으로 메모이제이션)
   const fetchDoctors = useCallback(async () => {
@@ -162,61 +162,17 @@ export default function SchedulePage() {
     }
   }, []);
 
-  // WebSocket 연결 (자동 재연결 포함)
+  // WebSocket 메시지 처리 (Global Context 사용 - 싱글톤 패턴)
   useEffect(() => {
-    let isMounted = true;
+    if (!lastMessage) return;
 
-    const connectWebSocket = () => {
-      if (!isMounted) return;
+    console.log('📩 WebSocket 메시지 (SchedulePage):', lastMessage);
 
-      const wsUrl = 'ws://localhost:8000/ws/clinic/';
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        console.log('✅ WebSocket 연결됨');
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          console.log('📩 WebSocket 메시지:', data);
-
-          if (data.type === 'queue_update' && data.data?.event_type === 'new_appointment') {
-            console.log('🔔 새 예약 알림:', data.data.appointment);
-            fetchPendingAppointments();
-          }
-        } catch (error) {
-          console.error('WebSocket 메시지 파싱 에러:', error);
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error('❌ WebSocket 에러:', error);
-      };
-
-      ws.onclose = () => {
-        console.log('🔌 WebSocket 연결 종료');
-        wsRef.current = null;
-        // 자동 재연결 (5초 후)
-        if (isMounted) {
-          reconnectTimeoutRef.current = setTimeout(connectWebSocket, 5000);
-        }
-      };
-    };
-
-    connectWebSocket();
-
-    return () => {
-      isMounted = false;
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.close();
-      }
-    };
-  }, [fetchPendingAppointments]);
+    if (lastMessage.type === 'queue_update' && lastMessage.data?.event_type === 'new_appointment') {
+      console.log('🔔 새 예약 알림:', lastMessage.data.appointment);
+      fetchPendingAppointments();
+    }
+  }, [lastMessage, fetchPendingAppointments]);
 
   // 초기 데이터 로드
   useEffect(() => {
@@ -585,13 +541,10 @@ export default function SchedulePage() {
     setIsAddingToQueue(true);
     try {
       const now = new Date();
-      const appointmentDoctorId = typeof calendarModalAppointment.doctor === 'number'
-        ? calendarModalAppointment.doctor
-        : calendarModalAppointment.doctor?.doctor_id;
       const encounterData = {
         patient: calendarModalAppointment.patient_id || calendarModalAppointment.patient || '',
         appointment: calendarModalAppointment.appointment_id, // 문진표 연결을 위해 필수
-        doctor: appointmentDoctorId || 0,
+        doctor: calendarModalAppointment.doctor || 0,
         encounter_date: calendarModalAppointment.appointment_date,
         encounter_time: now.toTimeString().split(' ')[0].substring(0, 8),
         department: calendarModalAppointment.department || '',

@@ -1,5 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useChatContext } from "../../context/ChatContext";
+import ChatDropdown from "../../components/common/ChatDropdown";
 import "./HomePage.css";
 import { useState, useEffect } from "react";
 import ImagingQueueSidebar from "../../components/radiology/ImagingQueueSidebar";
@@ -7,6 +9,7 @@ import ImagingQueueSidebar from "../../components/radiology/ImagingQueueSidebar"
 export default function RadiologyHomePage() {
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { totalUnreadCount: chatUnreadCount } = useChatContext();
 
   const handleLogout = () => {
     localStorage.removeItem("access_token");
@@ -17,6 +20,9 @@ export default function RadiologyHomePage() {
     logout();
     navigate("/");
   };
+
+  // 채팅 상태
+  const [showChat, setShowChat] = useState(false);
 
   // 스케줄 확인 로직
   const [pendingSchedules, setPendingSchedules] = useState<any[]>([]);
@@ -76,9 +82,25 @@ export default function RadiologyHomePage() {
     <div className="radiology-home-page">
       <header className="radiology-header">
         <h1>영상의학과 홈페이지</h1>
-        <button type="button" onClick={handleLogout} className="logout-btn">
-          로그아웃
-        </button>
+        <div className="header-actions">
+          <div className="chat-container">
+            <button
+              type="button"
+              onClick={() => setShowChat(!showChat)}
+              className="icon-btn"
+              title="메시지"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M20 2H4C2.9 2 2.01 2.9 2.01 4L2 22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM18 14H6V12H18V14ZM18 11H6V9H18V11ZM18 8H6V6H18V8Z" fill="currentColor" />
+              </svg>
+              {chatUnreadCount > 0 && <span className="chat-badge">{chatUnreadCount > 9 ? '9+' : chatUnreadCount}</span>}
+            </button>
+            <ChatDropdown isOpen={showChat} onClose={() => setShowChat(false)} />
+          </div>
+          <button type="button" onClick={handleLogout} className="logout-btn">
+            로그아웃
+          </button>
+        </div>
       </header>
 
       <div className="radiology-content-with-sidebar">
