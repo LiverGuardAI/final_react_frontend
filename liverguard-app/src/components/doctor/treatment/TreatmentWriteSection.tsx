@@ -70,9 +70,9 @@ export default function TreatmentWriteSection({
                             className={`${styles.tabButton} ${rightTab === 'record' ? styles.active : ''}`}
                         >
                             진료기록 작성
-                        
-                                        {aiSuggesting ? "AI \uC791\uC131\uC911..." : "AI \uC81C\uC548"}
-                                    </button>
+
+                            {aiSuggesting ? "AI \uC791\uC131\uC911..." : "AI \uC81C\uC548"}
+                        </button>
                         <button
                             onClick={() => setRightTab('prescription')}
                             className={`${styles.tabButton} ${rightTab === 'prescription' ? styles.active : ''}`}
@@ -333,8 +333,8 @@ export default function TreatmentWriteSection({
                             </div>
 
                             <div className={styles.buttonGroup}>
-                                <button className={styles.tempSaveButton} disabled={disabled}>임시저장</button>
-                                <button className={styles.submitButton} disabled={disabled}>처방완료</button>
+                                <button className={styles.tempSaveButton} onClick={onTempSave} disabled={disabled}>임시저장</button>
+                                <button className={styles.submitButton} onClick={onComplete} disabled={disabled}>처방완료</button>
                             </div>
                         </div>
                     )}

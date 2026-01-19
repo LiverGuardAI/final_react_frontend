@@ -242,6 +242,13 @@ export interface SaveMedicalRecordPayload {
   chief_complaint?: string;
   clinical_notes?: string;
   record_status?: 'DRAFT' | 'COMPLETED' | 'AMENDED';
+
+  medications?: Array<{
+    name: string;
+    dosage: string;
+    frequency: string;
+    days: string;
+  }>;
 }
 
 export interface QuestionnaireRecord {

@@ -309,6 +309,7 @@ export default function TreatmentPage() {
         patient_id: currentPatient.patient_id,
         chief_complaint: chiefComplaint,
         clinical_notes: clinicalNotes,
+        medications: medications,
       });
       alert('임시 저장되었습니다.');
     } catch (error) {
@@ -417,6 +418,7 @@ export default function TreatmentPage() {
         patient_id: currentPatient.patient_id,
         chief_complaint: chiefComplaint,
         clinical_notes: clinicalNotes,
+        medications: medications,
         record_status: 'COMPLETED',
       });
 
@@ -486,13 +488,13 @@ export default function TreatmentPage() {
       />
 
       <div className={styles.mainLayout}>
-      <PatientHistorySection
-        encounterHistory={encounterHistory}
-        questionnaireList={questionnaireList}
-        vitalList={vitalList}
-        labResults={labResults}
-        genomicData={genomicResults}
-      />
+        <PatientHistorySection
+          encounterHistory={encounterHistory}
+          questionnaireList={questionnaireList}
+          vitalList={vitalList}
+          labResults={labResults}
+          genomicData={genomicResults}
+        />
 
         <TreatmentWriteSection
           rightTab={rightTab}
