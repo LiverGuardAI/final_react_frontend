@@ -17,7 +17,15 @@ interface TreatmentWriteSectionProps {
     hccDetails: any;
     setHccDetails: (value: any) => void;
     onComplete: () => void;
+    onTempSave?: () => void;
+    onAiSuggest?: () => void;
+    aiSuggesting?: boolean;
     disabled?: boolean;
+    medications?: { name: string; dosage: string; frequency: string; days: string }[];
+    onAddMedication?: () => void;
+    onRemoveMedication?: (index: number) => void;
+    onMedicationChange?: (index: number, field: string, value: string) => void;
+    onCancel?: () => void;
 }
 
 export default function TreatmentWriteSection({
@@ -36,7 +44,15 @@ export default function TreatmentWriteSection({
     hccDetails,
     setHccDetails,
     onComplete,
-    disabled = false
+    onTempSave,
+    onAiSuggest,
+    aiSuggesting = false,
+    disabled = false,
+    medications = [],
+    onAddMedication,
+    onRemoveMedication,
+    onMedicationChange,
+    onCancel
 }: TreatmentWriteSectionProps) {
 
     const isHCCDiagnosis = diagnosisName.toLowerCase().includes('hcc') ||
@@ -54,6 +70,8 @@ export default function TreatmentWriteSection({
                             className={`${styles.tabButton} ${rightTab === 'record' ? styles.active : ''}`}
                         >
                             진료기록 작성
+
+                            {aiSuggesting ? "AI \uC791\uC131\uC911..." : "AI \uC81C\uC548"}
                         </button>
                         <button
                             onClick={() => setRightTab('prescription')}
@@ -83,7 +101,13 @@ export default function TreatmentWriteSection({
                             <div className={styles.formGroup}>
                                 <div className={styles.formLabelRow}>
                                     <label className={styles.formLabel}>진료 내용</label>
-                                    <button className={styles.aiButton} disabled={disabled}>🤖 AI 제안</button>
+                                    <button
+                                        className={styles.aiButton}
+                                        onClick={() => onAiSuggest?.()}
+                                        disabled={disabled || aiSuggesting}
+                                    >
+                                        {aiSuggesting ? "AI \uC791\uC131\uC911..." : "AI \uC81C\uC548"}
+                                    </button>
                                 </div>
                                 <textarea
                                     placeholder="진료 내용을 입력하세요"
@@ -265,7 +289,23 @@ export default function TreatmentWriteSection({
                             )}
 
                             <div className={styles.buttonGroup}>
-                                <button className={styles.tempSaveButton} disabled={disabled}>임시저장</button>
+                                {onCancel && (
+                                    <button
+                                        className={styles.cancelButton}
+                                        onClick={onCancel}
+                                        disabled={disabled}
+                                        style={{ marginRight: 'auto', background: '#FF5252', color: 'white', border: 'none', borderRadius: '8px', padding: '12px 24px', fontWeight: 'bold', cursor: 'pointer' }}
+                                    >
+                                        진료 취소
+                                    </button>
+                                )}
+                                <button
+                                    className={styles.tempSaveButton}
+                                    onClick={onTempSave}
+                                    disabled={disabled}
+                                >
+                                    임시저장
+                                </button>
                                 <button
                                     className={styles.submitButton}
                                     onClick={onComplete}
@@ -280,19 +320,21 @@ export default function TreatmentWriteSection({
                             {/* 처방전 UI Placeholder */}
                             <div className={styles.formGroup}>
                                 <label className={styles.formLabel}>처방 약물</label>
-                                <div className={styles.prescriptionRow}>
-                                    <input type="text" placeholder="약물명" disabled={disabled} />
-                                    <input type="text" placeholder="용량" disabled={disabled} />
-                                    <input type="text" placeholder="1일 3회" disabled={disabled} />
-                                    <input type="number" placeholder="7일" disabled={disabled} />
-                                    <button className={styles.deleteButton} disabled={disabled}>✕</button>
-                                </div>
-                                <button className={styles.addButton} disabled={disabled}>+ 약물 추가</button>
+                                {medications.map((med, index) => (
+                                    <div key={index} className={styles.prescriptionRow} style={{ marginBottom: '8px' }}>
+                                        <input type="text" placeholder="약물명" value={med.name} onChange={(e) => onMedicationChange?.(index, 'name', e.target.value)} disabled={disabled} />
+                                        <input type="text" placeholder="용량" value={med.dosage} onChange={(e) => onMedicationChange?.(index, 'dosage', e.target.value)} disabled={disabled} />
+                                        <input type="text" placeholder="복용법 (1일 3회)" value={med.frequency} onChange={(e) => onMedicationChange?.(index, 'frequency', e.target.value)} disabled={disabled} />
+                                        <input type="number" placeholder="기간(일)" value={med.days} onChange={(e) => onMedicationChange?.(index, 'days', e.target.value)} disabled={disabled} />
+                                        <button className={styles.deleteButton} onClick={() => onRemoveMedication?.(index)} disabled={disabled}>✕</button>
+                                    </div>
+                                ))}
+                                <button className={styles.addButton} onClick={onAddMedication} disabled={disabled}>+ 약물 추가</button>
                             </div>
 
                             <div className={styles.buttonGroup}>
-                                <button className={styles.tempSaveButton} disabled={disabled}>임시저장</button>
-                                <button className={styles.submitButton} disabled={disabled}>처방완료</button>
+                                <button className={styles.tempSaveButton} onClick={onTempSave} disabled={disabled}>임시저장</button>
+                                <button className={styles.submitButton} onClick={onComplete} disabled={disabled}>처방완료</button>
                             </div>
                         </div>
                     )}

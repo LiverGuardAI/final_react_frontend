@@ -3,10 +3,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
+  AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, ReferenceArea
 } from 'recharts';
 import styles from './BloodResult.module.css';
 import { getPatientLabResults, type LabResult } from '../../api/doctorApi';
+import { useTreatment } from '../../contexts/TreatmentContext';
 
 // 설정: 각 검사 항목의 라벨, 단위, 정상 범위
 const LAB_CONFIG: Record<string, { label: string; unit: string; min?: number; max?: number }> = {
@@ -24,11 +25,30 @@ const LAB_CONFIG: Record<string, { label: string; unit: string; min?: number; ma
   albi_grade: { label: 'ALBI Grade', unit: 'Gr' },
 };
 
+const LINE_COLORS: Record<string, string> = {
+  afp: '#204ba8ff',
+  albumin: '#059669',
+  bilirubin_total: '#e9dd37ff',
+  platelet: '#7c3aed',
+  pt_inr: '#cc3ba1ff',
+  creatinine: '#0284c7',
+  child_pugh_class: '#ca8a04',
+  meld_score: '#dc2626',
+  albi_score: '#180303ff',
+  albi_grade: '#064b34ff',
+};
+
 export default function BloodResultPage() {
-  const { patientId } = useParams<{ patientId: string }>();
+  // const { patientId: urlPatientId } = useParams<{ patientId: string }>();
+  // const { selectedPatientId } = useTreatment();
+  // const patientId = selectedPatientId || urlPatientId || '';
+  // 개발 테스트를 위해 특정 환자 ID로 고정
+  const { patientId: routePatientId } = useParams<{ patientId: string }>();
+  const patientId = 'P20240009';
+
   const [results, setResults] = useState<LabResult[]>([]);
-  const [selectedMetric, setSelectedMetric] = useState<string>('afp'); // 기본 선택: AFP
   const [loading, setLoading] = useState(false);
+  const [selectedDateIndex, setSelectedDateIndex] = useState<number>(-1);
 
   useEffect(() => {
     if (!patientId) {
@@ -37,11 +57,36 @@ export default function BloodResultPage() {
     }
     setLoading(true);
     getPatientLabResults(patientId).then(data => {
-      // 과거 -> 최신 순으로 정렬 (그래프용)
-      const sorted = data.results.sort((a, b) =>
-        new Date(a.test_date).getTime() - new Date(b.test_date).getTime()
-      );
+      const uniqueLabMap = new Map<string, LabResult>();
+      data.results.forEach(item => {
+        const date = (item.measured_at || item.test_date).split('T')[0];
+        const existing = uniqueLabMap.get(date);
+
+        if (!existing) {
+          uniqueLabMap.set(date, item);
+        } else {
+          // Platelet 수치가 더 높은 것(실제 데이터) 우선, 같다면 최신 시간 우선
+          const existingPlatelet = existing.platelet || 0;
+          const newPlatelet = item.platelet || 0;
+
+          if (newPlatelet > existingPlatelet) {
+            uniqueLabMap.set(date, item);
+          } else if (newPlatelet === existingPlatelet) {
+            const t1 = new Date(existing.measured_at || existing.test_date).getTime();
+            const t2 = new Date(item.measured_at || item.test_date).getTime();
+            if (t2 > t1) uniqueLabMap.set(date, item);
+          }
+        }
+      });
+
+      // Map -> Array 변환 및 날짜순 정렬
+      const sorted = Array.from(uniqueLabMap.values())
+        .sort((a, b) =>
+          new Date(a.measured_at || a.test_date).getTime() - new Date(b.measured_at || b.test_date).getTime()
+        );
       setResults(sorted);
+      // 데이터 로드 후, 가장 최신 날짜를 기본 선택
+      setSelectedDateIndex(sorted.length ? sorted.length - 1 : -1);
     }).catch(err => {
       console.error(err);
       setResults([]);
@@ -50,128 +95,196 @@ export default function BloodResultPage() {
     });
   }, [patientId]);
 
-  // 최신 결과 데이터 (데이터가 없으면 undefined)
-  const latest = results.length > 0 ? results[results.length - 1] : undefined;
+  // 모달 제어 State
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMetric, setModalMetric] = useState<string | null>(null);
+  // 그래프 표시 여부 (체크박스)
+  const [visibleMetrics, setVisibleMetrics] = useState<Record<string, boolean>>(
+    Object.keys(LAB_CONFIG).reduce((acc, key) => ({ ...acc, [key]: true }), {})
+  );
 
-  // 그래프용 데이터 변환
-  const chartData = useMemo(() => {
+  const selectedData = selectedDateIndex >= 0 && results[selectedDateIndex]
+    ? results[selectedDateIndex]
+    : undefined;
+  // 멀티라인 그래프용 데이터 변환 (구간별 선형 정규화)
+  const multiLineChartData = useMemo(() => {
     return results.map(r => {
-      const val = r[selectedMetric as keyof LabResult];
-      return {
-        date: r.test_date.split('T')[0],  // YYYY-MM-DD
-        value: getChartValue(selectedMetric, val), // 문자열(A,B,C)을 숫자로 변환
-        originalValue: val // 툴팁 표시용 원본 값
+      const dataPoint: Record<string, any> = {
+        date: (r.measured_at || r.test_date).split('T')[0],
       };
-    });
-  }, [results, selectedMetric]);
 
-  // 현재 선택된 항목의 설정 값
-  const config = LAB_CONFIG[selectedMetric];
+      Object.entries(LAB_CONFIG).forEach(([key, conf]) => {
+        const rawValue = r[key as keyof LabResult] as number;
+        if (rawValue === undefined || rawValue === null) {
+          dataPoint[key] = null;
+          return;
+        }
+
+        const min = conf.min ?? 0;
+        const max = conf.max ?? 100;
+        let normalized = 50;
+        // 구간별 선형 정규화: 정상 범위(min~max)를 30~70으로 매핑
+        if (rawValue >= min && rawValue <= max) {
+          // 정상 범위 내: 30 ~ 70
+          normalized = 30 + ((rawValue - min) / (max - min || 1)) * 40;
+        } else if (rawValue > max) {
+          // 정상 초과: 70 ~ 100
+          const overflow = (rawValue - max) / (Math.abs(max) || 1);
+          normalized = 70 + Math.min(overflow * 30, 30);
+        } else {
+          // 정상 미달: 0 ~ 30
+          const underflow = (min - rawValue) / (Math.abs(min) || 1);
+          normalized = 30 - Math.min(underflow * 30, 30);
+        }
+        dataPoint[key] = Math.min(Math.max(normalized, 0), 100);
+        dataPoint[`${key}_raw`] = rawValue; // 툴팁용 원본 값
+      });
+      return dataPoint;
+    });
+  }, [results]);
 
   return (
     <div className={styles.container}>
-      <header className={styles.header}>
-        <div className={styles.patientInfo}>
-          Patient ID : {patientId || '-'} <span className={styles.divider}>|</span> Last Update : {latest?.test_date?.split('T')[0] || '-'}
+      <header className={styles.header} style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '15px 20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+        <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#334155' }}>
+          Patient ID : <span style={{ color: '#2563eb' }}>{patientId}</span>
+          <span style={{ margin: '0 15px', color: '#e2e8f0' }}>|</span>
+          Date : <span style={{ color: '#2563eb', fontWeight: 'bold' }}>{selectedData?.measured_at?.split('T')[0] || '-'}</span>
         </div>
+        <select
+          value={selectedDateIndex}
+          onChange={(e) => setSelectedDateIndex(Number(e.target.value))}
+          style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px' }}
+        >
+          {[...results].reverse().map((r, idx) => (
+            <option key={idx} value={results.length - 1 - idx}>
+              {r.test_date.split('T')[0]}
+            </option>
+          ))}
+        </select>
       </header>
 
-      {/* 1. Summary Cards Section */}
       <div className={styles.cardsGrid}>
         {Object.entries(LAB_CONFIG).map(([key, conf]) => {
-          // 데이터가 없으면 '-' 처리
-          const value = latest ? (latest[key as keyof LabResult] as number) : undefined;
+          const value = selectedData ? (selectedData[key as keyof LabResult] as number) : undefined;
           const status = getStatus(key, value);
-          const isSelected = selectedMetric === key;
+          const isSelected = modalMetric === key;
 
           return (
             <div
               key={key}
               className={`${styles.card} ${styles[status]} ${isSelected ? styles.selected : ''}`}
-              onClick={() => setSelectedMetric(key)}
+              onClick={() => {
+                setModalMetric(key);
+                setModalOpen(true);
+              }}
+              style={{ cursor: 'pointer' }}
             >
               <div className={styles.cardHeader}>
                 <span className={styles.cardLabel}>{conf.label}</span>
                 {status === 'danger' && <span className={styles.riskDot} />}
               </div>
               <div className={styles.cardBody}>
-                {/* 로딩 중이면 ... 표시, 아니면 값 또는 - */}
-                <span className={styles.value}>
-                  {loading ? '...' : (value ?? '-')}
-                </span>
-                <span className={styles.unit}>{conf.unit}</span>
-              </div>
-              <div className={styles.cardFooter}>
-                <span className={styles.refRange}>
-                  {/* 범위 정보가 있으면 표시 */}
-                  {conf.min || conf.max ? `Ref : ${conf.min || ''} ~ ${conf.max || ''}` : ' '}
-                </span>
-                <span className={`${styles.badge} ${styles[status]}`}>
-                  {status === 'normal' ? 'Normal' : status === 'warning' ? 'Warning' : 'Risk'}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <span className={styles.value}>{loading ? '...' : (value ?? '-')}</span>
+                    <span className={styles.unit}>{conf.unit}</span>
+                  </div>
+                  <span className={`${styles.badge} ${styles[status]}`}>
+                    {status === 'normal' ? 'Normal' : status === 'warning' ? 'Warning' : 'Risk'}
+                  </span>
+                </div>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* 2. Trend Graph Section */}
+      {/* 2. Multi-Line Trend Graph Section (10종 종합) */}
       <div className={styles.chartSection}>
-        <h3 className={styles.sectionTitle}>{config.label} Trend Analysis</h3>
-        <div className={styles.chartWrapper}>
-          <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-              <XAxis
-                dataKey="date"
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: '#6b7280', fontSize: 12 }}
-                dy={10}
-              />
-              <YAxis
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: '#6b7280', fontSize: 12 }}
-                domain={['auto', 'auto']} // 데이터 범위에 맞춰 자동 조정
-              />
-              <Tooltip
-                content={({ active, payload, label }: any) => {
-                  if (active && payload && payload.length) {
-                    const dataItem = payload[0].payload;
-                    return (
-                      <div style={{ background: 'white', padding: '10px', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
-                        <p style={{ fontWeight: 'bold', marginBottom: '5px' }}>{label}</p>
-                        <p style={{ color: '#3b82f6' }}>
-                          {config.label}: {dataItem.originalValue} {config.unit}
-                        </p>
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
-              />
-              {config.max && selectedMetric !== 'albi_score' && (
-                <ReferenceLine y={config.max} stroke="#ef4444" strokeDasharray="3 3" label="Max" />
-              )}
+        <h3 className={styles.sectionTitle}>종합 혈액 지표 추이</h3>
 
-              <Line
-                type="monotone"
-                dataKey="value"
-                stroke="#3b82f6"
-                strokeWidth={3}
-                dot={{ r: 4, fill: 'white', stroke: '#3b82f6', strokeWidth: 2 }}
-                activeDot={{ r: 7, fill: '#3b82f6' }}
-                animationDuration={500}
+        <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
+          {/* 그래프 영역 */}
+          <div style={{ flex: 1 }}>
+            <ResponsiveContainer width="100%" height={360}>
+              <LineChart data={multiLineChartData} margin={{ top: 20, right: 40, left: 10, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                <ReferenceArea y1={30} y2={70} fill="#22c55e" fillOpacity={0.1} />
+                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} dy={10} />
+                <YAxis domain={[0, 150]} axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} />
+                <Tooltip
+                  content={({ active, payload, label }: any) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div style={{ background: 'white', padding: '12px', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', border: '1px solid #e5e7eb', fontSize: '12px' }}>
+                          <p style={{ fontWeight: 'bold', marginBottom: '8px', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>{label}</p>
+                          {payload.map((p: any) => {
+                            if (p.value === null) return null;
+                            const rawKey = `${p.dataKey}_raw`;
+                            return (
+                              <div key={p.dataKey} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: p.stroke }}></span>
+                                <span style={{ color: '#374151' }}>{LAB_CONFIG[p.dataKey]?.label.split('(')[0]}:</span>
+                                <span style={{ fontWeight: 'bold' }}>{p.payload[rawKey]} {LAB_CONFIG[p.dataKey]?.unit}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                {Object.entries(LAB_CONFIG).map(([key]) => (
+                  visibleMetrics[key] && (
+                    <Line
+                      key={key}
+                      type="monotone"
+                      dataKey={key}
+                      stroke={LINE_COLORS[key] || '#9ca3af'}
+                      strokeWidth={2}
+                      dot={{ r: 3, fill: LINE_COLORS[key] || '#9ca3af', strokeWidth: 0 }}
+                      activeDot={{ r: 6 }}
+                      connectNulls
+                      isAnimationActive={false}
+                    />
+                  )
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* 우측 범례 (체크박스) */}
+          <div style={{ width: '180px', display: 'flex', flexDirection: 'column', gap: '10px', padding: '18px', background: '#f9fafb', borderRadius: '8px', marginTop: '5px' }}>
+            {/* 전체 선택 체크박스 */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', color: '#1e293b', borderBottom: '1px solid #e5e7eb', paddingBottom: '8px', marginBottom: '4px' }}>
+              <input
+                type="checkbox"
+                checked={Object.values(visibleMetrics).every(v => v)}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  const newVisible: Record<string, boolean> = {};
+                  Object.keys(LAB_CONFIG).forEach(k => newVisible[k] = checked);
+                  setVisibleMetrics(newVisible);
+                }}
+                style={{ accentColor: '#3b82f6' }}
               />
-            </LineChart>
-          </ResponsiveContainer>
-          {/* 데이터가 없을 때 안내 메시지 (그래프 위에 겹쳐서 표시) */}
-          {!loading && chartData.length === 0 && (
-            <div style={{ textAlign: 'center', marginTop: '-180px', color: '#9ca3af', position: 'relative', zIndex: 10 }}>
-              No trend data
-            </div>
-          )}
+              <span>Select All</span>
+            </label>
+            {Object.entries(LAB_CONFIG).map(([key, conf]) => (
+              <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#374151' }}>
+                <input
+                  type="checkbox"
+                  checked={visibleMetrics[key]}
+                  onChange={() => setVisibleMetrics(prev => ({ ...prev, [key]: !prev[key] }))}
+                  style={{ accentColor: LINE_COLORS[key] }}
+                />
+                <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: LINE_COLORS[key] }} />
+                <span>{conf.label.split('(')[0]}</span>
+              </label>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -183,41 +296,135 @@ export default function BloodResultPage() {
             <thead>
               <tr>
                 <th>Date</th>
-                <th>Test</th>
-                <th>Result</th>
-                <th>Status</th>
+                {Object.entries(LAB_CONFIG).map(([key, conf]) => (
+                  <th key={key} style={{ fontSize: '11px', whiteSpace: 'nowrap', textAlign: 'center' }}>{conf.label.split('(')[0]}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {results.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', padding: '24px', color: '#9ca3af' }}>
+                  <td colSpan={Object.keys(LAB_CONFIG).length + 1} style={{ textAlign: 'center', padding: '24px', color: '#9ca3af' }}>
                     {loading ? 'Loading history...' : 'No result history found.'}
                   </td>
                 </tr>
               ) : (
-                [...results].reverse().slice(0, 10).map((row, idx) => {
-                  const val = row[selectedMetric as keyof LabResult] as number;
-                  const status = getStatus(selectedMetric, val);
-
-                  return (
-                    <tr key={idx}>
-                      <td>{row.test_date.split('T')[0]}</td>
-                      <td className={styles.cellTestName}>{config.label}</td>
-                      <td className={styles.cellValue}>{val ?? '-'} {config.unit}</td>
-                      <td>
-                        <span className={`${styles.statusBadge} ${styles[status]}`}>
-                          {status === 'normal' ? 'Normal' : 'Risk'}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })
+                [...results].reverse().slice(0, 10).map((row, idx) => (
+                  <tr key={idx}>
+                    <td style={{ whiteSpace: 'nowrap' }}>{row.test_date.split('T')[0]}</td>
+                    {Object.entries(LAB_CONFIG).map(([key, conf]) => {
+                      const val = row[key as keyof LabResult];
+                      const status = getStatus(key, val);
+                      return (
+                        <td key={key} style={{ textAlign: 'center', padding: '8px 4px' }}>
+                          <span style={{
+                            fontSize: '12px',
+                            color: status === 'normal' ? '#2bd46cff' : status === 'danger' ? '#bd3636ff' : '#d16e30ff'
+                          }}>
+                            {val ?? '-'}
+                          </span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* 4. Detail Modal */}
+      {modalOpen && modalMetric && (
+        <div
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setModalOpen(false)}
+        >
+          <div
+            style={{ backgroundColor: 'white', width: '550px', borderRadius: '16px', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>{LAB_CONFIG[modalMetric].label} 상세 정보</h2>
+              <button onClick={() => setModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>&times;</button>
+            </div>
+
+            <div style={{ marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px solid #e5e7eb' }}>
+              <div style={{ fontSize: '32px', fontWeight: 'bold', color: LINE_COLORS[modalMetric] }}>
+                {selectedData?.[modalMetric as keyof LabResult] ?? '-'} <span style={{ fontSize: '16px', color: '#6b7280' }}>{LAB_CONFIG[modalMetric].unit}</span>
+              </div>
+              {(LAB_CONFIG[modalMetric].min !== undefined || LAB_CONFIG[modalMetric].max !== undefined) && (
+                <div style={{ marginTop: '8px', color: '#6b7280' }}>
+                  정상 범위: {LAB_CONFIG[modalMetric].min ?? ''} ~ {LAB_CONFIG[modalMetric].max ?? ''}
+                </div>
+              )}
+              <span style={{ display: 'inline-block', marginTop: '8px', padding: '4px 12px', borderRadius: '12px', fontSize: '12px', background: getStatus(modalMetric, selectedData?.[modalMetric as keyof LabResult]) === 'normal' ? '#dcfce7' : '#fee2e2', color: getStatus(modalMetric, selectedData?.[modalMetric as keyof LabResult]) === 'normal' ? '#166534' : '#991b1b' }}>
+                {getStatus(modalMetric, selectedData?.[modalMetric as keyof LabResult]) === 'normal' ? '정상 범위' : '주의 필요'}
+              </span>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <h4 style={{ fontSize: '14px', color: '#374151', marginBottom: '8px' }}>추세</h4>
+              {(() => {
+                if (results.length < 2) return <span style={{ padding: '4px 12px', borderRadius: '12px', fontSize: '12px', background: '#f3f4f6', color: '#374151' }}>데이터 부족</span>;
+                const len = results.length;
+                const first = Number(results[Math.max(0, len - 3)]?.[modalMetric as keyof LabResult]) || 0;
+                const last = Number(results[len - 1]?.[modalMetric as keyof LabResult]) || 0;
+                const diff = last - first;
+
+                if (diff > 0.1) return <span style={{ padding: '4px 12px', borderRadius: '12px', fontSize: '12px', background: '#fee2e2', color: '#991b1b', fontWeight: 'bold' }}>↑ 상승 중</span>;
+                if (diff < -0.1) return <span style={{ padding: '4px 12px', borderRadius: '12px', fontSize: '12px', background: '#dcfce7', color: '#166534', fontWeight: 'bold' }}>↓ 하강 중</span>;
+                return <span style={{ padding: '4px 12px', borderRadius: '12px', fontSize: '12px', background: '#f3f4f6', color: '#374151', fontWeight: 'bold' }}>→ 유지</span>;
+              })()}
+            </div>
+
+            <div>
+              <h4 style={{ fontSize: '14px', color: '#374151', marginBottom: '8px' }}>과거 기록</h4>
+              <ResponsiveContainer width="100%" height={180}>
+                <AreaChart data={results.map(r => ({ date: r.test_date.split('T')[0], value: getChartValue(modalMetric, r[modalMetric as keyof LabResult]), raw: r[modalMetric as keyof LabResult] }))} margin={{ bottom: 20 }}>
+                  <defs>
+                    <linearGradient id="modalGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={LINE_COLORS[modalMetric]} stopOpacity={0.3} />
+                      <stop offset="95%" stopColor={LINE_COLORS[modalMetric]} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 10 }} />
+                  <YAxis hide domain={['auto', 'auto']} />
+                  <Tooltip
+                    content={({ active, payload, label }: any) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div style={{ background: 'white', padding: '8px 12px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', border: '1px solid #e5e7eb' }}>
+                            <p style={{ fontWeight: 'bold', marginBottom: '4px', fontSize: '12px' }}>{label}</p>
+                            <p style={{ color: LINE_COLORS[modalMetric], fontSize: '14px', fontWeight: 'bold' }}>
+                              {payload[0].payload.raw} {LAB_CONFIG[modalMetric].unit}
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="value"
+                    stroke={LINE_COLORS[modalMetric]}
+                    strokeWidth={2}
+                    fill="url(#modalGradient)"
+                    dot={{ r: 4, fill: 'white', stroke: LINE_COLORS[modalMetric], strokeWidth: 2 }}
+                    activeDot={{ r: 6, fill: LINE_COLORS[modalMetric], stroke: 'white', strokeWidth: 2 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div style={{ marginTop: '20px', textAlign: 'right' }}>
+              <button onClick={() => setModalOpen(false)} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #e5e7eb', background: 'white', cursor: 'pointer' }}>닫기</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

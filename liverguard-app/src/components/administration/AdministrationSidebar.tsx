@@ -4,8 +4,8 @@ import styles from '../../pages/administration/Dashboard.module.css';
 import PatientActionModal from './PatientActionModal';
 import QuestionnaireModal, { type QuestionnaireData } from './QuestionnaireModal';
 import PatientDetailModal from './PatientDetailModal';
-import { updateEncounter, createQuestionnaire, cancelEncounter } from '../../api/administration_api';
-import { getPatientDetail, updatePatient, type PatientUpdateData } from '../../api/administrationApi';
+import { updateEncounter, createQuestionnaire, cancelEncounter } from '../../api/receptionApi';
+import { getPatientDetail, updatePatient, type PatientUpdateData } from '../../api/hospitalOpsApi';
 
 interface AdministrationSidebarProps {
     staffName?: string;
@@ -296,12 +296,22 @@ export default function AdministrationSidebar({
             <div className={styles.sidebar}>
                 <div className={styles.sidebarContent}>
                     <div className={styles.profileSection}>
-                        <div className={styles.profileImage}></div>
+                        <div className={styles.profileImage}>
+                            <svg className={styles.profileIcon} viewBox="0 0 64 64" aria-hidden="true">
+                                <rect x="10" y="14" width="44" height="40" rx="8" fill="#7AA6D6" />
+                                <rect x="16" y="20" width="8" height="8" rx="2" fill="#E6F0FA" />
+                                <rect x="40" y="20" width="8" height="8" rx="2" fill="#E6F0FA" />
+                                <rect x="16" y="34" width="8" height="8" rx="2" fill="#E6F0FA" />
+                                <rect x="40" y="34" width="8" height="8" rx="2" fill="#E6F0FA" />
+                                <rect x="29" y="24" width="6" height="16" rx="2" fill="#FFFFFF" />
+                                <rect x="24" y="29" width="16" height="6" rx="2" fill="#FFFFFF" />
+                            </svg>
+                        </div>
                         <div className={styles.profileInfo}>
                             <div className={styles.profileName}>{staffName}</div>
                             <div className={styles.departmentTag}>{departmentName}</div>
                             <div className={styles.statusInfo}>
-                                상태: <span className={styles.statusBadge}>근무중</span>
+                                상태: <span className={styles.statusBadge}> 근무중 </span>
                             </div>
                         </div>
                     </div>
@@ -331,7 +341,7 @@ export default function AdministrationSidebar({
                                 <>
                                     {activeTab === 'clinic' ? (
                                         <>
-                                            {uniqueClinicPatients.inClinic.map((queueItem: any) => (
+                                            {uniqueClinicPatients.inClinic.slice(0, 50).map((queueItem: any) => (
                                                 <PatientCard
                                                     key={`in-clinic-${queueItem.encounter_id}`}
                                                     queueItem={queueItem}
@@ -339,7 +349,7 @@ export default function AdministrationSidebar({
                                                     type="IN_CLINIC"
                                                 />
                                             ))}
-                                            {uniqueClinicPatients.waiting.map((queueItem: any) => (
+                                            {uniqueClinicPatients.waiting.slice(0, 50).map((queueItem: any) => (
                                                 <PatientCard
                                                     key={`waiting-${queueItem.encounter_id}`}
                                                     queueItem={queueItem}
@@ -353,7 +363,7 @@ export default function AdministrationSidebar({
                                         </>
                                     ) : (
                                         <>
-                                            {uniqueResultPatients.map((queueItem: any) => (
+                                            {uniqueResultPatients.slice(0, 50).map((queueItem: any) => (
                                                 <PatientCard
                                                     key={`result-${queueItem.encounter_id}`}
                                                     queueItem={queueItem}
@@ -449,7 +459,14 @@ function PatientCard({ queueItem, onClick, type }: { queueItem: any, onClick: (i
             style={{ cursor: 'pointer', borderLeft }}
         >
             <div className={styles.patientHeader}>
-                <span className={styles.patientName}>{queueItem.patient_name || '이름 없음'}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className={styles.patientName}>{queueItem.patient_name || '이름 없음'}</span>
+                    {queueItem.doctor_name && (
+                        <span className={styles.patientDetails} style={{ marginBottom: 0 }}>
+                            {`담당: ${queueItem.doctor_name}`}
+                        </span>
+                    )}
+                </div>
                 <span className={styles.genderIcon}>{getGenderSymbol(queueItem.gender)}</span>
             </div>
             <div className={styles.patientDetails}>
@@ -473,7 +490,7 @@ function PatientCard({ queueItem, onClick, type }: { queueItem: any, onClick: (i
                 </span>
 
                 {type === 'IN_CLINIC' && (
-                    <span className={styles.badge} style={{
+                    <span className={styles.workflowBadge} style={{
                         background: 'var(--sky-400)',
                         color: 'var(--sky-text-strong)',
                         padding: '4px 12px',
@@ -485,7 +502,7 @@ function PatientCard({ queueItem, onClick, type }: { queueItem: any, onClick: (i
                     </span>
                 )}
                 {queueItem.workflow_state === 'WAITING_RESULTS' && (
-                    <span className={styles.badge} style={{
+                    <span className={styles.workflowBadge} style={{
                         background: 'var(--sky-300)',
                         color: 'var(--sky-text)',
                         padding: '6px 10px',
@@ -497,7 +514,7 @@ function PatientCard({ queueItem, onClick, type }: { queueItem: any, onClick: (i
                     </span>
                 )}
                 {queueItem.workflow_state === 'WAITING_CLINIC' && type !== 'IN_CLINIC' && (
-                    <span className={styles.badge} style={{
+                    <span className={styles.workflowBadge} style={{
                         background: 'var(--sky-300)',
                         color: 'var(--sky-text)',
                         padding: '6px 10px',
@@ -510,7 +527,7 @@ function PatientCard({ queueItem, onClick, type }: { queueItem: any, onClick: (i
                 )}
 
                 {type === 'IMAGING' && (
-                    <span className={styles.badge} style={{
+                    <span className={styles.workflowBadge} style={{
                         background: queueItem.workflow_state === 'WAITING_PAYMENT' ? 'var(--sky-300)' : queueItem.workflow_state === 'IN_IMAGING' ? 'var(--sky-400)' : 'var(--sky-200)',
                         color: queueItem.workflow_state === 'WAITING_PAYMENT' ? 'var(--sky-text)' : 'var(--sky-text-strong)',
                         padding: '4px 12px',

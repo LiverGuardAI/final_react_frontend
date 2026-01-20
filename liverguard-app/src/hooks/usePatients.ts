@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { getPatientList } from '../api/administrationApi';
+import { getPatientList } from '../api/hospitalOpsApi';
 
 export interface Patient {
   id: string;
@@ -26,7 +26,8 @@ export const usePatients = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await getPatientList(searchQuery);
+      const pageSize = 5;
+      const response = await getPatientList(searchQuery, page, pageSize);
 
       const formattedPatients: Patient[] = response.results.map((p: any) => {
         return {
@@ -46,7 +47,7 @@ export const usePatients = () => {
 
       setPatients(formattedPatients);
       setCurrentPage(page);
-      setTotalPages(Math.ceil(response.count / 20) || 1);
+      setTotalPages(Math.ceil(response.count / 5) || 1);
 
       return formattedPatients;
     } catch (err: any) {

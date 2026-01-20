@@ -87,9 +87,25 @@ export const getDoctorDashboardStats = async (
 export const getDoctorInProgressEncounter = async (
   doctorId: number
 ): Promise<QueueItem | null> => {
-  const response = await getDoctorWaitingQueue(doctorId, 50);
-  const inProgressEncounter = response.queue.find(
-    (item: any) => item.workflow_state === 'IN_CLINIC'
+  const response = await apiClient.get('/doctor/queue/', {
+    params: {
+      doctor_id: doctorId,
+      status: 'IN_CLINIC',
+    },
+  });
+  const queue = response.data.encounters || [];
+  const matchesDoctor = (item: any) => {
+    if (!doctorId) return true;
+    const ids = [
+      item.assigned_doctor,
+      item.assigned_doctor_id,
+      item.doctor_id,
+      item.doctor,
+    ];
+    return ids.some((id) => Number(id) === doctorId);
+  };
+  const inProgressEncounter = queue.find(
+    (item: any) => item.workflow_state === 'IN_CLINIC' && matchesDoctor(item)
   );
   return inProgressEncounter || null;
 };
@@ -196,8 +212,10 @@ export interface EncounterDetail {
   questionnaire_status_display: string;
   questionnaire_data?: any;
   clinic_room?: string;
-  encounter_date: string;
-  encounter_time: string;
+  encounter_date?: string;
+  encounter_time?: string;
+  record_date?: string;
+  record_time?: string;
   encounter_start?: string;
   encounter_end?: string;
   chief_complaint?: string;
@@ -218,12 +236,61 @@ export interface EncounterDetail {
   updated_at: string;
 }
 
+export interface SaveMedicalRecordPayload {
+  encounter_id: number;
+  patient_id: string;
+  chief_complaint?: string;
+  clinical_notes?: string;
+  record_status?: 'DRAFT' | 'COMPLETED' | 'AMENDED';
+
+  medications?: Array<{
+    name: string;
+    dosage: string;
+    frequency: string;
+    days: string;
+  }>;
+}
+
+export interface QuestionnaireRecord {
+  questionnaire_id: number;
+  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+  status_display: string;
+  data: any;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VitalRecord {
+  vital_id: number;
+  measured_at: string;
+  sbp?: number | null;
+  dbp?: number | null;
+  heart_rate?: number | null;
+  temperature?: number | null;
+  systolic_bp?: number | null;
+  diastolic_bp?: number | null;
+  heartRate?: number | null;
+  body_temperature?: number | null;
+  patient?: string;
+  medical_record?: number | null;
+}
+
 /**
  * Encounter 상세 정보 조회
  * @param encounterId - Encounter ID
  */
 export const getEncounterDetail = async (encounterId: number): Promise<EncounterDetail> => {
   const response = await apiClient.get(`/doctor/encounter/${encounterId}/`);
+  return response.data;
+};
+
+/**
+ * 진료 기록 임시 저장
+ */
+export const saveMedicalRecord = async (
+  payload: SaveMedicalRecordPayload
+): Promise<EncounterDetail> => {
+  const response = await apiClient.post('/doctor/medical-records/save/', payload);
   return response.data;
 };
 
@@ -237,6 +304,36 @@ export const getPatientEncounterHistory = async (
   limit?: number
 ): Promise<{ count: number; results: EncounterDetail[] }> => {
   const response = await apiClient.get(`/doctor/patient/${patientId}/encounters/`, {
+    params: limit ? { limit } : {},
+  });
+  return response.data;
+};
+
+/**
+ * 특정 환자의 문진표 목록 조회
+ * @param patientId - 환자 ID
+ * @param limit - 조회할 최대 건수 (선택)
+ */
+export const getPatientQuestionnaires = async (
+  patientId: string,
+  limit?: number
+): Promise<{ count: number; results: QuestionnaireRecord[] }> => {
+  const response = await apiClient.get(`/doctor/patient/${patientId}/questionnaires/`, {
+    params: limit ? { limit } : {},
+  });
+  return response.data;
+};
+
+/**
+ * 특정 환자의 바이탈 기록 목록 조회
+ * @param patientId - 환자 ID
+ * @param limit - 조회할 최대 건수 (선택)
+ */
+export const getPatientVitals = async (
+  patientId: string,
+  limit?: number
+): Promise<{ count: number; results: VitalRecord[] }> => {
+  const response = await apiClient.get(`/doctor/patient/${patientId}/vitals/`, {
     params: limit ? { limit } : {},
   });
   return response.data;
@@ -433,8 +530,9 @@ export interface GenomicDataItem {
   created_at?: string;
   measured_at?: string | null;
   patient?: string;
-  pathway_scores?: Record<string, number> | number[] | null;
+  pathway_scores?: Record<string, number> | null;
 }
+
 
 export const getPatientGenomicData = async (
   patientId: string,
@@ -472,6 +570,34 @@ export const getDoctorMedicalRecords = async (params: {
   end_date?: string;
 }): Promise<{ count: number; results: EncounterDetail[] }> => {
   const response = await apiClient.get('/doctor/medical-records/', {
+    params,
+  });
+  return response.data;
+};
+
+// ===========================
+// 공지사항 API
+// ===========================
+
+export interface AnnouncementItem {
+  announcement_id: number;
+  title: string;
+  content: string;
+  announcement_type: 'GENERAL' | 'URGENT' | 'EVENT' | 'MAINTENANCE';
+  announcement_type_display?: string;
+  is_important: boolean;
+  published_at?: string | null;
+  created_at?: string;
+  expires_at?: string | null;
+  author_name?: string | null;
+}
+
+export const getAnnouncements = async (params?: {
+  limit?: number;
+  type?: AnnouncementItem['announcement_type'];
+  important_only?: boolean;
+}): Promise<{ count: number; results: AnnouncementItem[] }> => {
+  const response = await apiClient.get('/doctor/announcements/', {
     params,
   });
   return response.data;

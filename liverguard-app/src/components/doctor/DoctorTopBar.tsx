@@ -1,6 +1,9 @@
 import { memo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from '../../layouts/DoctorLayout.module.css';
+import { useNotification } from '../../context/NotificationContext';
+import { useChatContext } from '../../context/ChatContext';
+import ChatDropdown from '../common/ChatDropdown';
 
 type TabType = 'home' | 'schedule' | 'treatment' | 'medicalRecord' | 'examination' | 'testForm' | 'medication';
 
@@ -10,7 +13,11 @@ interface DoctorTopBarProps {
 
 const DoctorTopBar = memo(function DoctorTopBar({ activeTab }: DoctorTopBarProps) {
   const navigate = useNavigate();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotification();
+  const { totalUnreadCount: chatUnreadCount } = useChatContext();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showChat, setShowChat] = useState(false);
 
   const handleMouseEnter = (dropdown: string) => {
     setOpenDropdown(dropdown);
@@ -31,6 +38,8 @@ const DoctorTopBar = memo(function DoctorTopBar({ activeTab }: DoctorTopBarProps
       navigate('/doctor/mrna-result');
     } else if (item === '혈액 검사 결과') {
       navigate('/doctor/blood-result');
+    } else if (item === '통합 분석') {
+      navigate('/doctor/integrated-result');
     } else if (item === '병기예측') {
       navigate('/doctor/ai-stage-prediction');
     } else if (item === '조기재발예측') {
@@ -52,8 +61,11 @@ const DoctorTopBar = memo(function DoctorTopBar({ activeTab }: DoctorTopBarProps
       case 'treatment':
         navigate('/doctor/treatment');
         break;
+      case 'examination':
+        navigate('/doctor/ct-result');
+        break;
       case 'testForm':
-        navigate('/doctor/ai-result');
+        navigate('/doctor/ai-stage-prediction');
         break;
       case 'medicalRecord':
         navigate('/doctor/medical-record');
@@ -84,12 +96,13 @@ const DoctorTopBar = memo(function DoctorTopBar({ activeTab }: DoctorTopBarProps
         </button>
 
         <div
-          style={{ position: 'relative', flex: 1, maxWidth: '150px' }}
+          style={{ position: 'relative' }}
           onMouseEnter={() => handleMouseEnter('examination')}
           onMouseLeave={handleMouseLeave}
         >
           <button
             className={`${styles.tabButton} ${styles.hasDropdown} ${openDropdown === 'examination' ? styles.active : ''}`}
+            onClick={() => handleTabClick('examination')}
           >
             <span>검사 결과</span>
           </button>
@@ -113,17 +126,24 @@ const DoctorTopBar = memo(function DoctorTopBar({ activeTab }: DoctorTopBarProps
               >
                 혈액 검사 결과
               </button>
+              <button
+                className={styles.dropdownItem}
+                onClick={() => handleDropdownItemClick('통합 분석')}
+              >
+                통합 분석
+              </button>
             </div>
           )}
         </div>
 
         <div
-          style={{ position: 'relative', flex: 1, maxWidth: '150px' }}
+          style={{ position: 'relative' }}
           onMouseEnter={() => handleMouseEnter('aiAnalysis')}
           onMouseLeave={handleMouseLeave}
         >
           <button
             className={`${styles.tabButton} ${styles.hasDropdown} ${openDropdown === 'aiAnalysis' ? styles.active : ''}`}
+            onClick={() => handleTabClick('testForm')}
           >
             <span>AI분석</span>
           </button>
@@ -175,24 +195,66 @@ const DoctorTopBar = memo(function DoctorTopBar({ activeTab }: DoctorTopBarProps
 
       {/* 우측 아이콘 */}
       <div className={styles.topBarIcons}>
-        <button
-          className={styles.iconButton}
-          onClick={() => console.log('Messages clicked')}
-          title="메시지"
-        >
-          <svg className={styles.messageIcon} width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M20 2H4C2.9 2 2.01 2.9 2.01 4L2 22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM18 14H6V12H18V14ZM18 11H6V9H18V11ZM18 8H6V6H18V8Z" fill="currentColor" />
-          </svg>
-        </button>
-        <button
-          className={styles.iconButton}
-          onClick={() => console.log('Notifications clicked')}
-          title="알림"
-        >
-          <svg className={styles.bellIcon} width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M12 22C13.1 22 14 21.1 14 20H10C10 21.1 10.89 22 12 22ZM18 16V11C18 7.93 16.36 5.36 13.5 4.68V4C13.5 3.17 12.83 2.5 12 2.5C11.17 2.5 10.5 3.17 10.5 4V4.68C7.63 5.36 6 7.92 6 11V16L4 18V19H20V18L18 16Z" fill="currentColor" />
-          </svg>
-        </button>
+        <div className={styles.notificationContainer}>
+          <button
+            className={styles.iconButton}
+            onClick={() => {
+              setShowChat(!showChat);
+              setShowNotifications(false);
+            }}
+            title="메시지"
+          >
+            <svg className={styles.messageIcon} width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M20 2H4C2.9 2 2.01 2.9 2.01 4L2 22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM18 14H6V12H18V14ZM18 11H6V9H18V11ZM18 8H6V6H18V8Z" fill="currentColor" />
+            </svg>
+            {chatUnreadCount > 0 && <span className={styles.badge}>{chatUnreadCount > 9 ? '9+' : chatUnreadCount}</span>}
+          </button>
+          <ChatDropdown isOpen={showChat} onClose={() => setShowChat(false)} />
+        </div>
+        <div className={styles.notificationContainer}>
+          <button
+            className={styles.iconButton}
+            onClick={() => {
+              setShowNotifications(!showNotifications);
+              setShowChat(false);
+            }}
+            title="알림"
+          >
+            <svg className={styles.bellIcon} width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M12 22C13.1 22 14 21.1 14 20H10C10 21.1 10.89 22 12 22ZM18 16V11C18 7.93 16.36 5.36 13.5 4.68V4C13.5 3.17 12.83 2.5 12 2.5C11.17 2.5 10.5 3.17 10.5 4V4.68C7.63 5.36 6 7.92 6 11V16L4 18V19H20V18L18 16Z" fill="currentColor" />
+            </svg>
+            {unreadCount > 0 && <span className={styles.badge}>{unreadCount > 9 ? '9+' : unreadCount}</span>}
+          </button>
+
+          {showNotifications && (
+            <div className={styles.notificationDropdown}>
+              <div className={styles.dropdownHeader}>
+                <span className={styles.dropdownHeaderTitle}>알림</span>
+                <button className={styles.markAllReadBtn} onClick={markAllAsRead}>모두 읽음</button>
+              </div>
+              <div className={styles.dropdownList}>
+                {notifications.length === 0 ? (
+                  <div style={{ padding: '20px', textAlign: 'center', color: '#999', fontSize: '13px' }}>
+                    알림이 없습니다.
+                  </div>
+                ) : (
+                  notifications.map(n => (
+                    <div
+                      key={n.notification_id}
+                      className={`${styles.notificationItem} ${n.is_read ? styles.read : styles.unread}`}
+                      onClick={() => markAsRead(n.notification_id)}
+                    >
+                      <div className={styles.notiMessage}>{n.message}</div>
+                      <div className={styles.notiTime}>
+                        {new Date(n.created_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
         <button
           className={styles.iconButton}
           onClick={() => {

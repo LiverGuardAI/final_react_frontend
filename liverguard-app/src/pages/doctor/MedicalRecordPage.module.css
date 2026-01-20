@@ -128,3 +128,88 @@
     background-color: #fee2e2;
     color: #dc2626;
 }
+
+/* 모달 스타일 */
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modalContent {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.modalHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.modalHeader h2 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.modalHeader button {
+    border: none;
+    background: none;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.modalBody {
+    line-height: 1.6;
+}
+
+.modalBody h3 {
+    font-size: 16px;
+    margin-top: 16px;
+    margin-bottom: 8px;
+    color: #333;
+    border-left: 3px solid #6C5CE7;
+    padding-left: 8px;
+}
+
+.modalBody p {
+    margin: 4px 0;
+    color: #555;
+}
+
+.modalBody hr {
+    border: 0;
+    border-top: 1px solid #eee;
+    margin: 20px 0;
+}
+
+.modalFooter {
+    margin-top: 20px;
+    text-align: right;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+}
+
+.closeButton {
+    padding: 8px 16px;
+    background: #6C5CE7;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}

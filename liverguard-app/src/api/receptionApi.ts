@@ -1,4 +1,4 @@
-// src/api/administration_api.ts
+// src/api/receptionApi.ts
 import apiClient from "./axiosConfig";
 
 // ==================== 대시보드 ====================
@@ -36,6 +36,7 @@ export const getAppointments = async (filters?: {
   status?: string;
   date?: string;
   patient_id?: string;
+  doctor_id?: string;
 }) => {
   const res = await apiClient.get("administration/appointments/", { params: filters });
   return res.data;
@@ -80,8 +81,11 @@ export const deleteAppointment = async (appointmentId: number) => {
 };
 
 // ==================== 진료 기록 (접수) ====================
-export const getEncounters = async (patientId?: string) => {
-  const params = patientId ? { patient_id: patientId } : {};
+export const getEncounters = async (patientId?: string, date?: string) => {
+  const params: any = {};
+  if (patientId) params.patient_id = patientId;
+  if (date) params.date = date;
+  console.log('getEncounters params:', params);
   const res = await apiClient.get("administration/encounters/", { params });
   return res.data;
 };
@@ -127,14 +131,56 @@ export const getAvailableDoctors = async () => {
   return res.data;
 };
 
+export const getRadiologists = async () => {
+  const res = await apiClient.get("radiology/list/");
+  return res.data;
+};
+
 // ==================== 대기열 관리 ====================
 export const getWaitingQueue = async (maxCount: number = 10) => {
   const res = await apiClient.get("administration/queue/waiting/", { params: { max_count: maxCount } });
   return res.data;
 };
 
+
 export const getDashboardStats = async () => {
   const res = await apiClient.get("administration/dashboard/stats/");
+  return res.data;
+};
+
+export const getDailyPatientStatus = async () => {
+  const res = await apiClient.get("administration/dashboard/patient-status/");
+  return res.data;
+};
+
+
+// ==================== 근무 일정 (Schedule) ====================
+export const getDutySchedules = async (startDate?: string, endDate?: string, doctorId?: number) => {
+  const params: any = {};
+  if (startDate) params.start_date = startDate;
+  if (endDate) params.end_date = endDate;
+  if (doctorId) params.doctor_id = doctorId;
+
+  const res = await apiClient.get("auth/schedules/public/", { params });
+  return res.data;
+};
+
+// ==================== 앱 예약 승인/거절 ====================
+export const approveAppAppointment = async (appointmentId: number) => {
+  const res = await apiClient.post(`patients/appointments/${appointmentId}/approve/`);
+  return res.data;
+};
+
+export const rejectAppAppointment = async (appointmentId: number, reason?: string) => {
+  const res = await apiClient.post(`patients/appointments/${appointmentId}/reject/`, { reason });
+  return res.data;
+};
+
+export const getAppAppointments = async (status?: string, date?: string) => {
+  const params: { status?: string; date?: string } = {};
+  if (status) params.status = status;
+  if (date) params.date = date;
+  const res = await apiClient.get("patients/appointments/list/", { params });
   return res.data;
 };
 

@@ -255,9 +255,6 @@
   box-sizing: border-box;
 }
 
-.errorState {
-  color: #ef4444;
-}
 
 /* Viewer Styles */
 .viewerContainer {

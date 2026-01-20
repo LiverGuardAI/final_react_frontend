@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { type PendingOrder } from '../../api/administrationApi';
+import { type PendingOrder } from '../../api/hospitalOpsApi';
 import styles from './PatientActionModal.module.css'; // Reusing styles
 
 interface VitalMeasurementModalProps {

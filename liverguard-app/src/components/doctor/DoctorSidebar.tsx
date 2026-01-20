@@ -28,6 +28,7 @@ interface DoctorSidebarProps {
   completedPatients: Patient[];
   onPatientCardClick: (patient: Patient) => void;
   onStartConsultation: (patient: Patient, event: React.MouseEvent) => Promise<void>;
+  onResumeConsultation: (patient: Patient, event: React.MouseEvent) => void;
 }
 
 const DoctorSidebar = memo(function DoctorSidebar({
@@ -41,13 +42,24 @@ const DoctorSidebar = memo(function DoctorSidebar({
   completedPatients,
   onPatientCardClick,
   onStartConsultation,
+  onResumeConsultation,
 }: DoctorSidebarProps) {
   return (
     <div className={styles.sidebar}>
       <div className={styles.sidebarContent}>
         {/* 프로필 섹션 */}
         <div className={styles.profileSection}>
-          <div className={styles.profileImage}></div>
+          <div className={styles.profileImage}>
+            <svg className={styles.profileIcon} viewBox="0 0 64 64" aria-hidden="true">
+              <rect x="10" y="14" width="44" height="40" rx="8" fill="#7AA6D6" />
+              <rect x="16" y="20" width="8" height="8" rx="2" fill="#E6F0FA" />
+              <rect x="40" y="20" width="8" height="8" rx="2" fill="#E6F0FA" />
+              <rect x="16" y="34" width="8" height="8" rx="2" fill="#E6F0FA" />
+              <rect x="40" y="34" width="8" height="8" rx="2" fill="#E6F0FA" />
+              <rect x="29" y="24" width="6" height="16" rx="2" fill="#FFFFFF" />
+              <rect x="24" y="29" width="16" height="6" rx="2" fill="#FFFFFF" />
+            </svg>
+          </div>
           <div className={styles.profileInfo}>
             <div className={styles.profileName}>{doctorName}</div>
             <div className={styles.departmentTag}>{departmentName}</div>
@@ -108,14 +120,16 @@ const DoctorSidebar = memo(function DoctorSidebar({
                         {patient.questionnaireStatus === 'COMPLETED' ? '작성완료' :
                           patient.questionnaireStatus === 'IN_PROGRESS' ? '작성중' : '미작성'}
                       </span>
-                      <span style={{
-                        background: '#6C5CE7',
-                        color: 'white',
-                        padding: '4px 12px',
-                        borderRadius: '12px',
-                        fontSize: '12px',
-                        fontWeight: 'bold'
-                      }}>
+                      <span
+                        onClick={(e) => onResumeConsultation(patient, e)}
+                        style={{
+                          background: '#6C5CE7',
+                          color: 'white',
+                          padding: '4px 12px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: 'bold'
+                        }}>
                         진료중
                       </span>
                     </div>
@@ -126,7 +140,7 @@ const DoctorSidebar = memo(function DoctorSidebar({
                 ))}
 
                 {/* 대기중인 환자 */}
-                {waitingPatients.map((patient) => (
+                {waitingPatients.map((patient, index) => (
                   <div
                     key={patient.encounterId}
                     className={styles.patientCard}
@@ -134,7 +148,10 @@ const DoctorSidebar = memo(function DoctorSidebar({
                     style={{ cursor: 'pointer' }}
                   >
                     <div className={styles.patientHeader}>
-                      <span className={styles.patientName}>{patient.name}</span>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <span style={{ marginRight: '8px', color: '#52759C', fontWeight: 'bold' }}>{index + 1}</span>
+                        <span className={styles.patientName}>{patient.name}</span>
+                      </div>
                       <span className={styles.genderIcon}>{patient.gender === '여' ? '♀' : '♂'}</span>
                     </div>
                     <div className={styles.patientDetails}>
@@ -161,6 +178,9 @@ const DoctorSidebar = memo(function DoctorSidebar({
                       <button
                         className={`${styles.actionButton} ${styles.start}`}
                         onClick={(e) => onStartConsultation(patient, e)}
+                        disabled={inProgressPatients.length > 0}
+                        style={inProgressPatients.length > 0 ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                        title={inProgressPatients.length > 0 ? '현재 진료 중인 환자가 있습니다' : ''}
                       >
                         진료시작
                       </button>

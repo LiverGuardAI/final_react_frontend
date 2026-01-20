@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import * as api from '../../api/predictionApi';
 import * as aiApi from '../../api/ai_api';
 import FeatureSelectRow from '../../components/doctor/FeatureSelectRow';
 import type { CtSeriesItem, HCCDiagnosis, LabResult, PatientProfile } from '../../api/doctorApi';
+import { useTreatment } from '../../contexts/TreatmentContext';
 import styles from './AIAnalysis.module.css';
 
 /**
@@ -14,11 +14,10 @@ import styles from './AIAnalysis.module.css';
 
 const StagePrediction: React.FC = () => {
   const { patientId: urlPatientId } = useParams();
+  const { selectedPatientId } = useTreatment();
+  const resolvedPatientId = selectedPatientId || urlPatientId || '';
   // 상태 관리
-  const [selectedPatient, setSelectedPatient] = useState(urlPatientId || '');
-  const [radioList, setRadioList] = useState<api.RadioFeature[]>([]);
-  const [clinicalList, setClinicalList] = useState<api.ClinicalFeature[]>([]);
-
+  const [selectedPatient, setSelectedPatient] = useState(resolvedPatientId);
   const [selectedRadioId, setSelectedRadioId] = useState('');
   const [selectedClinicalId, setSelectedClinicalId] = useState('');
   const [selectedHccId, setSelectedHccId] = useState('');
@@ -153,25 +152,28 @@ const StagePrediction: React.FC = () => {
     ];
   };
 
-  // 1. 전체 환자 목록 로드
-  // 2. 선택된 환자의 특징 데이터 로드
   useEffect(() => {
-    const loadFeatures = async () => {
-      if (selectedPatient) {
-        setLoading(true);
-        try {
-          const [radio, clinical] = await Promise.all([
-            api.fetchRadioFeatures(selectedPatient),
-            api.fetchClinicalFeatures(selectedPatient)
-          ]);
-          setRadioList(radio);
-          setClinicalList(clinical);
-        } catch (err) { console.error(err); }
-        finally { setLoading(false); }
-      }
-    };
-    loadFeatures();
-  }, [selectedPatient]);
+    if (resolvedPatientId !== selectedPatient) {
+      setSelectedPatient(resolvedPatientId);
+    }
+  }, [resolvedPatientId, selectedPatient]);
+
+  useEffect(() => {
+    if (selectedPatientId !== null) {
+      return;
+    }
+    setSelectedRadioId('');
+    setSelectedClinicalId('');
+    setSelectedHccId('');
+    setSelectedCtSeries(null);
+    setSelectedLabResult(null);
+    setSelectedHccDiagnosis(null);
+    setPatientProfile(null);
+    setPredictionResult(null);
+    setPredictionError(null);
+    setTaskId(null);
+    setIsPolling(false);
+  }, [selectedPatientId]);
 
 
   // Poll task status
@@ -261,8 +263,8 @@ const StagePrediction: React.FC = () => {
       {/* 데이터 선택 영역 (상단 일렬 배치) */}
       <div className={styles.selectionHeader}>
         <FeatureSelectRow
-          radioList={radioList}
-          clinicalList={clinicalList}
+          radioList={[]}
+          clinicalList={[]}
           selectedRadioId={selectedRadioId}
           selectedClinicalId={selectedClinicalId}
           selectedHccId={selectedHccId}
@@ -305,7 +307,7 @@ const StagePrediction: React.FC = () => {
           <div className={`${styles.infoItem} ${styles.infoItemTall}`}>
             <div className={styles.infoHeader}>
               <span className={styles.infoLabel}>혈액 검사</span>
-              <span className={styles.infoMeta}>{formatDate(selectedLabResult?.test_date || clinicalList.find(c => c.clinical_vector_id === selectedClinicalId)?.lab_date)}</span>
+              <span className={styles.infoMeta}>{formatDate(selectedLabResult?.test_date)}</span>
             </div>
             {renderLabSection(selectedLabResult)}
           </div>

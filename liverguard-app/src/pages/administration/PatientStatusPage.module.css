@@ -1,0 +1,246 @@
+/* PatientStatusPage.module.css */
+
+.container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: #F5F7FA;
+  padding: 24px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.refreshButton {
+  padding: 8px 16px;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 14px;
+}
+
+.refreshButton:hover {
+  background-color: #2563eb;
+}
+
+/* Stats Cards */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.statCard {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.statLabel {
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.statValue {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.statSubtext {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+/* Table Section */
+.content {
+  flex: 1;
+  background: #FFFFFF;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+}
+
+.tableHeader {
+  padding: 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #f8fafc;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tableTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #334155;
+  margin: 0;
+}
+
+.tableContainer {
+  flex: 1;
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.table th {
+  background-color: #f1f5f9;
+  color: #475569;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 12px 16px;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 14px;
+  color: #334155;
+  vertical-align: middle;
+}
+
+.table tr:hover {
+  background-color: #f8fafc;
+}
+
+/* Status Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.badgeRegistered {
+  background-color: #e2e8f0;
+  color: #475569;
+}
+
+.badgeWaiting {
+  background-color: #fef9c3;
+  color: #854d0e;
+}
+
+.badgeClinic {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.badgeImaging {
+  background-color: #e0e7ff;
+  color: #3730a3;
+}
+
+.badgeResult {
+  background-color: #fce7f3;
+  color: #9d174d;
+}
+
+.badgePayment {
+  background-color: #ffedd5;
+  color: #9a3412;
+}
+
+.badgeCompleted {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.badgeCancelled {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+/* Columns */
+.colSeq {
+  width: 60px;
+  text-align: center;
+}
+
+.colTime {
+  width: 100px;
+}
+
+.colName {
+  width: 150px;
+  font-weight: 600;
+}
+
+.colDoctor {
+  width: 120px;
+}
+
+.colStatus {
+  width: 120px;
+}
+
+.colStateTime {
+  width: 140px;
+}
+
+.colDuration {
+  width: 100px;
+}
+
+.colAction {
+  width: 100px;
+  text-align: center;
+}
+
+.loadingOverlay {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  font-size: 16px;
+  color: #64748b;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 40px;
+  color: #94a3b8;
+  font-size: 15px;
+}

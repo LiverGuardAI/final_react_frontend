@@ -81,7 +81,6 @@
   background: #F8F9FA;
   padding: 15px;
   border-radius: 12px;
-  border-left: 4px solid #52759C;
 }
 
 .summaryRow {
@@ -118,31 +117,32 @@
 }
 
 .waitingTimeBox {
-  background: linear-gradient(135deg, #B3D4FC 0%, #D4C5F9 100%);
+  background: #F8F9FA;
   padding: 20px;
   border-radius: 12px;
   color: #424242;
   text-align: center;
-  border: 2px solid #E8EAF6;
+  border-top: none;
+  border-bottom: none;
 }
 
 .waitingLabel {
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 8px;
-  color: #5C6BC0;
+  color: #52759C;
 }
 
 .waitingTime {
   font-size: 32px;
   font-weight: 700;
   margin-bottom: 8px;
-  color: #3F51B5;
+  color: #000000;
 }
 
 .waitingDetail {
   font-size: 13px;
-  color: #616161;
+  color: #666666;
 }
 
 .actionButtons {
@@ -155,44 +155,34 @@
   display: flex;
   align-items: center;
   gap: 15px;
-  padding: 18px 20px;
-  border: 2px solid #E0E0E0;
+  background: #F8F9FA;
+  padding: 15px;
   border-radius: 12px;
-  background: #FFFFFF;
+  border-left: 4px solid #52759C;
+  border-right: 4px solid #52759C;
   cursor: pointer;
   transition: all 0.2s;
   text-align: left;
+  border-top: none;
+  border-bottom: none;
 }
 
 .actionButton:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  background: #EAECEF;
 }
 
-.questionnaireBtn {
-  border-color: #C8E6C9;
-  background: #F1F8E9;
-}
 
-.questionnaireBtn:hover {
-  border-color: #A5D6A7;
-  background: #DCEDC8;
-}
-
-.detailsBtn {
-  border-color: #BBDEFB;
-  background: #E3F2FD;
-}
-
-.detailsBtn:hover {
-  border-color: #90CAF9;
-  background: #BBDEFB;
-}
+/* 기존 개별 스타일 제거됨 */
+/* .questionnaireBtn, .detailsBtn 관련 스타일 삭제 */
 
 .buttonIcon {
-  font-size: 32px;
-  min-width: 40px;
+  font-size: 24px;
+  min-width: 30px;
   text-align: center;
+  color: #52759C;
+  font-weight: 700;
 }
 
 .buttonText {

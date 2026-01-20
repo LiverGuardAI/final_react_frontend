@@ -1,0 +1,609 @@
+/* PersonalSchedule.module.css - appointments 스타일로 완전 재구성 */
+
+.scheduleContainer {
+    display: flex;
+    gap: 24px;
+    padding: 24px;
+    height: calc(100vh - 64px);
+    background-color: #f7fafc;
+    overflow: hidden;
+}
+
+.leftPanel {
+    width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    flex-shrink: 0;
+}
+
+.mainPanel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Cards */
+.card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    padding: 20px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.calendarCard {
+    flex-shrink: 0;
+}
+
+.dailySummaryCard {
+    flex: 1;
+    min-height: 0;
+}
+
+.timetableCard {
+    flex: 1;
+    height: 100%;
+}
+
+/* Mini Calendar */
+.calendarHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.monthTitle {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+.navButton {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    color: #718096;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.navButton:hover {
+    background-color: #edf2f7;
+    color: #2d3748;
+}
+
+.calendarGrid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    text-align: center;
+}
+
+.weekday {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #a0aec0;
+    padding-bottom: 8px;
+}
+
+.day {
+    font-size: 0.9rem;
+    padding: 8px 0;
+    cursor: pointer;
+    border-radius: 50%;
+    color: #4a5568;
+    position: relative;
+}
+
+.day:hover {
+    background-color: #edf2f7;
+}
+
+.day.selected {
+    background-color: #3182ce;
+    color: white;
+    font-weight: 600;
+}
+
+.day.today {
+    color: #3182ce;
+    font-weight: bold;
+}
+
+.day.today.selected {
+    color: white;
+}
+
+.day.otherMonth {
+    color: #cbd5e0;
+}
+
+.hasEvent::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    background-color: #3182ce;
+    border-radius: 50%;
+}
+
+/* Daily Summary */
+.summaryHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.summaryTitle {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+/* 탭 버튼 */
+.tabButtons {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    background: #edf2f7;
+    padding: 4px;
+    border-radius: 8px;
+}
+
+.tabButton {
+    flex: 1;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #718096;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tabButton.active {
+    background: white;
+    color: #3182ce;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.summaryList {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.summaryItem {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+    border-left: 4px solid #3182ce;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.summaryItem:hover {
+    background: #f7fafc;
+    border-left-width: 6px;
+}
+
+.summaryItem.confirmed {
+    border-left-color: #3182ce;
+}
+
+.summaryItem.pending {
+    border-left-color: #ecc94b;
+}
+
+.summaryItem.cancelled {
+    border-left-color: #f56565;
+    opacity: 0.7;
+}
+
+.itemTime {
+    font-weight: 700;
+    color: #2d3748;
+    font-size: 1rem;
+    margin-bottom: 4px;
+}
+
+.itemTitle {
+    font-weight: 600;
+    color: #4a5568;
+    margin-bottom: 4px;
+}
+
+.itemStatus {
+    font-size: 0.8rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: #edf2f7;
+    color: #718096;
+    display: inline-block;
+}
+
+.itemStatus.pending {
+    background: #fefcbf;
+    color: #b7791f;
+}
+
+.itemStatus.confirmed {
+    background: #3182CE;
+    color: #ffffff;
+}
+
+.itemStatus.cancelled {
+    background: #fed7d7;
+    color: #c53030;
+}
+
+/* 일정 관리 버튼 */
+.scheduleActions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.btnAdd,
+.btnEdit,
+.btnDelete {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btnAdd {
+    background: #3182ce;
+    color: white;
+}
+
+.btnAdd:hover {
+    background: #38a169;
+}
+
+.btnSecondary {
+    background: #edf2f7;
+    color: #2d3748;
+    border: 1px solid #cbd5e0;
+}
+
+.btnSecondary:hover {
+    background: #e2e8f0;
+}
+
+.btnEdit {
+    background: #3182ce;
+    color: white;
+}
+
+.btnEdit:hover {
+    background: #2c5282;
+}
+
+.btnEdit:disabled {
+    background: #cbd5e0;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.btnDelete {
+    background: #f56565;
+    color: white;
+}
+
+.btnDelete:hover {
+    background: #e53e3e;
+}
+
+.btnDelete:disabled {
+    background: #cbd5e0;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Timetable - appointments 스타일 */
+.timetableHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 16px;
+}
+
+.weekTitle {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+.controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.todayBtn {
+    padding: 6px 12px;
+    background: #edf2f7;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    color: #4a5568;
+    cursor: pointer;
+}
+
+.todayBtn:hover {
+    background: #e2e8f0;
+}
+
+/* 그리드 컨테이너 */
+.scheduleGridContainer {
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* 헤더 (요일 표시) */
+.weekDaysHeader {
+    display: grid;
+    grid-template-columns: 80px repeat(7, 1fr);
+    gap: 8px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e0e0e0;
+    margin-bottom: 10px;
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 10;
+}
+
+.timeColumn {
+    font-size: 13px;
+    font-weight: 700;
+    color: #666666;
+    text-align: center;
+    padding: 8px 0;
+}
+
+.dayColumn {
+    font-size: 13px;
+    font-weight: 700;
+    color: #000000;
+    text-align: center;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+/* 각 30분 슬롯 행 */
+.timeSlotRow {
+    display: grid;
+    grid-template-columns: 80px repeat(7, 1fr);
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.timeLabel {
+    font-size: 12px;
+    font-weight: 600;
+    color: #666666;
+    text-align: center;
+    padding: 8px 0;
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 각 일정 셀 */
+.scheduleCell {
+    min-height: 50px;
+    border: 1px solid #f0f0f0;
+    border-radius: 8px;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+/* 근무 중 (흰색 배경) */
+.scheduleCell.onDuty {
+    background: #ffffff;
+    border-color: #f0f0f0;
+}
+
+/* 비근무 (회색 배경) */
+.scheduleCell.offDuty {
+    background: #e9e9e9;
+    border-color: #e9e9e9;
+    cursor: pointer;
+}
+
+/* 휴무 (노란색 배경) */
+.scheduleCell.dayOff {
+    background: #ffeaa7 !important;
+    border-color: #ffeaa7 !important;
+}
+
+.scheduleCell.onDuty:hover {
+    background: #fafafa;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.scheduleLabel {
+    font-size: 12px;
+    font-weight: 600;
+    color: #52759c;
+}
+
+.scheduleCell.dayOff .scheduleLabel {
+    color: #d63031;
+}
+
+/* Modal */
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modalContent {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    width: 450px;
+    max-width: 92vw;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.modalHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.modalTitle {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+.modalClose {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #a0aec0;
+}
+
+.modalDetails {
+    margin-bottom: 24px;
+}
+
+.modalForm {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.formGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #4a5568;
+}
+
+.input,
+.select {
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    font-size: 0.95rem;
+}
+
+.input:focus,
+.select:focus,
+.reasonInput:focus {
+    outline: none;
+    border-color: #3182ce;
+    box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.12);
+}
+
+.detailRow {
+    display: flex;
+    margin-bottom: 8px;
+}
+
+.detailLabel {
+    width: 80px;
+    font-weight: 600;
+    color: #718096;
+}
+
+.detailValue {
+    flex: 1;
+    color: #2d3748;
+}
+
+.reasonInput {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-top: 8px;
+    font-family: inherit;
+    resize: vertical;
+}
+
+.modalActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+
+.btnCancel {
+    background: #edf2f7;
+    color: #4a5568;
+}
+
+.btnReject {
+    background: #fed7d7;
+    color: #c53030;
+}
+
+.btnConfirm {
+    background: #3182ce;
+    color: white;
+}
+
+.btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
