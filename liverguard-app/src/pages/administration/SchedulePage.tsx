@@ -541,10 +541,14 @@ export default function SchedulePage() {
     setIsAddingToQueue(true);
     try {
       const now = new Date();
+      const doctorId =
+        typeof calendarModalAppointment.doctor === 'number'
+          ? calendarModalAppointment.doctor
+          : calendarModalAppointment.doctor?.doctor_id ?? calendarModalAppointment.doctor_id ?? 0;
       const encounterData = {
         patient: calendarModalAppointment.patient_id || calendarModalAppointment.patient || '',
         appointment: calendarModalAppointment.appointment_id, // 문진표 연결을 위해 필수
-        doctor: calendarModalAppointment.doctor || 0,
+        doctor: doctorId,
         encounter_date: calendarModalAppointment.appointment_date,
         encounter_time: now.toTimeString().split(' ')[0].substring(0, 8),
         department: calendarModalAppointment.department || '',

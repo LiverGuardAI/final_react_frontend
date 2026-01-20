@@ -668,8 +668,8 @@ export default function PatientHistorySection({
 
     const [expandedEncounterId, setExpandedEncounterId] = useState<number | null>(null);
 
-    const toggleEncounterDetail = (encounterId?: number) => {
-        if (!Number.isFinite(Number(encounterId))) {
+    const toggleEncounterDetail = (encounterId: number) => {
+        if (!Number.isFinite(encounterId)) {
             return;
         }
         setExpandedEncounterId((prev) => (prev === encounterId ? null : encounterId));
