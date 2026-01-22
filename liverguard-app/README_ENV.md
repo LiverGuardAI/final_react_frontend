@@ -14,8 +14,6 @@ VITE_ORTHANC_URL=http://localhost:8042
 
 ### `.env.production` (프로덕션 환경)
 ```env
-VITE_API_BASE_URL=http://34.67.62.238/api
-VITE_ORTHANC_URL=http://34.67.62.238/orthanc
 ```
 
 **사용 시기**: `npm run build` 실행 시 자동으로 로드됩니다.
@@ -49,7 +47,6 @@ npm run dev
 ```bash
 npm run build
 # .env.production 파일의 변수가 자동으로 로드됨
-# API URL: http://34.67.62.238/api
 ```
 
 ### 프로덕션 프리뷰 (로컬 테스트)
