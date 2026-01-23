@@ -541,10 +541,10 @@ export default function SchedulePage() {
     setIsAddingToQueue(true);
     try {
       const now = new Date();
-      const doctorId =
-        typeof calendarModalAppointment.doctor === 'number'
-          ? calendarModalAppointment.doctor
-          : calendarModalAppointment.doctor?.doctor_id ?? calendarModalAppointment.doctor_id ?? 0;
+      // doctor가 객체인 경우 doctor_id 추출
+      const doctorId = typeof calendarModalAppointment.doctor === 'object' && calendarModalAppointment.doctor !== null
+        ? (calendarModalAppointment.doctor as { doctor_id: number }).doctor_id
+        : (calendarModalAppointment.doctor as number) || 0;
       const encounterData = {
         patient: calendarModalAppointment.patient_id || calendarModalAppointment.patient || '',
         appointment: calendarModalAppointment.appointment_id, // 문진표 연결을 위해 필수

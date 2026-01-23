@@ -213,6 +213,8 @@ export default function AdministrationDashboard() {
   const [isAppSyncLoading, setIsAppSyncLoading] = useState(false);
   const [appSyncError, setAppSyncError] = useState<string | null>(null);
   const [appSyncRefreshKey, setAppSyncRefreshKey] = useState(0);
+  const [selectedAppSyncRequest, setSelectedAppSyncRequest] = useState<AppSyncRequest | null>(null);
+  const [isAppSyncDetailModalOpen, setIsAppSyncDetailModalOpen] = useState(false);
 
   // Notification
   const [orderRefreshTrigger, setOrderRefreshTrigger] = useState(0);
@@ -225,6 +227,13 @@ export default function AdministrationDashboard() {
       const msg = lastMessage.message || '새로운 오더가 도착했습니다.';
       setNotification({ message: msg, type: 'info' });
       setOrderRefreshTrigger(prev => prev + 1);
+      setTimeout(() => setNotification(null), 3000);
+    }
+    // 앱 연동 신청 실시간 알림
+    if (lastMessage && lastMessage.type === 'app_sync_request') {
+      const msg = lastMessage.message || '새로운 앱 연동 신청이 있습니다.';
+      setNotification({ message: msg, type: 'info' });
+      setAppSyncRefreshKey(prev => prev + 1);  // 앱 연동 목록 새로고침
       setTimeout(() => setNotification(null), 3000);
     }
   }, [lastMessage]);
@@ -880,7 +889,13 @@ export default function AdministrationDashboard() {
                     ) : (
                       appSyncRequests.map(req => (
                         <div key={req.request_id} className={styles.appSyncItem}>
-                          <div className={styles.appSyncNickname}>{req.profile_nickname}</div>
+                          <div
+                            className={styles.appSyncNickname}
+                            onClick={() => { setSelectedAppSyncRequest(req); setIsAppSyncDetailModalOpen(true); }}
+                            style={{ cursor: 'pointer', textDecoration: 'underline', color: '#0ea5e9' }}
+                          >
+                            {req.profile_nickname}
+                          </div>
                           <div className={styles.appSyncBtnGroup}>
                             <button onClick={() => handleApproveAppSync(req)} className={`${styles.appSyncBtn} ${styles.appSyncBtnApprove}`}>승인</button>
                             <button onClick={() => handleRejectAppSync(req)} className={`${styles.appSyncBtn} ${styles.appSyncBtnReject}`}>거절</button>
@@ -1031,6 +1046,86 @@ export default function AdministrationDashboard() {
                 </button>
                 <button className={styles.cancelButton} onClick={() => setIsPaymentModalOpen(false)} style={{ flex: 1, padding: '12px', fontSize: '15px' }}>
                   취소
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* App Sync Detail Modal */}
+      {isAppSyncDetailModalOpen && selectedAppSyncRequest && (
+        <div className={styles.modalOverlay} onClick={() => setIsAppSyncDetailModalOpen(false)}>
+          <div className={styles.modalContent} style={{ width: '400px', padding: '0', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader} style={{ padding: '20px', background: '#f0f9ff', borderBottom: '1px solid #bae6fd' }}>
+              <h2 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', color: '#0369a1' }}>
+                📱 앱 연동 신청 정보
+              </h2>
+            </div>
+
+            <div style={{ padding: '24px' }}>
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #e2e8f0' }}>
+                  <span style={{ color: '#64748b', fontWeight: '500' }}>닉네임</span>
+                  <span style={{ color: '#0f172a', fontWeight: '600' }}>{selectedAppSyncRequest.profile_nickname}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #e2e8f0' }}>
+                  <span style={{ color: '#64748b', fontWeight: '500' }}>연락처</span>
+                  <span style={{ color: '#0f172a' }}>{selectedAppSyncRequest.profile_phone_number || '-'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #e2e8f0' }}>
+                  <span style={{ color: '#64748b', fontWeight: '500' }}>생년월일</span>
+                  <span style={{ color: '#0f172a' }}>{selectedAppSyncRequest.profile_birth_date || '-'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #e2e8f0' }}>
+                  <span style={{ color: '#64748b', fontWeight: '500' }}>성별</span>
+                  <span style={{ color: '#0f172a' }}>{selectedAppSyncRequest.profile_gender === 'M' ? '남성' : selectedAppSyncRequest.profile_gender === 'F' ? '여성' : '-'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #e2e8f0' }}>
+                  <span style={{ color: '#64748b', fontWeight: '500' }}>신청일시</span>
+                  <span style={{ color: '#0f172a' }}>{new Date(selectedAppSyncRequest.requested_at).toLocaleString('ko-KR')}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0' }}>
+                  <span style={{ color: '#64748b', fontWeight: '500' }}>상태</span>
+                  <span style={{
+                    padding: '4px 12px',
+                    borderRadius: '12px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    background: selectedAppSyncRequest.status === 'PENDING' ? '#fef3c7' : selectedAppSyncRequest.status === 'APPROVED' ? '#d1fae5' : '#fee2e2',
+                    color: selectedAppSyncRequest.status === 'PENDING' ? '#92400e' : selectedAppSyncRequest.status === 'APPROVED' ? '#065f46' : '#991b1b'
+                  }}>
+                    {selectedAppSyncRequest.status_display}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  className={styles.submitButton}
+                  style={{ flex: 1, padding: '12px', fontSize: '14px', background: '#22c55e' }}
+                  onClick={() => {
+                    handleApproveAppSync(selectedAppSyncRequest);
+                    setIsAppSyncDetailModalOpen(false);
+                  }}
+                >
+                  승인
+                </button>
+                <button
+                  className={styles.submitButton}
+                  style={{ flex: 1, padding: '12px', fontSize: '14px', background: '#ef4444' }}
+                  onClick={() => {
+                    handleRejectAppSync(selectedAppSyncRequest);
+                    setIsAppSyncDetailModalOpen(false);
+                  }}
+                >
+                  거절
+                </button>
+                <button
+                  className={styles.cancelButton}
+                  style={{ flex: 1, padding: '12px', fontSize: '14px' }}
+                  onClick={() => setIsAppSyncDetailModalOpen(false)}
+                >
+                  닫기
                 </button>
               </div>
             </div>
