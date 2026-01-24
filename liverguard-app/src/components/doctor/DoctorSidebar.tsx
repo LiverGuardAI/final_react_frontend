@@ -9,6 +9,7 @@ interface Patient {
   age: number;
   gender: string;
   status: 'WAITING' | 'IN_PROGRESS' | 'COMPLETED';
+  workflowState?: string;
   queuedAt?: string;
   phone?: string;
   questionnaireStatus?: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
@@ -176,13 +177,13 @@ const DoctorSidebar = memo(function DoctorSidebar({
                           patient.questionnaireStatus === 'IN_PROGRESS' ? '작성중' : '미작성'}
                       </span>
                       <button
-                        className={`${styles.actionButton} ${styles.start}`}
+                        className={`${styles.actionButton} ${patient.workflowState === 'WAITING_ADDITIONAL_CLINIC' ? styles.additional : styles.start}`}
                         onClick={(e) => onStartConsultation(patient, e)}
                         disabled={inProgressPatients.length > 0}
                         style={inProgressPatients.length > 0 ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                         title={inProgressPatients.length > 0 ? '현재 진료 중인 환자가 있습니다' : ''}
                       >
-                        진료시작
+                        {patient.workflowState === 'WAITING_ADDITIONAL_CLINIC' ? '추가진료' : '진료시작'}
                       </button>
                     </div>
                     <div style={{ fontSize: '11px', color: '#999', textAlign: 'right', marginTop: '5px' }}>

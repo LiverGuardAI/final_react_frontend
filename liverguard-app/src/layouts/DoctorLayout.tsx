@@ -20,6 +20,7 @@ interface Patient {
   age: number;
   gender: string;
   status: 'WAITING' | 'IN_PROGRESS' | 'COMPLETED';
+  workflowState?: string;
   queuedAt?: string;
   phone?: string;
   questionnaireStatus?: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
@@ -103,6 +104,7 @@ export default function DoctorLayout() {
         age: patientObj?.age || 0,
         gender: patientObj?.gender === 'M' ? '남' : patientObj?.gender === 'F' ? '여' : 'N/A',
         status: status,
+        workflowState: workflowState,
         queuedAt: item.created_at || item.queued_at,
         phone: patientObj?.phone || 'N/A',
         questionnaireStatus: item.questionnaire_status || 'NOT_STARTED',
@@ -110,7 +112,7 @@ export default function DoctorLayout() {
       };
 
       // 진료 완료: 수납 대기, 결과 대기, 촬영 대기/중, 최종 완료
-      if (['WAITING_PAYMENT', 'WAITING_RESULTS', 'WAITING_IMAGING', 'IN_IMAGING', 'COMPLETED'].includes(workflowState)) {
+      if (['WAITING_PAYMENT', 'WAITING_RESULTS', 'WAITING_ORDER', 'WAITING_IMAGING', 'IN_IMAGING', 'COMPLETED'].includes(workflowState)) {
         completed.push(patient);
       }
       // 진료 중
@@ -118,7 +120,7 @@ export default function DoctorLayout() {
         inProgress.push(patient);
       }
       // 진료 대기
-      else if (workflowState === 'WAITING_CLINIC') {
+      else if (workflowState === 'WAITING_CLINIC' || workflowState === 'WAITING_ADDITIONAL_CLINIC') {
         waiting.push(patient);
       }
     });

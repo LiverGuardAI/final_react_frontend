@@ -8,12 +8,12 @@
   height: 100%;
 }
 
-.sidebar-header {
+.study-list-sidebar .sidebar-header {
   padding: 16px;
   border-bottom: 1px solid #2d3748;
 }
 
-.sidebar-header h2 {
+.study-list-sidebar .sidebar-header h2 {
   font-size: 14px;
   font-weight: 600;
   color: #e2e8f0;

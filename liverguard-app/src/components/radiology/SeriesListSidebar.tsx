@@ -22,6 +22,7 @@ interface SeriesListSidebarProps {
   onSeriesSelect: (seriesId: string) => void;
   isLoading?: boolean;
   headerAction?: React.ReactNode;
+  orderNotes?: string[];
 }
 
 const SeriesListSidebar: React.FC<SeriesListSidebarProps> = ({
@@ -30,6 +31,7 @@ const SeriesListSidebar: React.FC<SeriesListSidebarProps> = ({
   onSeriesSelect,
   isLoading = false,
   headerAction,
+  orderNotes,
 }) => {
   const formatSeriesNumber = (seriesNumber?: string) => {
     return seriesNumber ? `Series ${seriesNumber}` : 'Series';
@@ -43,6 +45,8 @@ const SeriesListSidebar: React.FC<SeriesListSidebarProps> = ({
     }
     return date;
   };
+  const normalizedNotes = (orderNotes || [])
+    .filter((note) => typeof note === 'string' && note.trim().length > 0);
 
   return (
     <div className="series-list-sidebar">
@@ -89,8 +93,19 @@ const SeriesListSidebar: React.FC<SeriesListSidebarProps> = ({
         )}
       </div>
 
-      <div className="sidebar-footer">
-        <h3>환자 정보</h3>
+      <div className="queue-order-notes">
+        <div className="queue-order-notes-header">오더 노트</div>
+        <div className="queue-order-notes-body">
+          {normalizedNotes.length > 0 ? (
+            normalizedNotes.map((note, index) => (
+              <div key={`note-${index}`} className="order-note-item">
+                {note}
+              </div>
+            ))
+          ) : (
+            <div className="order-note-empty">오더 노트가 없습니다.</div>
+          )}
+        </div>
       </div>
     </div>
   );

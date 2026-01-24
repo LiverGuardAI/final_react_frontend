@@ -1,5 +1,6 @@
 // src/pages/radiology/PostProcessingPage.tsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import PatientHeader from '../../components/radiology/PatientHeader';
 import SeriesListSidebar from '../../components/radiology/SeriesListSidebar';
 import MaskOverlayViewer from '../../components/radiology/MaskOverlayViewer';
@@ -18,7 +19,14 @@ import {
   generateReport,
   generateReportV2
 } from '../../api/ai_api';
-import { analyzeTumor, saveCtReport } from '../../api/radiology_api';
+import {
+  analyzeTumor,
+  saveCtReport,
+  endFilming,
+  getEncounterStudy,
+  getDicomStudySeries,
+  getWaitlist,
+} from '../../api/radiology_api';
 import './PostProcessingPage.css';
 
 interface Series {
@@ -62,6 +70,9 @@ interface Instance {
 }
 
 const PostProcessingPage: React.FC = () => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const encounterIdParam = searchParams.get('encounter_id');
   const [seriesList, setSeriesList] = useState<Series[]>([]);
   const [selectedSeriesId, setSelectedSeriesId] = useState<string | null>(null);
   const [seriesInstances, setSeriesInstances] = useState<Instance[]>([]);
@@ -85,6 +96,8 @@ const PostProcessingPage: React.FC = () => {
   const [featureStatus, setFeatureStatus] = useState<string>('');
   const [featureResult, setFeatureResult] = useState<any | null>(null);
   const [featureTargetSeriesId, setFeatureTargetSeriesId] = useState<string | null>(null);
+  const [aiRunSeriesIds, setAiRunSeriesIds] = useState<Set<string>>(new Set());
+  const [encounterInfo, setEncounterInfo] = useState<any | null>(null);
   const [isAnalyzingTumor, setIsAnalyzingTumor] = useState<boolean>(false);
   const [tumorAnalysisResult, setTumorAnalysisResult] = useState<any | null>(null);
   const [tumorAnalysisError, setTumorAnalysisError] = useState<string>('');
@@ -95,6 +108,7 @@ const PostProcessingPage: React.FC = () => {
   const [isSavingReport, setIsSavingReport] = useState<boolean>(false);
   const [saveReportError, setSaveReportError] = useState<string>('');
   const [generatedReport, setGeneratedReport] = useState<string>('');
+  const [isEndingFilming, setIsEndingFilming] = useState<boolean>(false);
   const [measurementEnabled, setMeasurementEnabled] = useState<boolean>(false);
   const [measurementDimensions, setMeasurementDimensions] = useState<{ widthMm: number; heightMm: number } | null>(null);
   const [measurementBoxes, setMeasurementBoxes] = useState<Array<{
@@ -113,6 +127,12 @@ const PostProcessingPage: React.FC = () => {
   const maskSeriesMapRef = useRef<Map<string, { maskSeriesId: string; maskInstances: Instance[] }>>(new Map());
   const featureResultMapRef = useRef<Map<string, { result: any; status: string }>>(new Map());
   const reportNoteRef = useRef<HTMLTextAreaElement>(null);
+  const hasRunAiForSelected = Boolean(
+    selectedSeriesId &&
+      (aiRunSeriesIds.has(selectedSeriesId) ||
+        maskSeriesMapRef.current.has(selectedSeriesId) ||
+        featureResultMapRef.current.has(selectedSeriesId))
+  );
 
   const formatDicomDate = (date?: string) => {
     if (!date) return 'N/A';
@@ -213,12 +233,80 @@ const PostProcessingPage: React.FC = () => {
     selectedStudyInfo?.StudyMainDicomTags ||
     selectedSeriesInfo?.StudyMainDicomTags ||
     selectedSeries?.data.StudyMainDicomTags;
+  const headerPatientId = encounterInfo?.patient_id || patientTags?.PatientID || 'N/A';
+  const headerPatientName = encounterInfo?.patient_name
+    ? encounterInfo.patient_name
+    : formatPatientName(patientTags?.PatientName);
+  const headerGender = encounterInfo?.gender || patientTags?.PatientSex || 'N/A';
+  const headerBirthDate =
+    encounterInfo?.date_of_birth || formatDicomDate(patientTags?.PatientBirthDate);
+  const headerExamType = mainTags?.SeriesDescription || mainTags?.Modality || 'N/A';
+  const headerExamDate = formatDicomDate(mainTags?.SeriesDate || studyTags?.StudyDate);
+  const headerOrderNotes = encounterInfo?.order_notes ?? [];
 
-  const fetchSeriesList = useCallback(async () => {
+  const handleGoToHome = () => {
+    navigate('/radiology/home');
+  };
+
+  const handleGoToAcquisition = () => {
+    const encounterId = encounterInfo?.encounter_id || encounterIdParam;
+    const params = encounterId ? `?encounter_id=${encounterId}` : '';
+    navigate(`/radiology/acquisition${params}`);
+  };
+
+  const handleEndFilming = async () => {
+    const patientId = encounterInfo?.patient_id;
+    if (!patientId) {
+      alert('촬영 중인 환자가 없습니다.');
+      return;
+    }
+    setIsEndingFilming(true);
+    try {
+      await endFilming(patientId);
+      setEncounterInfo(null);
+      setSelectedSeriesId(null);
+      setSeriesList([]);
+      setSeriesInstances([]);
+      setSelectedSeriesInfo(null);
+      setSelectedStudyInfo(null);
+      setMaskSeriesId(null);
+      setMaskInstances([]);
+      setFeatureResult(null);
+      setTumorAnalysisResult(null);
+      setGeneratedReport('');
+      alert('촬영이 종료되었습니다.');
+      navigate('/radiology/acquisition');
+    } catch (error) {
+      console.error('Failed to end filming:', error);
+      alert('촬영 종료에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsEndingFilming(false);
+    }
+  };
+
+  const fetchSeriesList = useCallback(async (studyUid?: string | null) => {
     setIsLoadingSeries(true);
     try {
-      const data = await getSeriesList();
-      setSeriesList(data);
+      if (studyUid) {
+        const studySeries = await getDicomStudySeries(studyUid);
+        const seriesData = await Promise.all(
+          studySeries.series_ids.map(async (seriesId) => {
+            try {
+              const data = await getSeriesInfo(seriesId);
+              return { id: seriesId, data };
+            } catch (error) {
+              console.error('Failed to fetch series info:', error);
+              return null;
+            }
+          })
+        );
+        setSelectedSeriesId(null);
+        setSeriesList(seriesData.filter((item): item is Series => Boolean(item)));
+      } else {
+        const data = await getSeriesList();
+        setSelectedSeriesId(null);
+        setSeriesList(data);
+      }
     } catch (error) {
       console.error('Failed to fetch series list:', error);
     } finally {
@@ -228,8 +316,72 @@ const PostProcessingPage: React.FC = () => {
 
   // Fetch series list from Orthanc on component mount
   useEffect(() => {
-    fetchSeriesList();
-  }, [fetchSeriesList]);
+    const fetchForEncounter = async () => {
+      if (!encounterIdParam) {
+        try {
+          const waitlist = await getWaitlist();
+          const filmingPatient = waitlist.patients.find(
+            (patient) =>
+              (Array.isArray(patient?.imaging_orders) &&
+                patient.imaging_orders.some((order: any) => order?.status === 'IN_PROGRESS')) ||
+              patient?.workflow_state === 'IN_IMAGING' ||
+              patient?.current_status === '촬영중' ||
+              patient?.workflow_state_display === '촬영중'
+          );
+          if (!filmingPatient) {
+            setEncounterInfo(null);
+            setSelectedSeriesId(null);
+            setSeriesList([]);
+            return;
+          }
+          const orderNotes = Array.isArray(filmingPatient.imaging_orders)
+            ? filmingPatient.imaging_orders
+                .map((order: any) => order?.order_notes)
+                .filter((note: any) => typeof note === 'string' && note.trim().length > 0)
+            : [];
+          const encounterData = {
+            encounter_id: filmingPatient.encounter_id,
+            study_uid: filmingPatient.active_study_uid || null,
+            patient_id: filmingPatient.patient_id,
+            patient_name: filmingPatient.patient_name || filmingPatient.name || 'N/A',
+            gender: filmingPatient.gender || 'N/A',
+            date_of_birth: filmingPatient.date_of_birth || null,
+            age: filmingPatient.age ?? null,
+            order_notes: orderNotes,
+          };
+          setEncounterInfo(encounterData);
+          if (encounterData.study_uid) {
+            await fetchSeriesList(encounterData.study_uid);
+          } else {
+            setSelectedSeriesId(null);
+            setSeriesList([]);
+          }
+        } catch (error) {
+          console.error('Failed to fetch filming patient info:', error);
+          setEncounterInfo(null);
+          setSelectedSeriesId(null);
+          setSeriesList([]);
+        }
+        return;
+      }
+      try {
+        const encounterData = await getEncounterStudy(encounterIdParam);
+        setEncounterInfo(encounterData);
+        if (encounterData.study_uid) {
+          await fetchSeriesList(encounterData.study_uid);
+        } else {
+          setSelectedSeriesId(null);
+          setSeriesList([]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch encounter study info:', error);
+        setEncounterInfo(null);
+        setSelectedSeriesId(null);
+        setSeriesList([]);
+      }
+    };
+    fetchForEncounter();
+  }, [encounterIdParam, fetchSeriesList]);
 
   // Fetch instances when a series is selected
   useEffect(() => {
@@ -526,6 +678,11 @@ const PostProcessingPage: React.FC = () => {
     setFeatureStatus('Starting feature extraction...');
     setFeatureResult(null);
     setFeatureTargetSeriesId(selectedSeriesId);
+    setAiRunSeriesIds((prev) => {
+      const next = new Set(prev);
+      next.add(selectedSeriesId);
+      return next;
+    });
 
     const [segResult, featureResult] = await Promise.allSettled([
       createSegmentationMask(selectedSeriesId),
@@ -710,12 +867,27 @@ const PostProcessingPage: React.FC = () => {
   return (
     <div className="post-processing-page">
       <PatientHeader
-        patientId={patientTags?.PatientID || 'N/A'}
-        patientName={formatPatientName(patientTags?.PatientName)}
-        gender={patientTags?.PatientSex || 'N/A'}
-        birthDate={formatDicomDate(patientTags?.PatientBirthDate)}
-        examType={mainTags?.SeriesDescription || mainTags?.Modality || 'N/A'}
-        examDate={formatDicomDate(mainTags?.SeriesDate || studyTags?.StudyDate)}
+        patientId={headerPatientId}
+        patientName={headerPatientName}
+        gender={headerGender}
+        birthDate={headerBirthDate}
+        examType={headerExamType}
+        examDate={headerExamDate}
+        onBrandClick={handleGoToHome}
+        actionButton={
+          <div className="header-action-group">
+            <button className="header-action-button" onClick={handleGoToAcquisition}>
+              업로드 이동
+            </button>
+            <button
+              className="header-action-button"
+              onClick={handleEndFilming}
+              disabled={isEndingFilming}
+            >
+              {isEndingFilming ? '촬영 종료 중...' : '촬영종료'}
+            </button>
+          </div>
+        }
       />
 
       <div className="post-processing-content">
@@ -724,11 +896,12 @@ const PostProcessingPage: React.FC = () => {
           selectedSeriesId={selectedSeriesId}
           onSeriesSelect={setSelectedSeriesId}
           isLoading={isLoadingSeries}
+          orderNotes={headerOrderNotes}
           headerAction={
             <button
               type="button"
               className="series-refresh-button"
-              onClick={fetchSeriesList}
+              onClick={() => fetchSeriesList(encounterInfo?.study_uid ?? null)}
               disabled={isLoadingSeries}
               title="Series 목록 새로고침"
               aria-label="Series 목록 새로고침"
@@ -952,7 +1125,7 @@ const PostProcessingPage: React.FC = () => {
                         <textarea
                           ref={reportNoteRef}
                           rows={4}
-                          placeholder="예: 분절 6에 2.4cm 종양, 경계 명확"
+                          placeholder="소견을 입력해주세요."
                         />
                       </label>
                       <button
@@ -1099,9 +1272,10 @@ const PostProcessingPage: React.FC = () => {
                       <label>
                         자동 보고서
                         <textarea
-                          rows={8}
+                          className="auto-report-textarea"
+                          rows={12}
                           value={generatedReport}
-                          readOnly
+                          onChange={(event) => setGeneratedReport(event.target.value)}
                           placeholder="자동 보고서 생성 결과가 여기에 표시됩니다."
                         />
                       </label>
@@ -1122,7 +1296,7 @@ const PostProcessingPage: React.FC = () => {
                   <button
                     className="btn-create-mask"
                     onClick={handleRunAi}
-                    disabled={!selectedSeriesId || isCreatingMask || isExtractingFeature}
+                    disabled={!selectedSeriesId || isCreatingMask || isExtractingFeature || hasRunAiForSelected}
                   >
                     {isCreatingMask || isExtractingFeature ? 'Running...' : 'AI Run'}
                   </button>
@@ -1186,11 +1360,6 @@ const PostProcessingPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="bottom-toolbar">
-        <button className="toolbar-btn">⊞</button>
-        <button className="toolbar-btn">⊟</button>
-        <button className="toolbar-btn">▲</button>
-      </div>
     </div>
   );
 };

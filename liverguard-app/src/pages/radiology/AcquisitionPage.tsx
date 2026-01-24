@@ -1,15 +1,17 @@
 // src/pages/radiology/AcquisitionPage.tsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as dcmjs from 'dcmjs';
 import PatientHeader from '../../components/radiology/PatientHeader';
 import PatientQueueSidebar from '../../components/radiology/PatientQueueSidebar';
 import SimpleDicomViewer from '../../components/radiology/SimpleDicomViewer';
 import type { SelectedPatientData } from '../../components/radiology/PatientQueueSidebar';
-import { endFilming, getWaitlist } from '../../api/radiology_api';
+import { getWaitlist } from '../../api/radiology_api';
 import { uploadMultipleDicomFiles } from '../../api/orthanc_api';
 import './AcquisitionPage.css';
 
 const AcquisitionPage: React.FC = () => {
+  const navigate = useNavigate();
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [selectedPatientData, setSelectedPatientData] = useState<SelectedPatientData | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
@@ -19,25 +21,110 @@ const AcquisitionPage: React.FC = () => {
   const [uploadedSeriesId, setUploadedSeriesId] = useState<string>('');
   const [isLoadingPreview, setIsLoadingPreview] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const hasUploadedPreview = uploadedInstances.length > 0;
   const hasLocalPreview = dicomFiles.length > 0;
-  const hasUploadedPreview = uploadedInstances.length > 0 && dicomFiles.length === 0;
+  const showUploadedPreview = hasUploadedPreview;
+  const showLocalPreview = !showUploadedPreview && hasLocalPreview;
+  const previewTitle = showUploadedPreview ? '업로드 미리보기' : hasLocalPreview ? '로컬 미리보기' : '업로드 미리보기';
 
   // 촬영중인 환자 자동 표시
   useEffect(() => {
     const fetchFilmingPatient = async () => {
       try {
         const response = await getWaitlist();
+        const hasValidList = Array.isArray(response?.patients) || Array.isArray((response as any)?.results);
+        const responsePatients = Array.isArray(response?.patients)
+          ? response.patients
+          : Array.isArray((response as any)?.results)
+            ? (response as any).results
+            : [];
+        if (!hasValidList) {
+          console.warn('Unexpected waitlist response shape:', response);
+          setSelectedPatientId('');
+          setSelectedPatientData(null);
+          return;
+        }
+        const hasInProgressOrder = (patient: any) =>
+          Array.isArray(patient?.imaging_orders) &&
+          patient.imaging_orders.some((order: any) => order?.status === 'IN_PROGRESS');
+        const isFilmingPatient = (patient: any) => {
+          if (hasInProgressOrder(patient)) {
+            return true;
+          }
+          if (patient?.workflow_state === 'IN_IMAGING') {
+            return true;
+          }
+          if (patient?.current_status === '촬영중') {
+            return true;
+          }
+          if (patient?.workflow_state_display === '촬영중') {
+            return true;
+          }
+          return false;
+        };
+        const buildExamType = (orders: Array<Record<string, any>> | undefined) => {
+          if (!Array.isArray(orders) || orders.length === 0) {
+            return 'N/A';
+          }
+          const labels = orders
+            .map((order) => {
+              const modality = typeof order?.modality === 'string' ? order.modality.trim() : '';
+              const bodyPart = typeof order?.body_part === 'string' ? order.body_part.trim() : '';
+              if (modality && bodyPart && bodyPart !== 'N/A') {
+                return `${modality} ${bodyPart}`;
+              }
+              if (modality) {
+                return modality;
+              }
+              if (bodyPart && bodyPart !== 'N/A') {
+                return bodyPart;
+              }
+              return '';
+            })
+            .filter((label) => label.length > 0);
+          const uniqueLabels = Array.from(new Set(labels));
+          return uniqueLabels.length > 0 ? uniqueLabels.join(' / ') : 'N/A';
+        };
+        const extractOrderNotes = (patient: any): string[] => {
+          if (!Array.isArray(patient?.imaging_orders)) {
+            return [];
+          }
+          return patient.imaging_orders
+            .map((order: any) => order?.order_notes)
+            .filter((note: any) => typeof note === 'string' && note.trim().length > 0);
+        };
+        const extractOrderMeta = (patient: any) => {
+          if (!Array.isArray(patient?.imaging_orders)) {
+            return { modality: undefined, bodyPart: undefined };
+          }
+          for (const order of patient.imaging_orders) {
+            const modality = typeof order?.modality === 'string' ? order.modality.trim() : '';
+            const bodyPart = typeof order?.body_part === 'string' ? order.body_part.trim() : '';
+            if (modality || bodyPart) {
+              return {
+                modality: modality || undefined,
+                bodyPart: bodyPart && bodyPart !== 'N/A' ? bodyPart : undefined,
+              };
+            }
+          }
+          return { modality: undefined, bodyPart: undefined };
+        };
         // 촬영중인 환자 찾기
-        const filmingPatient = response.patients.find(p => p.current_status === '촬영중');
+        const filmingPatient = responsePatients.find((p) => isFilmingPatient(p));
 
         if (filmingPatient) {
           // 촬영중인 환자 정보 설정
           const patientData: SelectedPatientData = {
             patientId: filmingPatient.patient_id,
-            patientName: filmingPatient.name,
+            patientName: filmingPatient.patient_name || filmingPatient.name || 'N/A',
             gender: filmingPatient.gender || 'N/A',
             birthDate: filmingPatient.date_of_birth || 'N/A',
             age: filmingPatient.age,
+            orderNotes: extractOrderNotes(filmingPatient),
+            examType: buildExamType(filmingPatient.imaging_orders),
+            ...extractOrderMeta(filmingPatient),
+            studyInstanceUid: filmingPatient.active_study_uid || undefined,
+            encounterId: filmingPatient.encounter_id ?? undefined,
           };
           setSelectedPatientId(filmingPatient.patient_id);
           setSelectedPatientData(patientData);
@@ -75,24 +162,18 @@ const AcquisitionPage: React.FC = () => {
     setSelectedPatientData(patientData);
   };
 
-  const handleEndFilming = async () => {
-    if (!selectedPatientId) {
+  const handleGoToHome = () => {
+    navigate('/radiology/home');
+  };
+
+  const handleGoToPostProcessing = () => {
+    const encounterId = selectedPatientData?.encounterId;
+    if (!encounterId) {
       alert('촬영 중인 환자가 없습니다.');
       return;
     }
-
-    try {
-      await endFilming(selectedPatientId);
-      alert('촬영이 종료되었습니다.');
-      // 환자 선택 초기화
-      setSelectedPatientId('');
-      setSelectedPatientData(null);
-      // 페이지 새로고침으로 대기 목록 갱신
-      window.location.reload();
-    } catch (error) {
-      console.error('Failed to end filming:', error);
-      alert('촬영 종료에 실패했습니다.');
-    }
+    const params = new URLSearchParams({ encounter_id: String(encounterId) });
+    navigate(`/radiology/post-processing?${params.toString()}`);
   };
 
   const handleAddFiles = (files: FileList | null, type: 'file' | 'folder') => {
@@ -160,8 +241,27 @@ const AcquisitionPage: React.FC = () => {
     setUploadProgress(0);
 
     try {
+      let studyInstanceUid = selectedPatientData?.studyInstanceUid;
+      if (!studyInstanceUid) {
+        studyInstanceUid = generateDicomUid();
+        setSelectedPatientData((prev) =>
+          prev ? { ...prev, studyInstanceUid } : prev
+        );
+      }
+      const studyDate = formatDicomDateFromDate(new Date());
+      const seriesInstanceUid = generateDicomUid();
+      const dicomOverrides = {
+        patientId: selectedPatientId,
+        birthDate: selectedPatientData?.birthDate,
+        gender: selectedPatientData?.gender,
+        modality: selectedPatientData?.modality,
+        bodyPart: selectedPatientData?.bodyPart,
+        studyInstanceUid,
+        seriesInstanceUid,
+        studyDate,
+      };
       const updatedFiles = await Promise.all(
-        filesToUpload.map((file) => updateDicomMetadata(file, selectedPatientId))
+        filesToUpload.map((file) => updateDicomMetadata(file, dicomOverrides))
       );
 
       console.log(`Uploading ${updatedFiles.length} file(s) to Orthanc...`);
@@ -176,8 +276,8 @@ const AcquisitionPage: React.FC = () => {
       alert(`${filesToUpload.length}개의 DICOM 파일이 성공적으로 업로드되었습니다.`);
 
       setIsLoadingPreview(false);
-      setUploadedInstances([]);
-      setUploadedSeriesId('');
+      setUploadedInstances(results);
+      setUploadedSeriesId(seriesInstanceUid);
 
       // 업로드 성공 후 선택된 파일만 목록에서 제거
       setDicomFiles((prevFiles) => prevFiles.filter((file) => !selectedFileNames.has(file.name)));
@@ -236,7 +336,56 @@ const AcquisitionPage: React.FC = () => {
     setSelectedFileNames(new Set());
   };
 
-  const updateDicomMetadata = async (file: File, patientId: string): Promise<File> => {
+  type DicomOverrides = {
+    patientId: string;
+    birthDate?: string;
+    gender?: string;
+    modality?: string;
+    bodyPart?: string;
+    studyInstanceUid?: string;
+    seriesInstanceUid?: string;
+    studyDate?: string;
+  };
+
+  const generateDicomUid = () => {
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      const bytes = new Uint8Array(16);
+      crypto.getRandomValues(bytes);
+      const hex = Array.from(bytes)
+        .map((value) => value.toString(16).padStart(2, '0'))
+        .join('');
+      const uidInt = BigInt(`0x${hex}`);
+      return `2.25.${uidInt.toString()}`;
+    }
+    return `2.25.${Date.now()}${Math.floor(Math.random() * 1e9)}`;
+  };
+
+  const formatDicomDate = (value?: string) => {
+    if (!value || value === 'N/A') return undefined;
+    const digits = value.replace(/\D/g, '');
+    if (digits.length >= 8) {
+      return digits.slice(0, 8);
+    }
+    return undefined;
+  };
+
+  const formatDicomDateFromDate = (date: Date) => {
+    const year = date.getFullYear().toString().padStart(4, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}${month}${day}`;
+  };
+
+  const formatDicomSex = (value?: string) => {
+    if (!value || value === 'N/A') return undefined;
+    const normalized = value.toLowerCase();
+    if (normalized === 'm' || normalized === 'male' || normalized === '남') return 'M';
+    if (normalized === 'f' || normalized === 'female' || normalized === '여') return 'F';
+    if (normalized === 'o' || normalized === 'other') return 'O';
+    return undefined;
+  };
+
+  const updateDicomMetadata = async (file: File, overrides: DicomOverrides): Promise<File> => {
     const lowerName = file.name.toLowerCase();
     if (!(lowerName.endsWith('.dcm') || lowerName.endsWith('.dicom'))) {
       return file;
@@ -247,8 +396,34 @@ const AcquisitionPage: React.FC = () => {
       const dicomData: any = (dcmjs as any).data.DicomMessage.readFile(arrayBuffer);
       const dataset = (dcmjs as any).data.DicomMetaDictionary.naturalizeDataset(dicomData.dict);
 
-      dataset.PatientID = patientId;
-      dataset.PatientName = patientId;
+      dataset.PatientID = overrides.patientId;
+      dataset.PatientName = overrides.patientId;
+
+      const dicomBirthDate = formatDicomDate(overrides.birthDate);
+      if (dicomBirthDate) {
+        dataset.PatientBirthDate = dicomBirthDate;
+      }
+      const dicomSex = formatDicomSex(overrides.gender);
+      if (dicomSex) {
+        dataset.PatientSex = dicomSex;
+      }
+      if (overrides.studyInstanceUid) {
+        dataset.StudyInstanceUID = overrides.studyInstanceUid;
+      }
+      if (overrides.seriesInstanceUid) {
+        dataset.SeriesInstanceUID = overrides.seriesInstanceUid;
+      }
+      if (overrides.studyDate) {
+        dataset.StudyDate = overrides.studyDate;
+        dataset.SeriesDate = overrides.studyDate;
+        dataset.AcquisitionDate = overrides.studyDate;
+      }
+      if (overrides.modality && overrides.modality !== 'N/A') {
+        dataset.Modality = overrides.modality;
+      }
+      if (overrides.bodyPart && overrides.bodyPart !== 'N/A') {
+        dataset.BodyPartExamined = overrides.bodyPart;
+      }
 
       const denormalized = (dcmjs as any).data.DicomMetaDictionary.denaturalizeDataset(dataset);
       const dicomDict = new (dcmjs as any).data.DicomDict(dicomData.meta);
@@ -273,17 +448,30 @@ const AcquisitionPage: React.FC = () => {
             patientName={selectedPatientData.patientName}
             gender={selectedPatientData.gender}
             birthDate={selectedPatientData.birthDate}
-            examType="CT Abdomen"
+            examType={selectedPatientData.examType || 'N/A'}
             examDate={new Date().toLocaleString('ko-KR')}
+            onBrandClick={handleGoToHome}
             actionButton={
-              <button className="end-filming-button" onClick={handleEndFilming}>
-                촬영 종료
+              <button className="header-action-button" onClick={handleGoToPostProcessing}>
+                후처리 이동
               </button>
             }
           />
         ) : (
-          <div className="no-patient-selected">
-            환자를 선택해주세요
+          <div className="patient-header patient-header-empty">
+            <button
+              type="button"
+              className="patient-header-brand clickable"
+              aria-label="LiverGuard"
+              onClick={handleGoToHome}
+            >
+              LiverGuard
+            </button>
+            <div className="patient-header-content">
+              <div className="patient-info-item">
+                <span className="value">환자를 선택해주세요</span>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -298,20 +486,20 @@ const AcquisitionPage: React.FC = () => {
           <div className="acquisition-panels">
             <div className="viewer-panel">
               <div className="viewer-panel-header">
-                <h3>{hasLocalPreview ? '로컬 미리보기' : '업로드 미리보기'}</h3>
+                <h3>{previewTitle}</h3>
               </div>
               <div className="viewer-panel-body">
-                {hasLocalPreview ? (
-                  <SimpleDicomViewer
-                    seriesId="local-preview"
-                    files={dicomFiles}
-                  />
-                ) : isLoadingPreview ? (
+                {isLoadingPreview ? (
                   <div className="viewer-loading">로딩 중...</div>
-                ) : hasUploadedPreview ? (
+                ) : showUploadedPreview ? (
                   <SimpleDicomViewer
                     seriesId={uploadedSeriesId || 'uploaded'}
                     instances={uploadedInstances}
+                  />
+                ) : showLocalPreview ? (
+                  <SimpleDicomViewer
+                    seriesId="local-preview"
+                    files={dicomFiles}
                   />
                 ) : (
                   <div className="viewer-empty">파일을 추가하면 미리보기가 표시됩니다.</div>

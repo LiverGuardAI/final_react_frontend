@@ -133,6 +133,5 @@ Django 설정에서 React 도메인을 허용했는지 확인:
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Vite 개발 서버
     "http://localhost:3000",  # 프로덕션 포트
-    "http://34.67.62.238",    # GCP 서버
 ]
 ```

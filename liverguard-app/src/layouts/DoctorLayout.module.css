@@ -191,6 +191,16 @@
   background: #52759C;
 }
 
+.actionButton.additional {
+  background: #DFF7F1;
+  color: #0F766E;
+  border: 1px solid #99E2D1;
+}
+
+.actionButton.additional:hover {
+  background: #C8F1E7;
+}
+
 .actionButton.inProgress {
   background: #00A3FF;
   color: #FFFFFF;
@@ -384,6 +394,16 @@
 
 .actionButton.start:hover {
   background: #52759C;
+}
+
+.actionButton.additional {
+  background: #DFF7F1;
+  color: #0F766E;
+  border: 1px solid #99E2D1;
+}
+
+.actionButton.additional:hover {
+  background: #C8F1E7;
 }
 
 .actionButton.inProgress {
