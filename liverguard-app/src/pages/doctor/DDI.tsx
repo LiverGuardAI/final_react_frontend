@@ -75,6 +75,66 @@ export default function DDIPage() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const comboRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
 
+  // 처방전 페이지에서 전달받은 약물 목록 또는 이전 DDI 상태 로드
+  useEffect(() => {
+    // 1. 처방전 페이지에서 전달받은 약물 목록 우선 로드
+    const savedPrescription = sessionStorage.getItem('ddi_prescription');
+    if (savedPrescription) {
+      try {
+        const meds = JSON.parse(savedPrescription);
+        const drugs: Drug[] = meds.map((m: any) => ({
+          item_name: m.item_name || m.name || '',
+          name_en: m.name_en || '',
+          name_kr: m.name_kr || ''
+        })).filter((d: Drug) => d.item_name);
+        if (drugs.length > 0) {
+          setPrescription(drugs);
+        }
+        sessionStorage.removeItem('ddi_prescription');
+        return; // 처방전에서 온 데이터 우선
+      } catch (e) {
+        console.error('처방 목록 로드 실패:', e);
+      }
+    }
+
+    // 2. 이전 DDI 탭 상태 복원 (탭 전환 후 돌아올 때)
+    const savedDdiState = sessionStorage.getItem('ddi_state');
+    if (savedDdiState) {
+      try {
+        const state = JSON.parse(savedDdiState);
+        if (state.prescription) setPrescription(state.prescription);
+        if (state.analysisSummary) setAnalysisSummary(state.analysisSummary);
+        if (state.expandedIdx !== undefined) setExpandedIdx(state.expandedIdx);
+      } catch (e) {
+        console.error('DDI 상태 복원 실패:', e);
+      }
+    }
+  }, []);
+
+  // DDI 상태 변경 시 sessionStorage에 저장 (탭 전환 시 유지용)
+  useEffect(() => {
+    if (prescription.length > 0 || analysisSummary) {
+      sessionStorage.setItem('ddi_state', JSON.stringify({
+        prescription,
+        analysisSummary,
+        expandedIdx
+      }));
+    }
+  }, [prescription, analysisSummary, expandedIdx]);
+
+  // 초기화 핸들러
+  const handleReset = () => {
+    if (confirm('처방 목록과 분석 결과를 모두 초기화하시겠습니까?')) {
+      setPrescription([]);
+      setAnalysisSummary(null);
+      setExpandedIdx(null);
+      setInputDrug('');
+      setSuggestions([]);
+      setImgErrors({});
+      sessionStorage.removeItem('ddi_state');
+    }
+  };
+
   const getLevelInfo = (level: string) => {
     const l = level?.toUpperCase() || 'SAFE';
     switch (l) {
@@ -154,10 +214,10 @@ export default function DDIPage() {
     });
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '420px 1fr', gap: '24px', padding: '24px', height: '100vh', boxSizing: 'border-box', zoom: '0.85', background: '#F4F7FA', fontFamily: 'Pretendard, sans-serif' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '420px 1fr', gap: '24px', padding: '24px', height: '100%', maxHeight: '100vh', boxSizing: 'border-box', zoom: '0.85', background: '#F4F7FA', fontFamily: 'Pretendard, sans-serif', overflow: 'hidden' }}>
 
       {/* [SIDEBAR] - borderTop에서 borderLeft로 변경 및 두께 강화 */}
-      <div style={{ background: '#FFF', borderRadius: '24px', padding: '35px', boxShadow: '0 10px 40px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', borderLeft: '14px solid #6B58B1', height: '100%', boxSizing: 'border-box' }}>
+      <div style={{ background: '#FFF', borderRadius: '24px', padding: '35px', boxShadow: '0 10px 40px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', borderLeft: '14px solid #6B58B1', height: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
         <div style={{ marginBottom: '30px' }}>
           <h2 style={{ fontSize: '32px', fontWeight: '950', color: '#1A1F36', marginBottom: '5px' }}>LiverGuard</h2>
           <p style={{ color: '#6B58B1', fontWeight: '800', fontSize: '14px' }}>PRO CDSS ENGINE v8.9.7</p>
@@ -185,10 +245,24 @@ export default function DDIPage() {
           )}
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', paddingRight: '5px' }}>
-          <h3 style={{ fontSize: '17px', fontWeight: '800', color: '#4F566B', marginBottom: '18px', display: 'flex', justifyContent: 'space-between' }}>
-            현재 처방 목록 <span>{prescription.length}/10</span>
-          </h3>
+        <div style={{ flex: 1, overflowY: 'auto', paddingRight: '5px', minHeight: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+            <h3 style={{ fontSize: '17px', fontWeight: '800', color: '#4F566B', margin: 0 }}>
+              현재 처방 목록 <span style={{ color: '#6B58B1' }}>{prescription.length}/10</span>
+            </h3>
+            {prescription.length > 0 && (
+              <button
+                onClick={handleReset}
+                style={{
+                  padding: '6px 12px', background: '#FEF2F2', color: '#EF4444',
+                  border: '1.5px solid #EF4444', borderRadius: '8px', fontSize: '12px',
+                  fontWeight: '700', cursor: 'pointer'
+                }}
+              >
+                초기화
+              </button>
+            )}
+          </div>
           {prescription.map((drug, i) => (
             <div key={i} className="prescription-item">
               <div style={{ flex: 1 }}>
@@ -209,7 +283,7 @@ export default function DDIPage() {
       </div>
 
       {/* [MAIN CONTENT] */}
-      <div ref={scrollContainerRef} style={{ overflowY: 'auto', paddingRight: '10px' }}>
+      <div ref={scrollContainerRef} style={{ overflowY: 'auto', overflowX: 'hidden', paddingRight: '10px', height: '100%' }}>
         {!analysisSummary ? (
           <div className="empty-state">
             <div style={{ fontSize: '80px', marginBottom: '25px' }}>🔬</div>

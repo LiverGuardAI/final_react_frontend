@@ -30,6 +30,8 @@ import type {
 
 interface Medication {
   name: string;
+  name_en?: string;
+  name_kr?: string;
   dosage: string;
   frequency: string;
   days: string;
@@ -326,6 +328,64 @@ export default function TreatmentPage() {
     setMedications(newMedications);
   };
 
+  // 약물 선택 핸들러 (자동완성에서 선택 시)
+  const handleSelectDrug = (index: number, drug: { item_name: string; name_en: string; name_kr: string }) => {
+    const newMedications = [...medications];
+    newMedications[index] = {
+      ...newMedications[index],
+      name: drug.item_name,
+      name_en: drug.name_en,
+      name_kr: drug.name_kr
+    };
+    setMedications(newMedications);
+  };
+
+  // DDI 상세 분석 페이지로 이동 (진료기록/처방전 데이터 보존)
+  const handleViewDDIDetails = () => {
+    const validMeds = medications.filter(m => m.name && m.name.trim());
+    // DDI 페이지로 전달할 약물 목록
+    sessionStorage.setItem('ddi_prescription', JSON.stringify(
+      validMeds.map(m => ({
+        item_name: m.name,
+        name_en: m.name_en || '',
+        name_kr: m.name_kr || ''
+      }))
+    ));
+    // 현재 진료기록/처방전 폼 데이터 저장 (DDI 페이지에서 돌아올 때 복원용)
+    sessionStorage.setItem('treatment_form_data', JSON.stringify({
+      chiefComplaint,
+      clinicalNotes,
+      diagnosisName,
+      selectedOrders,
+      medications,
+      orderRequests,
+      hccDetails,
+      rightTab
+    }));
+    navigate('/doctor/ddi');
+  };
+
+  // DDI 페이지에서 돌아왔을 때 폼 데이터 복원
+  useEffect(() => {
+    const savedFormData = sessionStorage.getItem('treatment_form_data');
+    if (savedFormData) {
+      try {
+        const data = JSON.parse(savedFormData);
+        if (data.chiefComplaint) setChiefComplaint(data.chiefComplaint);
+        if (data.clinicalNotes) setClinicalNotes(data.clinicalNotes);
+        if (data.diagnosisName) setDiagnosisName(data.diagnosisName);
+        if (data.selectedOrders) setSelectedOrders(data.selectedOrders);
+        if (data.medications) setMedications(data.medications);
+        if (data.orderRequests) setOrderRequests(data.orderRequests);
+        if (data.hccDetails) setHccDetails(data.hccDetails);
+        if (data.rightTab) setRightTab(data.rightTab);
+        sessionStorage.removeItem('treatment_form_data');
+      } catch (e) {
+        console.error('폼 데이터 복원 실패:', e);
+      }
+    }
+  }, []);
+
   const handleCompleteTreatment = async () => {
     if (!currentEncounter || !selectedEncounterId) return;
     if (!currentPatient?.patient_id) {
@@ -521,6 +581,8 @@ export default function TreatmentPage() {
           onRemoveMedication={handleRemoveMedication}
           onMedicationChange={handleMedicationChange}
           onCancel={handleCancelTreatment}
+          onSelectDrug={handleSelectDrug}
+          onViewDDIDetails={handleViewDDIDetails}
         />
       </div>
     </div>

@@ -1,5 +1,36 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styles from '../../../pages/doctor/TreatmentPage.module.css';
+import apiClient from '../../../api/axiosConfig';
+
+// 약물 검색 결과 타입
+interface DrugSuggestion {
+    item_name: string;
+    name_kr: string;
+    name_en: string;
+}
+
+// DDI 결과 요약 타입
+interface DDISummary {
+    hasInteraction: boolean;
+    count: number;
+    maxLevel: 'CRITICAL' | 'MONITORING' | 'WARNING' | 'SAFE';
+    interactions: Array<{
+        drug1: string;
+        drug2: string;
+        level: string;
+        summary: string;
+    }>;
+}
+
+// Medication 타입 확장
+interface Medication {
+    name: string;
+    name_en?: string;
+    name_kr?: string;
+    dosage: string;
+    frequency: string;
+    days: string;
+}
 
 interface TreatmentWriteSectionProps {
     rightTab: 'record' | 'prescription';
@@ -21,11 +52,13 @@ interface TreatmentWriteSectionProps {
     onAiSuggest?: () => void;
     aiSuggesting?: boolean;
     disabled?: boolean;
-    medications?: { name: string; dosage: string; frequency: string; days: string }[];
+    medications?: Medication[];
     onAddMedication?: () => void;
     onRemoveMedication?: (index: number) => void;
     onMedicationChange?: (index: number, field: string, value: string) => void;
+    onSelectDrug?: (index: number, drug: DrugSuggestion) => void;
     onCancel?: () => void;
+    onViewDDIDetails?: () => void;
 }
 
 export default function TreatmentWriteSection({
@@ -52,8 +85,124 @@ export default function TreatmentWriteSection({
     onAddMedication,
     onRemoveMedication,
     onMedicationChange,
-    onCancel
+    onSelectDrug,
+    onCancel,
+    onViewDDIDetails
 }: TreatmentWriteSectionProps) {
+
+    // 약물 검색 상태
+    const [searchIndex, setSearchIndex] = useState<number | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [suggestions, setSuggestions] = useState<DrugSuggestion[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // DDI 검사 상태
+    const [ddiSummary, setDdiSummary] = useState<DDISummary | null>(null);
+    const [ddiLoading, setDdiLoading] = useState(false);
+
+    // 약물 검색 API 호출 (debounce)
+    const searchDrugs = useCallback(async (query: string) => {
+        if (query.length < 1) {
+            setSuggestions([]);
+            return;
+        }
+        try {
+            const response = await apiClient.get(`ai/bentoml/drugs/search/?q=${encodeURIComponent(query)}`);
+            setSuggestions(Array.isArray(response.data) ? response.data.slice(0, 10) : []);
+            setShowSuggestions(true);
+        } catch (err) {
+            console.error('약물 검색 실패:', err);
+            setSuggestions([]);
+        }
+    }, []);
+
+    // 검색어 변경 시 debounce 처리
+    useEffect(() => {
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
+        }
+        if (searchQuery && searchIndex !== null) {
+            searchTimeoutRef.current = setTimeout(() => {
+                searchDrugs(searchQuery);
+            }, 300);
+        } else {
+            setSuggestions([]);
+            setShowSuggestions(false);
+        }
+        return () => {
+            if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+        };
+    }, [searchQuery, searchIndex, searchDrugs]);
+
+    // 약물 선택 처리
+    const handleSelectDrug = (drug: DrugSuggestion) => {
+        if (searchIndex !== null && onSelectDrug) {
+            onSelectDrug(searchIndex, drug);
+        }
+        setShowSuggestions(false);
+        setSearchQuery('');
+        setSearchIndex(null);
+    };
+
+    // DDI 검사 실행
+    const handleDDICheck = async () => {
+        const validMeds = medications.filter(m => m.name && m.name.trim());
+        if (validMeds.length < 2) {
+            alert('상호작용 분석을 위해 2개 이상의 약물을 입력하세요.');
+            return;
+        }
+
+        setDdiLoading(true);
+        try {
+            const response = await apiClient.post('ai/bentoml/ddi/analyze/', {
+                prescription: validMeds.map(m => ({
+                    item_name: m.name,
+                    name_en: m.name_en || '',
+                    name_kr: m.name_kr || ''
+                }))
+            });
+
+            const interactions = response.data?.interactions || [];
+            const problematic = interactions.filter((i: any) => i.analysis?.final_status !== 'SAFE');
+
+            // 최고 위험 레벨 찾기
+            let maxLevel: 'CRITICAL' | 'MONITORING' | 'WARNING' | 'SAFE' = 'SAFE';
+            if (problematic.some((i: any) => i.analysis?.final_status === 'CRITICAL')) maxLevel = 'CRITICAL';
+            else if (problematic.some((i: any) => i.analysis?.final_status === 'MONITORING')) maxLevel = 'MONITORING';
+            else if (problematic.some((i: any) => i.analysis?.final_status === 'WARNING')) maxLevel = 'WARNING';
+
+            setDdiSummary({
+                hasInteraction: problematic.length > 0,
+                count: problematic.length,
+                maxLevel,
+                interactions: problematic.slice(0, 3).map((i: any) => ({
+                    drug1: i.pair?.[0]?.item_name?.split('(')[0] || '',
+                    drug2: i.pair?.[1]?.item_name?.split('(')[0] || '',
+                    level: i.analysis?.final_status || 'SAFE',
+                    summary: i.analysis?.summary_title || ''
+                }))
+            });
+        } catch (err) {
+            console.error('DDI 분석 실패:', err);
+            alert('DDI 분석 중 오류가 발생했습니다.');
+        } finally {
+            setDdiLoading(false);
+        }
+    };
+
+    // DDI 상세 페이지로 이동
+    const handleViewDetails = () => {
+        // 현재 처방 목록을 sessionStorage에 저장
+        sessionStorage.setItem('ddi_prescription', JSON.stringify(
+            medications.filter(m => m.name).map(m => ({
+                item_name: m.name,
+                name_en: m.name_en || '',
+                name_kr: m.name_kr || ''
+            }))
+        ));
+        onViewDDIDetails?.();
+    };
 
     const isHCCDiagnosis = diagnosisName.toLowerCase().includes('hcc') ||
         diagnosisName.toLowerCase().includes('간암') ||
@@ -317,20 +466,129 @@ export default function TreatmentWriteSection({
                         </div>
                     ) : (
                         <div className={styles.formSection}>
-                            {/* 처방전 UI Placeholder */}
+                            {/* 처방전 UI */}
                             <div className={styles.formGroup}>
                                 <label className={styles.formLabel}>처방 약물</label>
                                 {medications.map((med, index) => (
-                                    <div key={index} className={styles.prescriptionRow} style={{ marginBottom: '8px' }}>
-                                        <input type="text" placeholder="약물명" value={med.name} onChange={(e) => onMedicationChange?.(index, 'name', e.target.value)} disabled={disabled} />
-                                        <input type="text" placeholder="용량" value={med.dosage} onChange={(e) => onMedicationChange?.(index, 'dosage', e.target.value)} disabled={disabled} />
-                                        <input type="text" placeholder="복용법 (1일 3회)" value={med.frequency} onChange={(e) => onMedicationChange?.(index, 'frequency', e.target.value)} disabled={disabled} />
-                                        <input type="number" placeholder="기간(일)" value={med.days} onChange={(e) => onMedicationChange?.(index, 'days', e.target.value)} disabled={disabled} />
-                                        <button className={styles.deleteButton} onClick={() => onRemoveMedication?.(index)} disabled={disabled}>✕</button>
+                                    <div key={index} style={{ position: 'relative', marginBottom: '8px' }}>
+                                        <div className={styles.prescriptionRow}>
+                                            <input
+                                                type="text"
+                                                placeholder="약물명 검색..."
+                                                value={searchIndex === index ? searchQuery : med.name}
+                                                onChange={(e) => {
+                                                    setSearchIndex(index);
+                                                    setSearchQuery(e.target.value);
+                                                    onMedicationChange?.(index, 'name', e.target.value);
+                                                }}
+                                                onFocus={() => {
+                                                    setSearchIndex(index);
+                                                    setSearchQuery(med.name);
+                                                }}
+                                                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                                                disabled={disabled}
+                                            />
+                                            <input type="text" placeholder="용량" value={med.dosage} onChange={(e) => onMedicationChange?.(index, 'dosage', e.target.value)} disabled={disabled} />
+                                            <input type="text" placeholder="복용법" value={med.frequency} onChange={(e) => onMedicationChange?.(index, 'frequency', e.target.value)} disabled={disabled} />
+                                            <input type="number" placeholder="일수" value={med.days} onChange={(e) => onMedicationChange?.(index, 'days', e.target.value)} disabled={disabled} />
+                                            <button className={styles.deleteButton} onClick={() => onRemoveMedication?.(index)} disabled={disabled}>✕</button>
+                                        </div>
+                                        {/* 자동완성 드롭다운 */}
+                                        {searchIndex === index && showSuggestions && suggestions.length > 0 && (
+                                            <div style={{
+                                                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                                                background: '#FFF', border: '1px solid #E0E0E0', borderRadius: '8px',
+                                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto'
+                                            }}>
+                                                {suggestions.map((drug, i) => (
+                                                    <div
+                                                        key={i}
+                                                        onClick={() => handleSelectDrug(drug)}
+                                                        style={{
+                                                            padding: '10px 12px', cursor: 'pointer',
+                                                            borderBottom: i < suggestions.length - 1 ? '1px solid #F0F0F0' : 'none'
+                                                        }}
+                                                        onMouseEnter={(e) => (e.currentTarget.style.background = '#F5F3FF')}
+                                                        onMouseLeave={(e) => (e.currentTarget.style.background = '#FFF')}
+                                                    >
+                                                        <div style={{ fontWeight: 600, fontSize: '14px', color: '#333' }}>{drug.item_name}</div>
+                                                        <div style={{ fontSize: '12px', color: '#888' }}>{drug.name_kr} | {drug.name_en}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
-                                <button className={styles.addButton} onClick={onAddMedication} disabled={disabled}>+ 약물 추가</button>
+                                <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                                    <button className={styles.addButton} onClick={onAddMedication} disabled={disabled} style={{ flex: 1 }}>+ 약물 추가</button>
+                                    <button
+                                        onClick={handleDDICheck}
+                                        disabled={disabled || ddiLoading || medications.filter(m => m.name).length < 2}
+                                        style={{
+                                            padding: '10px 16px', background: '#6B58B1', color: '#FFF',
+                                            border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer',
+                                            opacity: medications.filter(m => m.name).length < 2 ? 0.5 : 1
+                                        }}
+                                    >
+                                        {ddiLoading ? '분석 중...' : 'DDI 검사'}
+                                    </button>
+                                </div>
                             </div>
+
+                            {/* DDI 결과 배너 */}
+                            {ddiSummary && (
+                                <div style={{
+                                    padding: '16px', borderRadius: '12px', marginTop: '8px',
+                                    background: ddiSummary.hasInteraction
+                                        ? ddiSummary.maxLevel === 'CRITICAL' ? '#FEF2F2' : '#FFF7ED'
+                                        : '#F0FDF4',
+                                    border: `2px solid ${ddiSummary.hasInteraction
+                                        ? ddiSummary.maxLevel === 'CRITICAL' ? '#EF4444' : '#F97316'
+                                        : '#10B981'}`
+                                }}>
+                                    {ddiSummary.hasInteraction ? (
+                                        <>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                                <span style={{ fontSize: '20px' }}>⚠️</span>
+                                                <span style={{
+                                                    fontWeight: 700, fontSize: '16px',
+                                                    color: ddiSummary.maxLevel === 'CRITICAL' ? '#EF4444' : '#F97316'
+                                                }}>
+                                                    상호작용 {ddiSummary.count}건 감지
+                                                </span>
+                                            </div>
+                                            {ddiSummary.interactions.map((int, i) => (
+                                                <div key={i} style={{ fontSize: '14px', color: '#333', marginBottom: '4px' }}>
+                                                    <span style={{
+                                                        fontWeight: 600,
+                                                        color: int.level === 'CRITICAL' ? '#EF4444' : int.level === 'MONITORING' ? '#F97316' : '#FACC15'
+                                                    }}>
+                                                        [{int.level}]
+                                                    </span>
+                                                    {' '}{int.drug1} + {int.drug2}: {int.summary}
+                                                </div>
+                                            ))}
+                                            <button
+                                                onClick={handleViewDetails}
+                                                style={{
+                                                    marginTop: '12px', padding: '8px 16px', background: '#6B58B1',
+                                                    color: '#FFF', border: 'none', borderRadius: '6px',
+                                                    fontWeight: 600, cursor: 'pointer', fontSize: '14px'
+                                                }}
+                                            >
+                                                상세 분석 보기 →
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span style={{ fontSize: '20px' }}>✅</span>
+                                            <span style={{ fontWeight: 600, fontSize: '16px', color: '#10B981' }}>
+                                                상호작용 없음 - 안전한 처방입니다
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             <div className={styles.buttonGroup}>
                                 <button className={styles.tempSaveButton} onClick={onTempSave} disabled={disabled}>임시저장</button>
