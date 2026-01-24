@@ -6,6 +6,8 @@ import {
 } from 'recharts';
 import styles from './BloodResult.module.css';
 import { getPatientLabResults, getPatientGenomicData, type LabResult, type GenomicDataItem } from '../../api/doctorApi';
+import { fetchIntegratedLLMAnalysis } from '../../api/doctorApi';
+import { useTreatment } from '../../contexts/TreatmentContext';
 
 // 1. 검사 지표 설정 (단위 및 정상 범위)
 const LAB_CONFIG: Record<string, { label: string; unit: string; min?: number; max?: number }> = {
@@ -22,12 +24,12 @@ const LAB_CONFIG: Record<string, { label: string; unit: string; min?: number; ma
 };
 
 export default function IntegratedResultPage() {
-    // const { patientId: urlPatientId } = useParams<{ patientId: string }>();
-    // const { selectedPatientId } = useTreatment();
-    // const patientId = selectedPatientId || urlPatientId || '';
+    const { patientId: urlPatientId } = useParams<{ patientId: string }>();
+    const { selectedPatientId } = useTreatment();
+    const patientId = selectedPatientId || urlPatientId || '';
     // 개발 테스트를 위해 특정 환자 ID로 고정
-    const { patientId: routePatientId } = useParams<{ patientId: string }>();
-    const patientId = 'P20240009';
+    // const { patientId: routePatientId } = useParams<{ patientId: string }>();
+    // const patientId = 'P20240009';
 
     const [results, setResults] = useState<LabResult[]>([]);
     const [genomicData, setGenomicData] = useState<GenomicDataItem[]>([]);
@@ -92,6 +94,24 @@ export default function IntegratedResultPage() {
         const isWarning = (conf.max !== undefined && Number(rawVal || 0) > conf.max) || (conf.min !== undefined && Number(rawVal || 0) < conf.min);
         return { name: conf.label, value: numVal, displayValue, isWarning };
     });
+
+
+    const [llmReport, setLlmReport] = useState<string>("");
+    const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+
+    const handleRunLLMAnalysis = async () => {
+        if (!patientId) return;
+        setIsAnalyzing(true);
+        try {
+            const result = await fetchIntegratedLLMAnalysis(patientId);
+            setLlmReport(result.report || '');
+        } catch (err) {
+            alert("AI 통합 분석 생성 중 오류가 발생했습니다.");
+            console.error(err);
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
 
     return (
         <div className={styles.container} style={{ padding: '20px', backgroundColor: '#f4f7fa' }}>
@@ -270,16 +290,30 @@ export default function IntegratedResultPage() {
             </div>
 
             {/* 하단: AI 리포트 Placeholder */}
-            <div style={{ marginTop: '24px', background: 'white', padding: '24px', borderRadius: '16px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#1e293b' }}>AI 종합 분석 리포트</h3>
-                <div style={{ padding: '40px', background: '#f8fafc', borderRadius: '12px', border: '2px dashed #cbd5e1', textAlign: 'center', color: '#64748b' }}>
-                    <div style={{ fontSize: '24px', marginBottom: '12px' }}>🚀</div>
-                    <p style={{ fontSize: '16px', fontWeight: '500', color: '#334155' }}>LLM API 연동 예정</p>
-                    <p style={{ marginTop: '8px', fontSize: '14px', color: '#64748b' }}>
-                        혈액 검사 데이터와 유전체 변이 패턴을 종합 분석하여,<br />
-                        환자 상태에 대한 심층적인 임상 해석과 치료 권고안을 여기에 생성합니다.
-                    </p>
+            <div style={{ marginTop: '40px', padding: '25px', backgroundColor: '#fafbfc', borderRadius: '12px', border: '1px solid #e1e4e8' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <h2 style={{ margin: 0, color: '#24292e', fontSize: '1.3rem' }}>
+                        AI 종합 임상 분석
+                    </h2>
+                    <button
+                        onClick={handleRunLLMAnalysis}
+                        disabled={isAnalyzing || !patientId}
+                        style={{ padding: '12px 24px', backgroundColor: isAnalyzing ? '#6c757d' : '#0366d6', color: 'white', border: 'none', borderRadius: '6px', cursor: isAnalyzing ? 'not-allowed' : 'pointer', fontWeight: 'bold', fontSize: '14px' }}
+                    >
+                        {isAnalyzing ? "분석 리포트 생성 중..." : "종합 분석 실행"}
+                    </button>
                 </div>
+                <p style={{ color: '#586069', marginBottom: '15px', fontSize: '14px' }}>
+                    혈액 검사 데이터와 유전체 변이 패턴을 종합 분석하여, 환자 상태에 대한 심층적인 임상 해석과 치료 권고안을 생성합니다.
+                </p>
+                {llmReport ? (
+                    <div style={{ padding: '20px', backgroundColor: 'white', border: '1px solid #dfe2e5', borderRadius: '8px', whiteSpace: 'pre-wrap', lineHeight: '1.8', fontSize: '15px', color: '#24292e' }}>
+                        {llmReport}
+                    </div>
+                ) : (
+                    <div style={{ padding: '30px', textAlign: 'center', color: '#6a737d', backgroundColor: '#f6f8fa', borderRadius: '8px' }}>
+                    </div>
+                )}
             </div>
         </div>
     );

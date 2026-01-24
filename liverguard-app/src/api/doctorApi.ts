@@ -633,3 +633,14 @@ export const createImagingOrder = async (data: CreateImagingOrderRequest) => {
   const response = await apiClient.post('/doctor/doctor-to-radiology-orders/', data);
   return response.data;
 };
+
+
+// ============================================================
+// 통합 분석 LLM API (MedGemma)
+// ============================================================
+export const fetchIntegratedLLMAnalysis = async (patientId: string) => {
+  const response = await apiClient.post('/doctor/ai/integrated-analysis/', {
+    patient_id: patientId,
+  });
+  return response.data; // { "report": "..." }
+};

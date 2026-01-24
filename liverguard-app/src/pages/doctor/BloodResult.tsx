@@ -39,12 +39,12 @@ const LINE_COLORS: Record<string, string> = {
 };
 
 export default function BloodResultPage() {
-  // const { patientId: urlPatientId } = useParams<{ patientId: string }>();
-  // const { selectedPatientId } = useTreatment();
-  // const patientId = selectedPatientId || urlPatientId || '';
+  const { patientId: urlPatientId } = useParams<{ patientId: string }>();
+  const { selectedPatientId } = useTreatment();
+  const patientId = selectedPatientId || urlPatientId || '';
   // 개발 테스트를 위해 특정 환자 ID로 고정
-  const { patientId: routePatientId } = useParams<{ patientId: string }>();
-  const patientId = 'P20240009';
+  // const { patientId: routePatientId } = useParams<{ patientId: string }>();
+  // const patientId = 'P20240009';
 
   const [results, setResults] = useState<LabResult[]>([]);
   const [loading, setLoading] = useState(false);
