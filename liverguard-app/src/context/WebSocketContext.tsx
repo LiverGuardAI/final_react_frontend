@@ -25,7 +25,9 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
   const WS_URL = React.useMemo(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const hostname = window.location.hostname;
-    return `${protocol}//${hostname}:8000/ws/clinic/${token ? `?token=${token}` : ''}`;
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+    const port = isLocalhost ? ':8000' : '';
+    return `${protocol}//${hostname}${port}/ws/clinic/${token ? `?token=${token}` : ''}`;
   }, [token]);
 
   const handleMessage = useCallback((data: any) => {

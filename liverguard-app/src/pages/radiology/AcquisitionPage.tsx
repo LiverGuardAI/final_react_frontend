@@ -7,6 +7,7 @@ import PatientQueueSidebar from '../../components/radiology/PatientQueueSidebar'
 import SimpleDicomViewer from '../../components/radiology/SimpleDicomViewer';
 import type { SelectedPatientData } from '../../components/radiology/PatientQueueSidebar';
 import { getWaitlist } from '../../api/radiology_api';
+import type { Patient as APIPatient } from '../../api/radiology_api';
 import { uploadMultipleDicomFiles } from '../../api/orthanc_api';
 import './AcquisitionPage.css';
 
@@ -33,7 +34,7 @@ const AcquisitionPage: React.FC = () => {
       try {
         const response = await getWaitlist();
         const hasValidList = Array.isArray(response?.patients) || Array.isArray((response as any)?.results);
-        const responsePatients = Array.isArray(response?.patients)
+        const responsePatients: APIPatient[] = Array.isArray(response?.patients)
           ? response.patients
           : Array.isArray((response as any)?.results)
             ? (response as any).results
@@ -44,10 +45,10 @@ const AcquisitionPage: React.FC = () => {
           setSelectedPatientData(null);
           return;
         }
-        const hasInProgressOrder = (patient: any) =>
+        const hasInProgressOrder = (patient: APIPatient) =>
           Array.isArray(patient?.imaging_orders) &&
           patient.imaging_orders.some((order: any) => order?.status === 'IN_PROGRESS');
-        const isFilmingPatient = (patient: any) => {
+        const isFilmingPatient = (patient: APIPatient) => {
           if (hasInProgressOrder(patient)) {
             return true;
           }
@@ -119,7 +120,7 @@ const AcquisitionPage: React.FC = () => {
             patientName: filmingPatient.patient_name || filmingPatient.name || 'N/A',
             gender: filmingPatient.gender || 'N/A',
             birthDate: filmingPatient.date_of_birth || 'N/A',
-            age: filmingPatient.age,
+            age: filmingPatient.age ?? null,
             orderNotes: extractOrderNotes(filmingPatient),
             examType: buildExamType(filmingPatient.imaging_orders),
             ...extractOrderMeta(filmingPatient),

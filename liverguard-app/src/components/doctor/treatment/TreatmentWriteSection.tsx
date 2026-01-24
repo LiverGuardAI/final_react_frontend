@@ -95,7 +95,7 @@ export default function TreatmentWriteSection({
     const [searchQuery, setSearchQuery] = useState('');
     const [suggestions, setSuggestions] = useState<DrugSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
-    const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // DDI 검사 상태
     const [ddiSummary, setDdiSummary] = useState<DDISummary | null>(null);

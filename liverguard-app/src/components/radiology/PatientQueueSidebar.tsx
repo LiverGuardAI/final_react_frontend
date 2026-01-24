@@ -208,7 +208,7 @@ const PatientQueueSidebar: React.FC<PatientQueueSidebarProps> = ({
           patientName: apiPatient.patient_name || apiPatient.name || 'N/A',
           gender: apiPatient.gender || 'N/A',
           birthDate: apiPatient.date_of_birth || 'N/A',
-          age: apiPatient.age,
+          age: apiPatient.age ?? null,
           orderNotes: (apiPatient.imaging_orders || [])
             .map((order) => order?.order_notes)
             .filter((note) => typeof note === 'string' && note.trim().length > 0) as string[],
