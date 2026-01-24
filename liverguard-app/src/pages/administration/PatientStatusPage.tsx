@@ -86,7 +86,9 @@ const PatientStatusPage: React.FC = () => {
     switch (state) {
       case 'REGISTERED': return <span className={`${styles.badge} ${styles.badgeRegistered}`}>접수</span>;
       case 'WAITING_CLINIC': return <span className={`${styles.badge} ${styles.badgeWaiting}`}>진료대기</span>;
+      case 'WAITING_ADDITIONAL_CLINIC': return <span className={`${styles.badge} ${styles.badgeWaiting}`}>추가진료</span>;
       case 'IN_CLINIC': return <span className={`${styles.badge} ${styles.badgeClinic}`}>진료중</span>;
+      case 'WAITING_ORDER': return <span className={`${styles.badge} ${styles.badgeResult}`}>오더중</span>;
       case 'WAITING_IMAGING': return <span className={`${styles.badge} ${styles.badgeImaging}`}>촬영대기</span>;
       case 'IN_IMAGING': return <span className={`${styles.badge} ${styles.badgeImaging}`}>촬영중</span>;
       case 'WAITING_RESULTS': return <span className={`${styles.badge} ${styles.badgeResult}`}>결과대기</span>;

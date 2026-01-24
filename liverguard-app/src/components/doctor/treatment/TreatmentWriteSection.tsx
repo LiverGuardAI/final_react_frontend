@@ -590,10 +590,6 @@ export default function TreatmentWriteSection({
                                 </div>
                             )}
 
-                            <div className={styles.buttonGroup}>
-                                <button className={styles.tempSaveButton} onClick={onTempSave} disabled={disabled}>임시저장</button>
-                                <button className={styles.submitButton} onClick={onComplete} disabled={disabled}>처방완료</button>
-                            </div>
                         </div>
                     )}
                 </div>

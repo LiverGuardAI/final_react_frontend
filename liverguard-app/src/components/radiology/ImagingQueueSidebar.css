@@ -10,7 +10,7 @@
   overflow: hidden;
 }
 
-.sidebar-header {
+.imaging-queue-sidebar .sidebar-header {
   padding: 20px;
   border-bottom: 1px solid #2d3748;
   background-color: #243447;
@@ -20,7 +20,7 @@
   text-align: center;
 }
 
-.sidebar-header h2 {
+.imaging-queue-sidebar .sidebar-header h2 {
   margin: 0 0 12px 0;
   font-size: 18px;
   font-weight: 700;

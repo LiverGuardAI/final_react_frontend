@@ -102,6 +102,7 @@ export default function AdministrationDashboard() {
   // Local state for dashboard tabs
   const [contentTab, setContentTab] = useState<ContentTabType>('search');
   const [receptionTab, setReceptionTab] = useState<ReceptionTabType>('reception');
+  const showTestWaitingTab = false;
 
   const [additionalPage, setAdditionalPage] = useState(1);
   const [paymentPage, setPaymentPage] = useState(1);
@@ -128,20 +129,16 @@ export default function AdministrationDashboard() {
   } = useAdministrationData();
 
   // 영상의학과 대기열 상태
-  const [imagingQueueData, setImagingQueueData] = useState<any>(null);
+  const [imagingQueueData, setImagingQueueData] = useState<any>({ queue: [] });
 
   // 영상의학과 대기열 가져오기
   const fetchImagingQueue = async () => {
     try {
-      const response = await fetch('/api/administration/queue/admin/?type=imaging', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        }
-      });
-      const data = await response.json();
+      const data = await getAdministrationWaitingQueue('imaging');
       setImagingQueueData(data);
     } catch (error) {
       console.error('Failed to fetch imaging queue:', error);
+      setImagingQueueData((prev: any) => prev ?? { queue: [] });
     }
   };
 
@@ -238,6 +235,12 @@ export default function AdministrationDashboard() {
     }
   }, [lastMessage]);
 
+  useEffect(() => {
+    if (!showTestWaitingTab && receptionTab === 'testWaiting') {
+      setReceptionTab('reception');
+    }
+  }, [receptionTab, showTestWaitingTab]);
+
   const toggleClinicViewMode = (doctorId: number) => {
     setClinicViewModes(prev => ({
       ...prev,
@@ -270,14 +273,16 @@ export default function AdministrationDashboard() {
           const qDocId = q.doctor_id ? Number(q.doctor_id) : null;
           const qDoc = q.doctor ? Number(q.doctor) : null;
           const qAssignedDoc = q.assigned_doctor ? Number(q.assigned_doctor) : null;
-          return qDocId === docId || qDoc === docId || qAssignedDoc === docId;
+          const qAssignedDocId = q.assigned_doctor_id ? Number(q.assigned_doctor_id) : null;
+          return qDocId === docId || qDoc === docId || qAssignedDoc === docId || qAssignedDocId === docId;
         }) || [];
 
         const formattedPatients = myPatients
-          .filter((p: any) => ['WAITING_CLINIC', 'IN_CLINIC', 'WAITING_RESULTS', 'COMPLETED'].includes(p.workflow_state))
+          .filter((p: any) => ['WAITING_CLINIC', 'WAITING_ADDITIONAL_CLINIC', 'IN_CLINIC', 'WAITING_RESULTS', 'COMPLETED'].includes(p.workflow_state))
           .map((p: any) => {
             let statusText = '대기중';
             if (p.workflow_state === 'IN_CLINIC') statusText = '진료중';
+            else if (p.workflow_state === 'WAITING_ADDITIONAL_CLINIC') statusText = '추가진료';
             else if (p.workflow_state === 'WAITING_RESULTS') statusText = '결과대기';
             else if (p.workflow_state === 'COMPLETED') statusText = '진료완료';
 
@@ -311,7 +316,7 @@ export default function AdministrationDashboard() {
     }
 
     // 영상의학과 (CT실) 추가
-    if (imagingQueueData?.queue) {
+    if (imagingQueueData) {
       const primaryRadiologist = radiologyStaff[0];
       const radiologyName = primaryRadiologist?.name || 'Radiology';
       const radiologyDept = primaryRadiologist?.dept_name || 'Radiology';
@@ -319,11 +324,20 @@ export default function AdministrationDashboard() {
       const extraCount = radiologyStaff.length > 1 ? ` +${radiologyStaff.length - 1}` : '';
       const radiologyDisplayName = `${radiologyName}${extraCount}`;
 
-      const imagingPatients = imagingQueueData.queue
+      const imagingQueue = Array.isArray(imagingQueueData?.queue) ? imagingQueueData.queue : [];
+      const imagingPatients = imagingQueue
         .map((p: any) => {
+          const imagingOrderStatuses = Array.isArray(p.orders_status)
+            ? p.orders_status
+                .filter((order: any) => order?.type === 'IMAGING')
+                .map((order: any) => order?.status)
+                .filter(Boolean)
+            : [];
+          const hasImagingInProgress = imagingOrderStatuses.includes('IN_PROGRESS');
+          const hasImagingWaiting = imagingOrderStatuses.some((status: any) => status === 'WAITING' || status === 'REQUESTED');
           let statusText = '대기중';
-          if (p.workflow_state === 'IN_IMAGING') statusText = '촬영중';
-          else if (p.workflow_state === 'WAITING_IMAGING') statusText = '대기중';
+          if (hasImagingInProgress) statusText = '촬영중';
+          else if (hasImagingWaiting) statusText = '대기중';
           else if (p.workflow_state === 'COMPLETED') statusText = '완료';
 
           const gender = p.gender === 'M' ? '남' : p.gender === 'F' ? '여' : p.gender;
@@ -335,13 +349,13 @@ export default function AdministrationDashboard() {
             phone: patientInfo,
             status: statusText,
             patientId: p.patient || p.patient_id,
-            encounter_status: p.workflow_state,
+            encounter_status: hasImagingInProgress ? 'IN_PROGRESS' : p.workflow_state,
             checkin_time: p.state_entered_at
           };
         })
         .sort((a: any, b: any) => {
-          if (a.encounter_status === 'IN_IMAGING' && b.encounter_status !== 'IN_IMAGING') return -1;
-          if (a.encounter_status !== 'IN_IMAGING' && b.encounter_status === 'IN_IMAGING') return 1;
+          if (a.encounter_status === 'IN_PROGRESS' && b.encounter_status !== 'IN_PROGRESS') return -1;
+          if (a.encounter_status !== 'IN_PROGRESS' && b.encounter_status === 'IN_PROGRESS') return 1;
           return 0;
         });
 
@@ -360,13 +374,16 @@ export default function AdministrationDashboard() {
   const waitingPatientIds = useMemo(() => {
     if (!waitingQueueData?.queue) return [];
     return waitingQueueData.queue
-      .filter((q: any) => q.workflow_state !== 'COMPLETED')
+      .filter((q: any) => q.status === 'IN_PROGRESS')
       .map((q: any) => q.patient_id || q.patient)
       .filter(Boolean);
   }, [waitingQueueData]);
 
   const additionalPatients = useMemo(() => {
-    return waitingQueueData?.queue?.filter((p: any) => p.workflow_state === 'WAITING_CLINIC' && p.is_returning_patient) || [];
+    return waitingQueueData?.queue?.filter((p: any) => {
+      if (p.workflow_state === 'WAITING_ADDITIONAL_CLINIC') return true;
+      return p.workflow_state === 'WAITING_CLINIC' && p.is_returning_patient;
+    }) || [];
   }, [waitingQueueData]);
 
   const paymentPatients = useMemo(() => {
@@ -642,7 +659,7 @@ export default function AdministrationDashboard() {
         // 마지막 오더가 아님 → 다음 오더 진행
         alert('검사 데이터가 저장되었습니다. 다음 오더를 진행해주세요.');
       } else if (hasCTOrderForVital) {
-        // CT 오더가 있음 → 백엔드에서 자동으로 WAITING_IMAGING 처리하므로 선택 안 물어봄
+        // CT 오더가 있음 → 촬영 상태는 오더 status로 관리
         alert('검사 데이터가 저장되었습니다. 환자가 CT 대기열로 이동합니다.');
       } else if (encounterId) {
         // CT 오더 없고 마지막 오더 → 수납/추가진료 선택
@@ -716,40 +733,40 @@ export default function AdministrationDashboard() {
                     </div>
 
                     <div className={styles.tableContainer}>
-                      {isLoadingPatients ? (
-                        <div style={{ textAlign: 'center', padding: '20px' }}>환자 목록 로딩 중...</div>
-                      ) : (
-                        <table className={styles.patientTable}>
-                          <thead>
-                            <tr>
-                              <th>이름</th><th>생년월일</th><th>성별</th><th>나이</th><th>최근 방문</th><th>작업</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {patients.length === 0 ? (
-                              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px' }}>등록된 환자가 없습니다.</td></tr>
+                      <table className={styles.patientTable}>
+                        <thead>
+                          <tr>
+                            <th>이름</th><th>생년월일</th><th>성별</th><th>나이</th><th>최근 방문</th><th>작업</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {patients.length === 0 ? (
+                            isLoadingPatients ? (
+                              <tr><td colSpan={6} style={{ padding: '20px' }}></td></tr>
                             ) : (
-                              patients.map((patient) => {
-                                const isWaiting = waitingPatientIds.includes(patient.id);
-                                return (
-                                  <tr key={patient.id}>
-                                    <td className={styles.patientNameClickable} onClick={() => handlePatientClick(patient)}>{patient.name}</td>
-                                    <td>{patient.birthDate}</td>
-                                    <td>{patient.gender}</td>
-                                    <td>{patient.age}세</td>
-                                    <td>{patient.lastVisit}</td>
-                                    <td>
-                                      <div className={styles.actionButtons}>
-                                        {isWaiting ? <span className={styles.alreadyCheckedIn}>접수 완료</span> : <button className={styles.checkinBtn} onClick={() => handleCheckinClick(patient)}>현장 접수</button>}
-                                      </div>
-                                    </td>
-                                  </tr>
-                                );
-                              })
-                            )}
-                          </tbody>
-                        </table>
-                      )}
+                              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px' }}>등록된 환자가 없습니다.</td></tr>
+                            )
+                          ) : (
+                            patients.map((patient) => {
+                              const isWaiting = waitingPatientIds.includes(patient.id);
+                              return (
+                                <tr key={patient.id}>
+                                  <td className={styles.patientNameClickable} onClick={() => handlePatientClick(patient)}>{patient.name}</td>
+                                  <td>{patient.birthDate}</td>
+                                  <td>{patient.gender}</td>
+                                  <td>{patient.age}세</td>
+                                  <td>{patient.lastVisit}</td>
+                                  <td>
+                                    <div className={styles.actionButtons}>
+                                      {isWaiting ? <span className={styles.alreadyCheckedIn}>접수 완료</span> : <button className={styles.checkinBtn} onClick={() => handleCheckinClick(patient)}>현장 접수</button>}
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
                     </div>
                     {/* Pagination */}
                     {patients.length > 0 && (
@@ -801,15 +818,25 @@ export default function AdministrationDashboard() {
           <div className={styles.rightSection}>
             <div className={styles.appointmentContainer}>
               <div className={styles.contentTabs}>
-                <button className={`${styles.contentTab} ${receptionTab === 'reception' ? styles.active : ''}`} onClick={() => setReceptionTab('reception')}>오더 대기</button>
-                <button className={`${styles.contentTab} ${receptionTab === 'testWaiting' ? styles.active : ''}`} onClick={() => setReceptionTab('testWaiting')}>검사결과 대기</button>
+                <button className={`${styles.contentTab} ${receptionTab === 'reception' ? styles.active : ''}`} onClick={() => setReceptionTab('reception')}>오더 관리</button>
+                {showTestWaitingTab && (
+                  <button className={`${styles.contentTab} ${receptionTab === 'testWaiting' ? styles.active : ''}`} onClick={() => setReceptionTab('testWaiting')}>검사결과 대기</button>
+                )}
                 <button className={`${styles.contentTab} ${receptionTab === 'additional' ? styles.active : ''}`} onClick={() => setReceptionTab('additional')}>추가진료</button>
                 <button className={`${styles.contentTab} ${receptionTab === 'payment' ? styles.active : ''}`} onClick={() => setReceptionTab('payment')}>수납대기</button>
                 <button className={`${styles.contentTab} ${receptionTab === 'appSync' ? styles.active : ''}`} onClick={() => setReceptionTab('appSync')}>앱 연동</button>
               </div>
               <div className={styles.tableContainer}>
-                {receptionTab === 'reception' && <OrderList refreshTrigger={orderRefreshTrigger} onOpenVitalCheckModal={handleOpenVitalCheckModal} />}
-                {receptionTab === 'testWaiting' && <OrderList refreshTrigger={orderRefreshTrigger} onOpenVitalCheckModal={handleOpenVitalCheckModal} showInProgressOnly={true} />}
+                {receptionTab === 'reception' && (
+                  <OrderList
+                    refreshTrigger={orderRefreshTrigger}
+                    onOpenVitalCheckModal={handleOpenVitalCheckModal}
+                    includeInProgress
+                  />
+                )}
+                {showTestWaitingTab && receptionTab === 'testWaiting' && (
+                  <OrderList refreshTrigger={orderRefreshTrigger} onOpenVitalCheckModal={handleOpenVitalCheckModal} showInProgressOnly={true} />
+                )}
                 {receptionTab === 'additional' && (
                   <UnifiedQueueList
                     header={
@@ -916,8 +943,12 @@ export default function AdministrationDashboard() {
           <div className={styles.waitingDetailCards}>
             {clinicWaitingList.map((clinic) => {
               const viewMode = clinicViewModes[clinic.id] || 'WAITING';
+              const isImagingRoom = clinic.roomNumber === 'CT';
               return (
-                <div key={clinic.id} className={styles.waitingDetailCard}>
+                <div
+                  key={clinic.id}
+                  className={`${styles.waitingDetailCard} ${isImagingRoom ? styles.waitingDetailCardCT : ''}`}
+                >
                   <div className={styles.cardHeader}>
                     <div className={styles.cardTitleSection}>
                       <div className={styles.cardTitleGroup}>
@@ -934,19 +965,56 @@ export default function AdministrationDashboard() {
                     </div>
                   </div>
                   <div className={styles.cardBody}>
-                    {clinic.patients.filter(p => viewMode === 'COMPLETED' ? (p.status === '진료완료' || p.status === '결과대기') : (p.status === '진료중' || p.status === '대기중')).map((p, idx) => (
-                      <div key={idx} className={styles.waitingPatientRow} onClick={() => { if (viewMode === 'COMPLETED') { setSelectedEncounterId(p.encounterId); setSelectedPatientNameForModal(p.name); setIsEncounterModalOpen(true); } }}>
-                        <div className={styles.patientDetailRow}>
-                          <span className={styles.patientIndex}>{idx + 1}</span>
-                          <span className={styles.patientNameLarge}>{p.name}</span>
-                          <span className={styles.patientPhoneLarge}>{p.phone}</span>
+                    {(() => {
+                      const visiblePatients = clinic.patients.filter((p) =>
+                        viewMode === 'COMPLETED'
+                          ? (p.status === '진료완료' || p.status === '결과대기')
+                          : (p.status === '진료중' || p.status === '대기중' || p.status === '추가진료')
+                      );
+
+                      if (visiblePatients.length === 0) {
+                        return <div className={styles.emptyWaiting}>대기목록이 없습니다.</div>;
+                      }
+
+                      return visiblePatients.map((p, idx) => (
+                        <div
+                          key={idx}
+                          className={styles.waitingPatientRow}
+                          onClick={() => {
+                            if (viewMode === 'COMPLETED') {
+                              setSelectedEncounterId(p.encounterId);
+                              setSelectedPatientNameForModal(p.name);
+                              setIsEncounterModalOpen(true);
+                            }
+                          }}
+                        >
+                          <div className={styles.patientDetailRow}>
+                            <span className={styles.patientIndex}>{idx + 1}</span>
+                            <span className={styles.patientNameLarge}>{p.name}</span>
+                            <span className={styles.patientPhoneLarge}>{p.phone}</span>
+                          </div>
+                          <div className={styles.patientActions}>
+                            <span
+                              className={styles.statusBadgeLarge}
+                              style={{ backgroundColor: p.status === '진료중' ? 'var(--sky-400)' : 'var(--sky-200)' }}
+                            >
+                              {p.status}
+                            </span>
+                            {viewMode !== 'COMPLETED' && p.status !== '진료중' && (
+                              <button
+                                className={styles.cancelWaitingBtn}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCancelWaiting(p.encounterId, p.name, p.status);
+                                }}
+                              >
+                                취소
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <div className={styles.patientActions}>
-                          <span className={styles.statusBadgeLarge} style={{ backgroundColor: p.status === '진료중' ? 'var(--sky-400)' : 'var(--sky-200)' }}>{p.status}</span>
-                          {viewMode !== 'COMPLETED' && p.status !== '진료중' && <button className={styles.cancelWaitingBtn} onClick={(e) => { e.stopPropagation(); handleCancelWaiting(p.encounterId, p.name, p.status); }}>취소</button>}
-                        </div>
-                      </div>
-                    ))}
+                      ));
+                    })()}
                   </div>
                 </div>
               );

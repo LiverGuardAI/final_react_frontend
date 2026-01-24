@@ -18,7 +18,7 @@ export const registerPatient = async (data: PatientRegistrationData) => {
 
 export interface PendingOrder {
   id: string;
-  type: "LAB" | "IMAGING";
+  type: "LAB" | "IMAGING" | "RADIOLOGY_REQUEST";
   type_display: string;
   order_name: string;
   order_type?: string; // LAB 오더의 세부 타입 (GENOMIC, BLOOD_LIVER, VITAL, PHYSICAL)
@@ -96,6 +96,16 @@ export const assignDoctorToImagingOrder = async (orderId: number | string, docto
   const response = await apiClient.patch(`/administration/orders/${numericId}/assign-doctor/`, {
     doctor_id: doctorId,
     order_type: "IMAGING",
+  });
+  return response.data;
+};
+
+// 영상의학과 -> 의사 오더 추가진료 배정 API
+export const assignAdditionalClinic = async (orderId: number | string, doctorId: number) => {
+  const numericId = typeof orderId === "string" ? orderId.split("_")[1] : orderId;
+
+  const response = await apiClient.patch(`/administration/orders/radiology-request/${numericId}/assign-additional/`, {
+    doctor_id: doctorId,
   });
   return response.data;
 };

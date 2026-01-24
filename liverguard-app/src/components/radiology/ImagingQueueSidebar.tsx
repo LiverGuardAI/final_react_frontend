@@ -37,6 +37,20 @@ interface ImagingQueueData {
 export default function ImagingQueueSidebar() {
   const [imagingQueueData, setImagingQueueData] = useState<ImagingQueueData | null>(null);
   const [sidebarTab, setSidebarTab] = useState<'waiting' | 'completed'>('waiting');
+  const resolveStatus = (patient: ImagingPatient) => {
+    const orderStatuses = Array.isArray(patient.imaging_orders)
+      ? patient.imaging_orders
+          .map((order) => (typeof order?.status === 'string' ? order.status : ''))
+          .filter((status) => status.length > 0)
+      : [];
+    if (orderStatuses.includes('IN_PROGRESS')) {
+      return '촬영중';
+    }
+    if (orderStatuses.some((status) => status === 'WAITING' || status === 'REQUESTED')) {
+      return '촬영대기';
+    }
+    return '촬영대기';
+  };
 
   // 촬영 대기열 가져오기
   const fetchImagingQueue = async () => {
@@ -70,9 +84,10 @@ export default function ImagingQueueSidebar() {
   }, [lastMessage]);
 
   // 촬영 대기 환자 필터링
-  const waitingPatients = imagingQueueData?.patients.filter(p =>
-    p.workflow_state === 'WAITING_IMAGING' || p.workflow_state === 'IN_IMAGING'
-  ) || [];
+  const waitingPatients = imagingQueueData?.patients.filter((patient) => {
+    const status = resolveStatus(patient);
+    return status === '촬영대기' || status === '촬영중';
+  }) || [];
 
   // 촬영 완료 환자는 현재 API에서 제공하지 않으므로 빈 배열로 처리
   const completedPatients: ImagingPatient[] = [];
@@ -131,8 +146,8 @@ export default function ImagingQueueSidebar() {
                   </div>
 
                   <div className="patient-status">
-                    <span className={`status-badge ${patient.workflow_state === 'IN_IMAGING' ? 'in-progress' : 'waiting'}`}>
-                      {patient.workflow_state_display}
+                    <span className={`status-badge ${resolveStatus(patient) === '촬영중' ? 'in-progress' : 'waiting'}`}>
+                      {resolveStatus(patient)}
                     </span>
                   </div>
 

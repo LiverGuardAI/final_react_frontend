@@ -61,12 +61,14 @@ export default function AdministrationSidebar({
         if (!waitingQueueData?.queue) return { inClinic: [], waiting: [], all: [] };
 
         const clinicCandidates = waitingQueueData.queue.filter((item: any) =>
-            ['IN_CLINIC', 'WAITING_CLINIC'].includes(item.workflow_state)
+            ['IN_CLINIC', 'WAITING_CLINIC', 'WAITING_ADDITIONAL_CLINIC'].includes(item.workflow_state)
         );
 
         const uniqueAll = getUniquePatients(clinicCandidates);
         const uniqueInClinic = uniqueAll.filter((item: any) => item.workflow_state === 'IN_CLINIC');
-        const uniqueWaiting = uniqueAll.filter((item: any) => item.workflow_state === 'WAITING_CLINIC');
+        const uniqueWaiting = uniqueAll.filter((item: any) =>
+            item.workflow_state === 'WAITING_CLINIC' || item.workflow_state === 'WAITING_ADDITIONAL_CLINIC'
+        );
 
         return {
             inClinic: uniqueInClinic,
@@ -438,6 +440,13 @@ export default function AdministrationSidebar({
 
 function PatientCard({ queueItem, onClick, type }: { queueItem: any, onClick: (item: any) => void, type: string }) {
     const questionnaireStatus = queueItem.questionnaire_status || 'NOT_STARTED';
+    const imagingOrderStatuses = Array.isArray(queueItem.orders_status)
+        ? queueItem.orders_status
+            .filter((order: any) => order?.type === 'IMAGING')
+            .map((order: any) => order?.status)
+            .filter(Boolean)
+        : [];
+    const isImagingInProgress = imagingOrderStatuses.includes('IN_PROGRESS');
     let borderLeft = '4px solid var(--sky-200)';
 
     if (type === 'IN_CLINIC') {
@@ -448,8 +457,7 @@ function PatientCard({ queueItem, onClick, type }: { queueItem: any, onClick: (i
         }
     } else if (type === 'IMAGING') {
         const isWaitingPayment = queueItem.workflow_state === 'WAITING_PAYMENT';
-        const isInImaging = queueItem.workflow_state === 'IN_IMAGING';
-        borderLeft = isWaitingPayment ? '4px solid var(--sky-700)' : isInImaging ? '4px solid var(--sky-600)' : '4px solid var(--sky-400)';
+        borderLeft = isWaitingPayment ? '4px solid var(--sky-700)' : isImagingInProgress ? '4px solid var(--sky-600)' : '4px solid var(--sky-400)';
     }
 
     return (
@@ -525,17 +533,29 @@ function PatientCard({ queueItem, onClick, type }: { queueItem: any, onClick: (i
                         진료대기
                     </span>
                 )}
+                {queueItem.workflow_state === 'WAITING_ADDITIONAL_CLINIC' && type !== 'IN_CLINIC' && (
+                    <span className={styles.workflowBadge} style={{
+                        background: 'var(--sky-300)',
+                        color: 'var(--sky-text)',
+                        padding: '6px 10px',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: 'bold'
+                    }}>
+                        추가진료
+                    </span>
+                )}
 
                 {type === 'IMAGING' && (
                     <span className={styles.workflowBadge} style={{
-                        background: queueItem.workflow_state === 'WAITING_PAYMENT' ? 'var(--sky-300)' : queueItem.workflow_state === 'IN_IMAGING' ? 'var(--sky-400)' : 'var(--sky-200)',
+                        background: queueItem.workflow_state === 'WAITING_PAYMENT' ? 'var(--sky-300)' : isImagingInProgress ? 'var(--sky-400)' : 'var(--sky-200)',
                         color: queueItem.workflow_state === 'WAITING_PAYMENT' ? 'var(--sky-text)' : 'var(--sky-text-strong)',
                         padding: '4px 12px',
                         borderRadius: '12px',
                         fontSize: '12px',
                         fontWeight: 'bold'
                     }}>
-                        {queueItem.workflow_state === 'WAITING_PAYMENT' ? '수납대기' : queueItem.workflow_state === 'IN_IMAGING' ? '촬영중' : '촬영대기'}
+                        {queueItem.workflow_state === 'WAITING_PAYMENT' ? '수납대기' : isImagingInProgress ? '촬영중' : '촬영대기'}
                     </span>
                 )}
             </div>

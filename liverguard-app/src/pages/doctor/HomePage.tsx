@@ -32,6 +32,7 @@ export default function DoctorHomePage() {
     return waitingQueueData.queue
       .filter((item: any) =>
         item.workflow_state === 'WAITING_CLINIC' ||
+        item.workflow_state === 'WAITING_ADDITIONAL_CLINIC' ||
         item.workflow_state === 'IN_CLINIC'
       )
       .map((item: any) => {
@@ -54,7 +55,7 @@ export default function DoctorHomePage() {
 
     const completed = waitingQueueData.queue
       .filter((item: any) =>
-        ['WAITING_PAYMENT', 'WAITING_RESULTS', 'WAITING_IMAGING', 'IN_IMAGING'].includes(item.workflow_state)
+        ['WAITING_PAYMENT', 'WAITING_RESULTS', 'WAITING_ORDER', 'WAITING_IMAGING', 'IN_IMAGING'].includes(item.workflow_state)
       )
       .sort((a: any, b: any) => {
         const dateA = new Date(a.updated_at || a.created_at);

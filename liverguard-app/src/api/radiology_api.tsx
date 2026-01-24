@@ -3,20 +3,45 @@ import apiClient from "./axiosConfig";
 
 // 타입 정의
 export interface Patient {
+  encounter_id?: string;
   patient_id: string;
-  name: string;
-  date_of_birth: string | null;
-  age: number | null;
-  gender: string | null;
-  current_status: string | null;
-  created_at: string;
-  updated_at: string;
+  name?: string;
+  patient_name?: string;
+  date_of_birth?: string | null;
+  age?: number | null;
+  gender?: string | null;
+  current_status?: string | null;
+  workflow_state?: string | null;
+  workflow_state_display?: string | null;
+  state_entered_at?: string | null;
+  waiting_minutes?: number;
+  doctor_name?: string | null;
+  imaging_orders?: Array<Record<string, any>>;
+  active_study_uid?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface WaitlistResponse {
+  success?: boolean;
   message: string;
   count: number;
+  stats?: {
+    waiting: number;
+    in_progress: number;
+  };
   patients: Patient[];
+}
+
+export interface EncounterStudyResponse {
+  encounter_id: number;
+  study_uid: string | null;
+  patient_id: string;
+  patient_name: string;
+  gender: string | null;
+  date_of_birth: string | null;
+  age: number | null;
+  order_notes?: string[];
 }
 
 /**
@@ -28,23 +53,56 @@ export const getWaitlist = async (): Promise<WaitlistResponse> => {
   return response.data;
 };
 
+/**
+ * Encounter에 연결된 스터디 정보 조회
+ * GET /api/radiology/encounters/{encounter_id}/study/
+ */
+export const getEncounterStudy = async (
+  encounterId: number | string
+): Promise<EncounterStudyResponse> => {
+  const response = await apiClient.get<EncounterStudyResponse>(
+    `radiology/encounters/${encounterId}/study/`
+  );
+  return response.data;
+};
+
+/**
+ * DICOM 스터디에 속한 Series ID 목록 조회
+ * GET /api/radiology/studies/{study_uid}/series/
+ */
+export const getDicomStudySeries = async (studyUid: string) => {
+  const response = await apiClient.get<{ study_uid: string; series_ids: string[] }>(
+    `radiology/studies/${studyUid}/series/`
+  );
+  return response.data;
+};
+
 export interface StartFilmingRequest {
   patient_id: string;
+  study_uid?: string;
 }
 
 export interface StartFilmingResponse {
   message: string;
   patient: Patient;
+  study_uid?: string;
 }
 
 /**
  * 촬영 시작 - 환자 상태를 '촬영중'으로 변경
  * POST /api/radiology/waitlist/start-filming/
  */
-export const startFilming = async (patientId: string): Promise<StartFilmingResponse> => {
+export const startFilming = async (
+  patientId: string,
+  studyUid?: string
+): Promise<StartFilmingResponse> => {
+  const payload: StartFilmingRequest = { patient_id: patientId };
+  if (studyUid) {
+    payload.study_uid = studyUid;
+  }
   const response = await apiClient.post<StartFilmingResponse>(
     "radiology/waitlist/start-filming/",
-    { patient_id: patientId }
+    payload
   );
   return response.data;
 };
