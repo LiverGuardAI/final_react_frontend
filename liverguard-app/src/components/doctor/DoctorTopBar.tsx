@@ -40,6 +40,8 @@ const DoctorTopBar = memo(function DoctorTopBar({ activeTab }: DoctorTopBarProps
       navigate('/doctor/blood-result');
     } else if (item === '통합 분석') {
       navigate('/doctor/integrated-result');
+    } else if (item === 'AI 통합 분석') {
+      navigate('/doctor/ai-analysis');
     } else if (item === '병기예측') {
       navigate('/doctor/ai-stage-prediction');
     } else if (item === '조기재발예측') {
@@ -65,7 +67,7 @@ const DoctorTopBar = memo(function DoctorTopBar({ activeTab }: DoctorTopBarProps
         navigate('/doctor/ct-result');
         break;
       case 'testForm':
-        navigate('/doctor/ai-stage-prediction');
+        navigate('/doctor/ai-analysis');
         break;
       case 'medicalRecord':
         navigate('/doctor/medical-record');
@@ -149,6 +151,12 @@ const DoctorTopBar = memo(function DoctorTopBar({ activeTab }: DoctorTopBarProps
           </button>
           {openDropdown === 'aiAnalysis' && (
             <div className={styles.dropdownMenu}>
+              <button
+                className={styles.dropdownItem}
+                onClick={() => handleDropdownItemClick('AI 통합 분석')}
+              >
+                통합 분석
+              </button>
               <button
                 className={styles.dropdownItem}
                 onClick={() => handleDropdownItemClick('병기예측')}

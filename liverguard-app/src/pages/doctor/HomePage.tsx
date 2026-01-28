@@ -2,11 +2,16 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDoctorData } from '../../contexts/DoctorDataContext';
 import { getAnnouncements, type AnnouncementItem } from '../../api/doctorApi';
+import { getUserSchedules, type UserScheduleData } from '../../api/hospitalOpsApi';
 import { mapWorkflowStateToStatus } from '../../utils/encounterUtils';
 
 export default function DoctorHomePage() {
   const navigate = useNavigate();
   const [doctorId, setDoctorId] = useState<number | null>(null);
+  const [userId, setUserId] = useState<number | null>(null);
+  const [weekSchedules, setWeekSchedules] = useState<UserScheduleData[]>([]);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
 
   // Shared Data from DoctorLayout (via Context)
   // WebSocket updates in Layout will automatically update these values here.
@@ -21,6 +26,16 @@ export default function DoctorHomePage() {
         setDoctorId(doctorInfo.doctor_id || null);
       } catch (error) {
         console.error('의사 정보 파싱 실패:', error);
+      }
+    }
+
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const userInfo = JSON.parse(storedUser);
+        setUserId(userInfo.id || userInfo.user_id || null);
+      } catch (error) {
+        console.error('사용자 정보 파싱 실패:', error);
       }
     }
   }, []);
@@ -153,6 +168,91 @@ export default function DoctorHomePage() {
     MAINTENANCE: { label: '점검', background: '#E8F5E9', color: '#388E3C', border: '#CDEBD0' },
   };
 
+  const formatLocalDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const addDays = (date: Date, days: number) =>
+    new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+
+  const getWeekRange = (date: Date) => {
+    const day = date.getDay(); // 0 (Sun) - 6 (Sat)
+    const diffToMonday = (day + 6) % 7; // Monday = 0
+    const monday = new Date(date.getFullYear(), date.getMonth(), date.getDate() - diffToMonday);
+    const sunday = addDays(monday, 6);
+    return {
+      startDate: formatLocalDate(monday),
+      endDate: formatLocalDate(sunday)
+    };
+  };
+
+  const formatTime = (value?: string | null) => {
+    if (!value) return '';
+    const trimmed = value.trim();
+    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(trimmed)) {
+      return trimmed.slice(0, 5);
+    }
+    const parsed = new Date(trimmed);
+    if (Number.isNaN(parsed.getTime())) return trimmed;
+    return parsed.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatScheduleType = (type?: string | null) => {
+    switch (type) {
+      case 'CONFERENCE':
+        return '학회';
+      case 'VACATION':
+        return '휴가';
+      case 'OTHER':
+        return '기타';
+      default:
+        return type || '일정';
+    }
+  };
+
+  useEffect(() => {
+    if (!userId) return;
+    let isMounted = true;
+    const loadSchedules = async () => {
+      setScheduleLoading(true);
+      setScheduleError(null);
+      try {
+        const { startDate, endDate } = getWeekRange(new Date());
+        const response = await getUserSchedules(startDate, endDate);
+        const rawList = Array.isArray(response) ? response : response.results || [];
+        const filtered = rawList
+          .filter((item: UserScheduleData) => item.schedule_date || item.start_time || item.end_time)
+          .sort((a, b) => {
+            const dateA = a.schedule_date || '';
+            const dateB = b.schedule_date || '';
+            if (dateA !== dateB) return dateA.localeCompare(dateB);
+            const timeA = a.start_time || '';
+            const timeB = b.start_time || '';
+            return timeA.localeCompare(timeB);
+          });
+        if (isMounted) {
+          setWeekSchedules(filtered);
+        }
+      } catch (error) {
+        console.error('근무 일정 조회 실패:', error);
+        if (isMounted) {
+          setScheduleError('근무 일정을 불러오지 못했습니다.');
+        }
+      } finally {
+        if (isMounted) {
+          setScheduleLoading(false);
+        }
+      }
+    };
+    loadSchedules();
+    return () => {
+      isMounted = false;
+    };
+  }, [userId]);
+
   return (
     <>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: 'auto auto 1fr', gap: '20px', padding: '20px', height: '100%', boxSizing: 'border-box', zoom: '0.7' }}>
@@ -200,42 +300,97 @@ export default function DoctorHomePage() {
       <div style={{ gridColumn: '2', gridRow: '1', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px', flexShrink: 0 }}>
           <h2 style={{ fontSize: '24px', fontWeight: '700', margin: 0 }}>일정 관리</h2>
-          <span style={{ fontSize: '16px', fontWeight: '400', color: '#666' }}>2025.12.11</span>
           <span style={{ fontSize: '28px', cursor: 'pointer', fontWeight: '300', lineHeight: '1' }}>›</span>
         </div>
-        <div style={{ background: '#FFF', borderRadius: '15px', padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', flex: 1, overflow: 'auto', minHeight: 0 }}>
-          {/* 간단한 캘린더 */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', textAlign: 'center' }}>
-            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
-              <div key={day} style={{ fontSize: '12px', fontWeight: '600', color: '#999', padding: '8px 0' }}>{day}</div>
-            ))}
-            {/* 11월 달력 (30일부터 시작) */}
-            {[30, 31].map((day) => (
-              <div key={`prev-${day}`} style={{ fontSize: '13px', color: '#CCC', padding: '8px', borderRadius: '8px' }}>{day}</div>
-            ))}
-            {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => {
-              const isToday = day === 25;
-              return (
-                <div
-                  key={day}
-                  style={{
-                    fontSize: '13px',
-                    padding: '8px',
-                    borderRadius: '8px',
-                    background: isToday ? '#6B58B1' : 'transparent',
-                    color: isToday ? '#FFF' : '#000',
-                    fontWeight: isToday ? '600' : '400',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {day}
-                </div>
-              );
-            })}
-            {[1, 2, 3, 4, 5].map((day) => (
-              <div key={`next-${day}`} style={{ fontSize: '13px', color: '#CCC', padding: '8px', borderRadius: '8px' }}>{day}</div>
-            ))}
-          </div>
+        <div style={{ background: '#FFF', borderRadius: '15px', padding: '0', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', overflow: 'hidden', minHeight: 0, display: 'flex', flexDirection: 'column', flex: 1 }}>
+          {scheduleLoading ? (
+            <div style={{ color: '#7A8899', textAlign: 'center', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              일주일 일정 불러오는 중...
+            </div>
+          ) : scheduleError ? (
+            <div style={{ color: '#D32F2F', textAlign: 'center', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {scheduleError}
+            </div>
+          ) : weekSchedules.length === 0 ? (
+            <div style={{ color: '#7A8899', textAlign: 'center', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              이번 주 일정이 없습니다.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '140px 220px 140px 1fr',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '10px 16px',
+                  background: '#F8FAFC',
+                  color: '#64748B',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  borderBottom: '1px solid #E5E7EB'
+                }}
+              >
+                <span>날짜</span>
+                <span>시간</span>
+                <span>유형</span>
+                <span>내용</span>
+              </div>
+              {weekSchedules.map((schedule, index) => {
+                const timeLabel = `${formatTime(schedule.start_time) || '-'} - ${formatTime(schedule.end_time) || '-'}`;
+                const scheduleDate = schedule.schedule_date
+                  || (schedule.start_time ? schedule.start_time.split('T')[0] : '')
+                  || (schedule.end_time ? schedule.end_time.split('T')[0] : '');
+                return (
+                  <div
+                    key={schedule.schedule_id || `${schedule.schedule_date}-${schedule.start_time}-${schedule.end_time}`}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '140px 220px 140px 1fr',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '12px 16px',
+                      borderBottom: '1px solid #EEF2F7',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => {
+                      const targetDate = scheduleDate || formatLocalDate(new Date());
+                      navigate(`/doctor/schedule?date=${encodeURIComponent(targetDate)}`);
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        const targetDate = scheduleDate || formatLocalDate(new Date());
+                        navigate(`/doctor/schedule?date=${encodeURIComponent(targetDate)}`);
+                      }
+                    }}
+                  >
+                    <span style={{ fontSize: '16px', fontWeight: '600', color: '#1F2A44' }}>
+                      {scheduleDate || '-'}
+                    </span>
+                    <span style={{ fontSize: '16px', fontWeight: '600', color: '#1F2A44' }}>
+                      {timeLabel}
+                    </span>
+                    <span style={{ fontSize: '16px', color: '#374151' }}>
+                      {formatScheduleType(schedule.schedule_type)}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '16px',
+                        color: '#374151',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {schedule.notes || '-'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 

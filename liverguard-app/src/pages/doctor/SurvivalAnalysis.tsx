@@ -11,7 +11,11 @@ import styles from './AIAnalysis.module.css';
  * Task 3: Survival Analysis (간암 생존 분석)
  * - Uses CT features, clinical features, and Genomic (mRNA) data.
  */
-const SurvivalAnalysis: React.FC = () => {
+interface SurvivalAnalysisProps {
+  embedded?: boolean;
+}
+
+const SurvivalAnalysis: React.FC<SurvivalAnalysisProps> = ({ embedded = false }) => {
   const { patientId: urlPatientId } = useParams();
   const { selectedPatientId } = useTreatment();
   const resolvedPatientId = selectedPatientId || urlPatientId || '';
@@ -737,9 +741,7 @@ const SurvivalAnalysis: React.FC = () => {
   };
 
   return (
-    <div className={styles.container}>
-      <h1 className={styles.title}>생존 분석 (Survival Analysis)</h1>
-
+    <div className={embedded ? styles.embeddedContainer : styles.container}>
       {/* 데이터 선택 영역 (상단 일렬 배치) */}
       <div className={styles.selectionHeader}>
         <FeatureSelectRow
@@ -765,7 +767,6 @@ const SurvivalAnalysis: React.FC = () => {
 
       {/* 선택된 데이터의 날짜 정보 표시 */}
       <div className={styles.infoSection}>
-        <div className={styles.infoTitle}>선택된 데이터 정보</div>
         <div className={styles.infoGrid}>
           <div className={styles.infoItem}>
             <span className={styles.infoLabel}>환자 정보</span>

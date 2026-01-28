@@ -10,7 +10,11 @@ import styles from './AIAnalysis.module.css';
  * Task 2: Recurrence Prediction (간암 조기 재발 예측)
  * - Uses CT features, clinical features, and Genomic (mRNA) data.
  */
-const RecurrencePrediction: React.FC = () => {
+interface RecurrencePredictionProps {
+  embedded?: boolean;
+}
+
+const RecurrencePrediction: React.FC<RecurrencePredictionProps> = ({ embedded = false }) => {
   const { patientId: urlPatientId } = useParams();
   const { selectedPatientId } = useTreatment();
   const resolvedPatientId = selectedPatientId || urlPatientId || '';
@@ -311,9 +315,7 @@ const RecurrencePrediction: React.FC = () => {
   };
 
   return (
-    <div className={styles.container}>
-      <h1 className={styles.title}>조기 재발 예측 (Recurrence)</h1>
-
+    <div className={embedded ? styles.embeddedContainer : styles.container}>
       {/* 데이터 선택 영역 (상단 일렬 배치) */}
       <div className={styles.selectionHeader}>
         <FeatureSelectRow
@@ -339,7 +341,6 @@ const RecurrencePrediction: React.FC = () => {
 
       {/* 선택된 데이터의 날짜 정보 표시 */}
       <div className={styles.infoSection}>
-        <div className={styles.infoTitle}>선택된 데이터 정보</div>
         <div className={styles.infoGrid}>
           <div className={styles.infoItem}>
             <span className={styles.infoLabel}>환자 정보</span>

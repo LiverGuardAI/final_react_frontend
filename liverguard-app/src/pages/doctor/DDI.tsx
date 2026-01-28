@@ -214,7 +214,8 @@ export default function DDIPage() {
     });
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '420px 1fr', gap: '24px', padding: '24px', height: '100%', maxHeight: '100vh', boxSizing: 'border-box', zoom: '0.85', background: '#F4F7FA', fontFamily: 'Pretendard, sans-serif', overflow: 'hidden' }}>
+    <div style={{ height: '100%', overflow: 'hidden' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '420px 1fr', gap: '24px', padding: '24px', height: '100%', maxHeight: '100vh', boxSizing: 'border-box', zoom: '0.85', fontFamily: 'Pretendard, sans-serif', overflow: 'hidden' }}>
 
       {/* [SIDEBAR] - borderTop에서 borderLeft로 변경 및 두께 강화 */}
       <div style={{ background: '#FFF', borderRadius: '24px', padding: '35px', boxShadow: '0 10px 40px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', borderLeft: '14px solid #6B58B1', height: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
@@ -454,14 +455,14 @@ export default function DDIPage() {
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
         .search-input:focus { border-color: #6B58B1 !important; box-shadow: 0 0 0 4px rgba(107,88,177,0.15); }
-        .prescription-item { padding: 20px; background: #F8FAFC; borderRadius: 16px; border: 1.5px solid #E3E8EE; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; animation: fadeIn 0.3s ease; }
+        .prescription-item { padding: 20px; background: #FFF; borderRadius: 16px; border: 1.5px solid #E3E8EE; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; animation: fadeIn 0.3s ease; }
         .analyze-btn { width: 100%; padding: 24px; border-radius: 18px; background: #6B58B1; color: #FFF; font-size: 20px; font-weight: 900; border: none; cursor: pointer; margin-top: 25px; box-shadow: 0 8px 20px rgba(107,88,177,0.3); transition: all 0.2s; }
         .analyze-btn:disabled { background: #A5ADBB; cursor: not-allowed; }
         .analyze-btn:active { transform: scale(0.98); }
 
         .empty-state { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #FFF; border-radius: 24px; border: 2px dashed #E3E8EE; color: #A5ADBB; }
         .report-sticky-header { position: sticky; top: 0; z-index: 100; background: #F0F4FF; padding: 20px 35px; border-radius: 22px; display: flex; justify-content: space-between; align-items: center; border: 1.5px solid #D1E0FF; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
-        
+
         .pair-nav-btn { padding: 10px 20px; background: #FFF; color: #6B58B1; border: 2px solid #D1E0FF; border-radius: 12px; font-weight: 900; cursor: pointer; transition: all 0.2s; }
         .pair-nav-btn.active { background: #6B58B1; color: #FFF; border-color: #6B58B1; }
 
@@ -515,16 +516,13 @@ export default function DDIPage() {
         .alt-btn { padding: 20px 35px; background: #F8FAFC; border: 2.5px solid #E2E8F0; border-radius: 20px; font-weight: 900; font-size: 19px; cursor: pointer; }
         .alt-btn span { font-size: 14px; color: #6B58B1; margin-left: 10px; }
         .product-item { width: 100%; padding: 24px; background: #F8FAFC; border-radius: 20px; border: 2.5px solid #E2E8F0; cursor: pointer; font-weight: 900; font-size: 20px; display: flex; align-items: center; gap: 20px; }
-        
+
         .modal-close-btn { margin-top: 40px; width: 100%; padding: 24px; border-radius: 20px; border: none; background: #6B58B1; color: #FFF; font-size: 20px; font-weight: 900; cursor: pointer; }
         .modal-close-btn.gray { background: #F1F5F9; color: #475569; }
         .no-data { color: #94A3B8; font-size: 18px; font-weight: 700; width: 100%; text-align: center; padding: 40px; }
 
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #F4F7FA; }
-        ::-webkit-scrollbar-thumb { background: #E3E8EE; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #CBD5E1; }
       `}</style>
+    </div>
     </div>
   );
 }

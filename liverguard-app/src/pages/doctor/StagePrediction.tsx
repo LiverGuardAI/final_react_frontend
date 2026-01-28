@@ -12,7 +12,11 @@ import styles from './AIAnalysis.module.css';
  * - Genomic data is NOT required for this task.
  */
 
-const StagePrediction: React.FC = () => {
+interface StagePredictionProps {
+  embedded?: boolean;
+}
+
+const StagePrediction: React.FC<StagePredictionProps> = ({ embedded = false }) => {
   const { patientId: urlPatientId } = useParams();
   const { selectedPatientId } = useTreatment();
   const resolvedPatientId = selectedPatientId || urlPatientId || '';
@@ -257,9 +261,7 @@ const StagePrediction: React.FC = () => {
   };
 
   return (
-    <div className={styles.container}>
-      <h1 className={styles.title}>병기 예측 분석 (Staging)</h1>
-
+    <div className={embedded ? styles.embeddedContainer : styles.container}>
       {/* 데이터 선택 영역 (상단 일렬 배치) */}
       <div className={styles.selectionHeader}>
         <FeatureSelectRow
@@ -281,7 +283,6 @@ const StagePrediction: React.FC = () => {
 
       {/* 선택된 데이터의 날짜 정보 표시 */}
       <div className={styles.infoSection}>
-        <div className={styles.infoTitle}>선택된 데이터 정보</div>
         <div className={styles.infoGrid}>
           <div className={styles.infoItem}>
             <span className={styles.infoLabel}>환자 정보</span>

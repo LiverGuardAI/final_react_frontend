@@ -169,9 +169,23 @@ export interface CTReportResponse {
   report_id: number;
   series_instance_uid: string;
   report_text: string;
+  tumor_analysis?: TumorAnalysisResponse | null;
   created_at: string;
   updated_at: string;
 }
+
+/**
+ * CT 보고서 목록 조회
+ * GET /api/radiology/ct-reports/?series_instance_uid=...
+ */
+export const getCtReports = async (
+  seriesInstanceUid: string
+): Promise<CTReportResponse[]> => {
+  const response = await apiClient.get<CTReportResponse[]>("radiology/ct-reports/", {
+    params: { series_instance_uid: seriesInstanceUid }
+  });
+  return response.data;
+};
 
 /**
  * CT 보고서 저장
@@ -179,11 +193,13 @@ export interface CTReportResponse {
  */
 export const saveCtReport = async (
   seriesInstanceUid: string,
-  reportText: string
+  reportText: string,
+  tumorAnalysis?: TumorAnalysisResponse | null
 ): Promise<CTReportResponse> => {
   const response = await apiClient.post<CTReportResponse>("radiology/ct-reports/", {
     series_instance_uid: seriesInstanceUid,
-    report_text: reportText
+    report_text: reportText,
+    tumor_analysis: tumorAnalysis ?? null
   });
   return response.data;
 };

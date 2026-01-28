@@ -801,7 +801,7 @@ const PostProcessingPage: React.FC = () => {
     setIsSavingReport(true);
     setSaveReportError('');
     try {
-      await saveCtReport(seriesInstanceUid, generatedReport);
+      await saveCtReport(seriesInstanceUid, generatedReport, tumorAnalysisResult);
       alert('보고서가 저장되었습니다.');
     } catch (error) {
       console.error('Failed to save CT report:', error);

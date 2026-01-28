@@ -76,6 +76,7 @@ const PatientManagementPage: React.FC = () => {
   // 문진표 모달
   const [isQuestionnaireModalOpen, setIsQuestionnaireModalOpen] = useState(false);
   const [questionnairePatient, setQuestionnairePatient] = useState<Patient | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   // 편집 모드
   const [isEditing, setIsEditing] = useState(false);
@@ -106,6 +107,7 @@ const PatientManagementPage: React.FC = () => {
         lastVisitDate: p.last_visit ? p.last_visit.split('T')[0] : '없음',
         totalVisits: p.total_visits || 0,
       })));
+      setLastUpdated(new Date());
     } catch (error) {
       console.error('환자 목록 조회 실패:', error);
     } finally {
@@ -325,14 +327,17 @@ const PatientManagementPage: React.FC = () => {
   };
 
   return (
-    <div className={styles.container}>
+      <div className={styles.container}>
       <div className={styles.header}>
-        <h2 className={styles.title}>환자 관리</h2>
-        <div className={styles.stats}>
-          <div className={styles.statBox}>
-            <span className={styles.statLabel}>전체 환자</span>
-            <span className={styles.statValue}>{patients.length}</span>
-          </div>
+        <div className={styles.headerLeft}>
+          <h2 className={styles.title}>환자 관리</h2>
+          <span className={styles.headerDate}>
+            {new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}
+          </span>
+        </div>
+        <div className={styles.headerRight}>
+          <span className={styles.liveIndicator} />
+          <span className={styles.headerMeta}>실시간 • {lastUpdated.toLocaleTimeString()}</span>
         </div>
       </div>
 
@@ -353,40 +358,48 @@ const PatientManagementPage: React.FC = () => {
                 신체 계측
               </button>
             </div>
-            <div className={styles.searchBox}>
-              <input
-                type="text"
-                className={styles.searchInput}
-                placeholder="환자명, 환자번호, 연락처로 검색"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    fetchPatientList(searchTerm);
-                  }
-                }}
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => {
-                    setSearchTerm("");
-                    fetchPatientList("");
+            <div className={styles.rightControls}>
+              <div className={styles.searchBox}>
+                <input
+                  type="text"
+                  className={styles.searchInput}
+                  placeholder="환자명, 환자번호, 연락처로 검색"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      fetchPatientList(searchTerm);
+                    }
                   }}
-                  style={{
-                    position: 'absolute',
-                    right: '10px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    fontSize: '16px',
-                    cursor: 'pointer',
-                    color: '#999'
-                  }}
-                >
-                  ✕
-                </button>
-              )}
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => {
+                      setSearchTerm("");
+                      fetchPatientList("");
+                    }}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      fontSize: '16px',
+                      cursor: 'pointer',
+                      color: '#999'
+                    }}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              <div className={styles.stats}>
+                <div className={styles.statBox}>
+                  <span className={styles.statLabel}>전체 환자</span>
+                  <span className={styles.statValue}>{patients.length}</span>
+                </div>
+              </div>
             </div>
           </div>
 

@@ -1,32 +1,36 @@
 /* SchedulePage 전용 스타일 */
 
 .scheduleContainer {
-  padding: 20px;
+  padding: 16px;
   height: 100%;
   box-sizing: border-box;
-  zoom: 0.7;
+  zoom: 0.85;
+  overflow: hidden;
 }
 
 .mainLayout {
   display: grid;
-  grid-template-columns: 400px 1fr;
-  gap: 20px;
+  grid-template-columns: 340px 1fr;
+  gap: 16px;
   height: 100%;
+  overflow: hidden;
 }
 
 /* 왼쪽: 달력 섹션 */
 .calendarSection {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
+  height: 100%;
+  overflow: hidden;
 }
 
 .calendarCard {
   background: #FFF;
-  border-radius: 15px;
-  padding: 30px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  flex: 1;
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -36,11 +40,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 25px;
+  margin-bottom: 14px;
 }
 
 .monthTitle {
-  font-size: 22px;
+  font-size: 17px;
   font-weight: 700;
   margin: 0;
 }
@@ -48,10 +52,10 @@
 .navButton {
   background: none;
   border: none;
-  font-size: 32px;
+  font-size: 24px;
   cursor: pointer;
   color: #666;
-  padding: 0 10px;
+  padding: 0 8px;
   line-height: 1;
 }
 
@@ -66,22 +70,22 @@
 .weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 4px;
+  margin-bottom: 6px;
 }
 
 .weekday {
   text-align: center;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   color: #999;
-  padding: 10px 0;
+  padding: 6px 0;
 }
 
 .daysGrid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 8px;
+  gap: 4px;
 }
 
 .day {
@@ -89,8 +93,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
-  border-radius: 10px;
+  font-size: 13px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -123,36 +127,37 @@
 /* 왼쪽 하단: 당일 일정 카드 */
 .dailyScheduleCard {
   background: #FFF;
-  border-radius: 15px;
-  padding: 25px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
 }
 
 .dailyScheduleHeader {
-  margin-bottom: 15px;
+  margin-bottom: 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .dailyScheduleTitle {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
   margin: 0;
   color: #000;
 }
 
 .addEventButton {
-  padding: 8px 16px;
+  padding: 6px 12px;
   background: #52759C;
   color: #FFF;
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 6px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -164,18 +169,18 @@
 
 .scheduleTabButtons {
   display: flex;
-  gap: 8px;
-  margin-bottom: 15px;
-  padding-bottom: 15px;
-  border-bottom: 2px solid #E0E0E0;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #E0E0E0;
 }
 
 .scheduleTabButton {
-  padding: 8px 16px;
+  padding: 5px 12px;
   background: #F5F7FA;
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 6px;
+  font-size: 12px;
   font-weight: 600;
   color: #666;
   cursor: pointer;
@@ -338,13 +343,15 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .weekCalendarCard {
   background: #FFF;
-  border-radius: 15px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -354,19 +361,19 @@
 .weekHeader {
   display: flex;
   align-items: center;
-  gap: 15px;
-  margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 2px solid #E0E0E0;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #E0E0E0;
 }
 
 .weekNavButton {
   background: none;
   border: none;
-  font-size: 28px;
+  font-size: 22px;
   cursor: pointer;
   color: #666;
-  padding: 0 5px;
+  padding: 0 4px;
   line-height: 1;
 }
 
@@ -375,19 +382,19 @@
 }
 
 .weekTitle {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 700;
   margin: 0;
 }
 
 .todayButton {
   margin-left: auto;
-  padding: 8px 16px;
+  padding: 6px 12px;
   background: #52759C;
   color: #FFF;
   border: none;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -399,7 +406,7 @@
 /* 요일 헤더 */
 .weekDaysHeader {
   display: grid;
-  grid-template-columns: 80px repeat(7, 1fr);
+  grid-template-columns: 56px repeat(7, 1fr);
   gap: 1px;
   background: #E0E0E0;
   border: 1px solid #E0E0E0;
@@ -413,19 +420,19 @@
 
 .dayHeader {
   background: #F8F9FA;
-  padding: 12px 8px;
+  padding: 8px 4px;
   text-align: center;
 }
 
 .dayName {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: #666;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .dayDate {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
   color: #000;
 }
@@ -433,7 +440,7 @@
 /* 주간 그리드 */
 .weekGrid {
   display: grid;
-  grid-template-columns: 80px 1fr;
+  grid-template-columns: 56px 1fr;
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
@@ -451,12 +458,12 @@
 }
 
 .timeLabel {
-  height: 80px;
+  height: 60px;
   display: flex;
   align-items: flex-start;
   justify-content: center;
   padding-top: 4px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: #666;
   border-bottom: 1px solid #E0E0E0;
@@ -478,7 +485,7 @@
 }
 
 .hourCell {
-  height: 80px;
+  height: 60px;
   border-bottom: 1px solid #E0E0E0;
 }
 

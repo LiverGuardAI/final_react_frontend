@@ -145,7 +145,7 @@ export default function BloodResultPage() {
 
   return (
     <div className={styles.container}>
-      <header className={styles.header} style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '15px 20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+      <header className={styles.header} style={{ marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '12px 16px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
         <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#334155' }}>
           Patient ID : <span style={{ color: '#2563eb' }}>{patientId}</span>
           <span style={{ margin: '0 15px', color: '#e2e8f0' }}>|</span>

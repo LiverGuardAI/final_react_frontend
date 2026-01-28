@@ -232,6 +232,10 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
     const description = series.series_description ? ` - ${series.series_description}` : '';
     return `${dateLabel}${bodyPart}${description}`;
   };
+  const truncateLabel = (label: string, maxLength = 36) =>
+    label.length > maxLength ? `${label.slice(0, maxLength - 1)}…` : label;
+  const selectedSeries = ctSeriesList.find((item) => item.series_uid === effectiveRadioId);
+  const selectedSeriesLabel = selectedSeries ? formatSeriesLabel(selectedSeries) : '';
 
   return (
     <>
@@ -242,6 +246,7 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
           value={effectiveRadioId}
           onChange={(e) => onRadioChange(e.target.value)}
           disabled={disabled}
+          title={selectedSeriesLabel}
         >
           <option value="" disabled hidden>
             CT 데이터 선택
@@ -252,8 +257,12 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
               </option>
             ) : hasCtSeries ? (
               ctSeriesList.map((series) => (
-                <option key={series.series_uid} value={series.series_uid}>
-                  {formatSeriesLabel(series)}
+                <option
+                  key={series.series_uid}
+                  value={series.series_uid}
+                  title={formatSeriesLabel(series)}
+                >
+                  {truncateLabel(formatSeriesLabel(series))}
                 </option>
               ))
             ) : (

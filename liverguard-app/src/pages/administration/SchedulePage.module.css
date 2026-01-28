@@ -11,7 +11,7 @@
   grid-template-columns: 280px 1fr 320px;
   gap: 15px;
   height: 100%;
-  padding: 15px;
+  padding: 15px 10px;
 }
 
 /* Left Section */

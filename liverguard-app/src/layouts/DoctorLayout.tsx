@@ -43,7 +43,7 @@ export default function DoctorLayout() {
     if (path.includes('/medical-record')) return 'medicalRecord';
     if (path.includes('/ddi')) return 'medication';
     if (path.includes('/ct-result') || path.includes('/mrna-result') || path.includes('/blood-result')) return 'examination';
-    if (path.includes('/ai-')) return 'testForm';
+    if (path.includes('/ai-') || path.includes('/ai-analysis')) return 'testForm';
     return 'home';
   }, [location.pathname]);
 

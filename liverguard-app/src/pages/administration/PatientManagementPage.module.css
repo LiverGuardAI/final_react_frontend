@@ -7,7 +7,7 @@
   flex-direction: column;
   gap: 16px;
   background: #F5F7FA;
-  padding: 16px 20px 12px;
+  padding: 16px 16px 12px;
   overflow: hidden;
 }
 
@@ -15,19 +15,32 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 0;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
 }
 
 .title {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
-  color: #000000;
+  color: #1e293b;
   margin: 0;
+}
+
+.headerDate {
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
 }
 
 .stats {
   display: flex;
   gap: 15px;
+  align-items: center;
 }
 
 .statBox {
@@ -58,11 +71,19 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 0;
+  gap: 16px;
 }
 
 .leftControls {
   display: flex;
   gap: 15px;
+}
+
+.rightControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
 }
 
 .actionButton {
@@ -174,9 +195,9 @@
 }
 
 .searchBox {
-  flex: 1;
   display: flex;
   justify-content: flex-end;
+  position: relative;
 }
 
 .searchInput {
@@ -185,6 +206,32 @@
   border-radius: 8px;
   width: 300px;
   font-size: 0.95rem;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.liveIndicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+  animation: pulse-live 2s infinite;
+}
+
+@keyframes pulse-live {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2); }
+  50% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.1); }
+}
+
+.headerMeta {
+  font-size: 13px;
+  font-weight: 500;
+  color: #94a3b8;
 }
 
 .searchInput:focus {

@@ -18,6 +18,40 @@ interface Patient {
 
 import type { DoctorDashboardStats } from '../../api/doctorApi';
 
+const normalizeDisplayValue = (value?: string | null) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.toUpperCase() === 'N/A') return null;
+  return trimmed;
+};
+
+const formatDisplayValue = (value?: string | null, fallback = '-') =>
+  normalizeDisplayValue(value) ?? fallback;
+
+const formatGenderLabel = (gender?: string | null) => {
+  const normalized = normalizeDisplayValue(gender);
+  if (!normalized) return '-';
+  if (normalized === 'M') return '남';
+  if (normalized === 'F') return '여';
+  return normalized;
+};
+
+const getGenderIcon = (gender?: string | null) => {
+  const label = formatGenderLabel(gender);
+  if (label === '여') return '♀';
+  if (label === '남') return '♂';
+  return '-';
+};
+
+const formatAge = (age?: number | null) =>
+  Number.isFinite(age) ? `${age}세` : '-';
+
+const formatQueuedAt = (queuedAt?: string | null) => {
+  const normalized = normalizeDisplayValue(queuedAt);
+  if (!normalized) return '-';
+  return new Date(normalized).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+};
+
 interface DoctorSidebarProps {
   doctorName: string;
   departmentName: string;
@@ -99,11 +133,11 @@ const DoctorSidebar = memo(function DoctorSidebar({
                     style={{ cursor: 'pointer', borderLeft: '4px solid #6C5CE7' }}
                   >
                     <div className={styles.patientHeader}>
-                      <span className={styles.patientName}>{patient.name}</span>
-                      <span className={styles.genderIcon}>{patient.gender === '여' ? '♀' : '♂'}</span>
+                      <span className={styles.patientName}>{formatDisplayValue(patient.name)}</span>
+                      <span className={styles.genderIcon}>{getGenderIcon(patient.gender)}</span>
                     </div>
                     <div className={styles.patientDetails}>
-                      {patient.birthDate} | {patient.age}세 | {patient.gender}
+                      {formatDisplayValue(patient.birthDate)} | {formatAge(patient.age)} | {formatGenderLabel(patient.gender)}
                     </div>
                     <div className={styles.patientActions}>
                       {/* 문진표 상태 뱃지 */}
@@ -135,7 +169,7 @@ const DoctorSidebar = memo(function DoctorSidebar({
                       </span>
                     </div>
                     <div style={{ fontSize: '11px', color: '#999', textAlign: 'right', marginTop: '5px' }}>
-                      {patient.queuedAt ? new Date(patient.queuedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+                      {formatQueuedAt(patient.queuedAt)}
                     </div>
                   </div>
                 ))}
@@ -151,12 +185,12 @@ const DoctorSidebar = memo(function DoctorSidebar({
                     <div className={styles.patientHeader}>
                       <div style={{ display: 'flex', alignItems: 'center' }}>
                         <span style={{ marginRight: '8px', color: '#52759C', fontWeight: 'bold' }}>{index + 1}</span>
-                        <span className={styles.patientName}>{patient.name}</span>
+                        <span className={styles.patientName}>{formatDisplayValue(patient.name)}</span>
                       </div>
-                      <span className={styles.genderIcon}>{patient.gender === '여' ? '♀' : '♂'}</span>
+                      <span className={styles.genderIcon}>{getGenderIcon(patient.gender)}</span>
                     </div>
                     <div className={styles.patientDetails}>
-                      {patient.birthDate} | {patient.age}세 | {patient.gender}
+                      {formatDisplayValue(patient.birthDate)} | {formatAge(patient.age)} | {formatGenderLabel(patient.gender)}
                     </div>
                     <div className={styles.patientActions}>
                       {/* 문진표 상태 뱃지 */}
@@ -187,7 +221,7 @@ const DoctorSidebar = memo(function DoctorSidebar({
                       </button>
                     </div>
                     <div style={{ fontSize: '11px', color: '#999', textAlign: 'right', marginTop: '5px' }}>
-                      {patient.queuedAt ? new Date(patient.queuedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+                      {formatQueuedAt(patient.queuedAt)}
                     </div>
                   </div>
                 ))}
@@ -205,11 +239,11 @@ const DoctorSidebar = memo(function DoctorSidebar({
                   style={{ cursor: 'pointer' }}
                 >
                   <div className={styles.patientHeader}>
-                    <span className={styles.patientName}>{patient.name}</span>
-                    <span className={styles.genderIcon}>{patient.gender === '여' ? '♀' : '♂'}</span>
+                    <span className={styles.patientName}>{formatDisplayValue(patient.name)}</span>
+                    <span className={styles.genderIcon}>{getGenderIcon(patient.gender)}</span>
                   </div>
                   <div className={styles.patientDetails}>
-                    {patient.birthDate} | {patient.age}세 | {patient.gender}
+                    {formatDisplayValue(patient.birthDate)} | {formatAge(patient.age)} | {formatGenderLabel(patient.gender)}
                   </div>
                 </div>
               ))

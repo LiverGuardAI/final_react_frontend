@@ -107,12 +107,13 @@ const PatientStatusPage: React.FC = () => {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h2 className={styles.title}>오늘의 환자 현황 ({new Date().toLocaleDateString()})</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '13px', color: '#666' }}>
-            실시간 업데이트 중 • 최종: {lastUpdated.toLocaleTimeString()}
-          </span>
-          {/* Refresh button removed as per request */}
+        <div className={styles.headerLeft}>
+          <h2 className={styles.title}>환자 현황</h2>
+          <span className={styles.headerDate}>{new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}</span>
+        </div>
+        <div className={styles.headerRight}>
+          <span className={styles.liveIndicator} />
+          <span className={styles.headerMeta}>실시간 • {lastUpdated.toLocaleTimeString()}</span>
         </div>
       </div>
 

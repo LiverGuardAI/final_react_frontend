@@ -61,6 +61,16 @@ interface DoctorPatientModalProps {
   onClose: () => void;
 }
 
+const normalizeDisplayValue = (value?: string | null) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.toUpperCase() === 'N/A') return null;
+  return trimmed;
+};
+
+const formatDisplayValue = (value?: string | null, fallback = '-') =>
+  normalizeDisplayValue(value) ?? fallback;
+
 const DoctorPatientModal: React.FC<DoctorPatientModalProps> = ({
   isOpen,
   patient,
@@ -190,6 +200,12 @@ const DoctorPatientModal: React.FC<DoctorPatientModalProps> = ({
   };
 
   const hasQuestionnaire = patient.questionnaireStatus === 'COMPLETED' && questionnaireData;
+  const chiefComplaint =
+    normalizeDisplayValue(detail?.chief_complaint) ??
+    normalizeDisplayValue(questionnaireData?.chief_complaint) ??
+    '-';
+  const clinicalNotes = formatDisplayValue(detail?.clinical_notes, '내용 없음');
+  const additionalNotes = normalizeDisplayValue(questionnaireData?.additional_notes);
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
@@ -206,15 +222,15 @@ const DoctorPatientModal: React.FC<DoctorPatientModalProps> = ({
             <div className={styles.infoGrid}>
               <div className={styles.infoRow}>
                 <span className={styles.infoLabel}>환자 ID:</span>
-                <span className={styles.infoValue}>{patient.patientId}</span>
+                <span className={styles.infoValue}>{formatDisplayValue(patient.patientId)}</span>
               </div>
               <div className={styles.infoRow}>
                 <span className={styles.infoLabel}>이름:</span>
-                <span className={styles.infoValue}>{patient.name}</span>
+                <span className={styles.infoValue}>{formatDisplayValue(patient.name)}</span>
               </div>
               <div className={styles.infoRow}>
                 <span className={styles.infoLabel}>생년월일:</span>
-                <span className={styles.infoValue}>{patient.birthDate}</span>
+                <span className={styles.infoValue}>{formatDisplayValue(patient.birthDate)}</span>
               </div>
               <div className={styles.infoRow}>
                 <span className={styles.infoLabel}>나이:</span>
@@ -222,12 +238,12 @@ const DoctorPatientModal: React.FC<DoctorPatientModalProps> = ({
               </div>
               <div className={styles.infoRow}>
                 <span className={styles.infoLabel}>성별:</span>
-                <span className={styles.infoValue}>{patient.gender}</span>
+                <span className={styles.infoValue}>{formatDisplayValue(patient.gender)}</span>
               </div>
               <div className={styles.infoRow}>
                 <span className={styles.infoLabel}>진단명:</span>
                 <span className={styles.infoValue} style={{ color: '#e74c3c', fontWeight: 'bold' }}>
-                  {detail?.diagnosis_name || '미입력'}
+                  {formatDisplayValue(detail?.diagnosis_name, '미입력')}
                 </span>
               </div>
             </div>
@@ -240,7 +256,7 @@ const DoctorPatientModal: React.FC<DoctorPatientModalProps> = ({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div>
                   <span className={styles.infoLabel}>주증상 (C.C): </span>
-                  <span className={styles.infoValue}>{detail.chief_complaint || questionnaireData?.chief_complaint || '-'}</span>
+                  <span className={styles.infoValue}>{chiefComplaint}</span>
                 </div>
                 <div>
                   <span className={styles.infoLabel} style={{ display: 'block', marginBottom: '4px' }}>의사 소견 (Note):</span>
@@ -254,7 +270,7 @@ const DoctorPatientModal: React.FC<DoctorPatientModalProps> = ({
                     border: '1px solid #e9ecef',
                     margin: 0
                   }}>
-                    {detail.clinical_notes || '내용 없음'}
+                    {clinicalNotes}
                   </pre>
                 </div>
               </div>
@@ -314,7 +330,9 @@ const DoctorPatientModal: React.FC<DoctorPatientModalProps> = ({
                   }}>
                     <div>
                       <span style={{ fontWeight: 'bold', marginRight: '8px' }}>{order.modality}</span>
-                      <span style={{ fontSize: '0.85rem', color: '#666' }}>{order.body_part || '-'}</span>
+                      <span style={{ fontSize: '0.85rem', color: '#666' }}>
+                        {formatDisplayValue(order.body_part)}
+                      </span>
                     </div>
                     <span style={{
                       fontSize: '0.8rem',
@@ -341,11 +359,11 @@ const DoctorPatientModal: React.FC<DoctorPatientModalProps> = ({
                 <div className={styles.infoGrid}>
                   <div className={styles.infoRow}>
                     <span className={styles.infoLabel}>주 호소 증상:</span>
-                    <span className={styles.infoValue}>{questionnaireData.chief_complaint || '-'}</span>
+                    <span className={styles.infoValue}>{formatDisplayValue(questionnaireData.chief_complaint)}</span>
                   </div>
                   <div className={styles.infoRow}>
                     <span className={styles.infoLabel}>증상 지속 기간:</span>
-                    <span className={styles.infoValue}>{questionnaireData.symptom_duration || '-'}</span>
+                    <span className={styles.infoValue}>{formatDisplayValue(questionnaireData.symptom_duration)}</span>
                   </div>
                   <div className={styles.infoRow}>
                     <span className={styles.infoLabel}>통증 정도:</span>
@@ -383,21 +401,21 @@ const DoctorPatientModal: React.FC<DoctorPatientModalProps> = ({
               <section className={styles.section}>
                 <h4 className={styles.sectionTitle}>가족력</h4>
                 <p className={styles.textContent}>
-                  {questionnaireData.family_history || '없음'}
+                  {formatDisplayValue(questionnaireData.family_history, '없음')}
                 </p>
               </section>
 
               <section className={styles.section}>
                 <h4 className={styles.sectionTitle}>복용 중인 약물</h4>
                 <p className={styles.textContent}>
-                  {questionnaireData.medications || '없음'}
+                  {formatDisplayValue(questionnaireData.medications, '없음')}
                 </p>
               </section>
 
               <section className={styles.section}>
                 <h4 className={styles.sectionTitle}>알레르기</h4>
                 <p className={styles.textContent}>
-                  {questionnaireData.allergies || '없음'}
+                  {formatDisplayValue(questionnaireData.allergies, '없음')}
                 </p>
               </section>
 
@@ -415,11 +433,11 @@ const DoctorPatientModal: React.FC<DoctorPatientModalProps> = ({
                 </div>
               </section>
 
-              {questionnaireData.additional_notes && (
+              {additionalNotes && (
                 <section className={styles.section}>
                   <h4 className={styles.sectionTitle}>추가 사항</h4>
                   <p className={styles.textContent}>
-                    {questionnaireData.additional_notes}
+                    {additionalNotes}
                   </p>
                 </section>
               )}

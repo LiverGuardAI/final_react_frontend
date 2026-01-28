@@ -286,8 +286,8 @@ export default function SchedulePage() {
                     {weekEvents
                       .filter((event) => event.day === dayIndex)
                       .map((event) => {
-                        const top = ((event.startHour - 7) * 80 + (event.startMinute / 60) * 80);
-                        const height = (event.durationMinutes / 60) * 80;
+                        const top = ((event.startHour - 7) * 60 + (event.startMinute / 60) * 60);
+                        const height = (event.durationMinutes / 60) * 60;
                         return (
                           <div
                             key={event.id}

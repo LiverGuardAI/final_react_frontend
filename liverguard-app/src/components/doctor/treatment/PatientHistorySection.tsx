@@ -46,6 +46,13 @@ export default function PatientHistorySection({
             if (val === true) return <span className={styles.tagYes}>예</span>;
             if (val === false) return <span className={styles.tagNo}>아니오</span>;
 
+            if (key === 'smoking' || key === 'alcohol') {
+                if (!val) return <span className={styles.textMuted}>특이사항 없음</span>;
+                const normalized = String(val).trim().toLowerCase();
+                if (normalized === 'none') return <span className={styles.tagNo}>No</span>;
+                return <span className={styles.tagYes}>Yes</span>;
+            }
+
             // Symptoms / Medical History Object Handling
             if (typeof val === 'object' && val !== null) {
                 // Check if it's the "symptoms" or "medical_history" object structure
@@ -71,7 +78,7 @@ export default function PatientHistorySection({
                 // Fallback for other objects
                 return JSON.stringify(val);
             }
-            if (!val) return <span className={styles.textMuted}>-</span>;
+            if (!val) return <span className={styles.textMuted}>특이사항 없음</span>;
             return <span className={styles.textValue}>{String(val)}</span>;
         };
 
@@ -676,8 +683,15 @@ export default function PatientHistorySection({
     };
 
     const formatEncounterField = (value?: string | number | null) => {
-        if (value === null || value === undefined || value === '') {
+        if (value === null || value === undefined) {
             return '-';
+        }
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            if (!trimmed || trimmed.toUpperCase() === 'N/A') {
+                return '-';
+            }
+            return trimmed;
         }
         return String(value);
     };
@@ -727,13 +741,13 @@ export default function PatientHistorySection({
                                                         {formatEncounterDate(encounter)}
                                                     </div>
                                                     <div className={styles.recordCell}>
-                                                        {encounter.doctor_name || '-'}
+                                                        {formatEncounterField(encounter.doctor_name)}
                                                     </div>
                                                     <div className={styles.recordCell}>
-                                                        {encounter.chief_complaint || 'N/A'}
+                                                        {formatEncounterField(encounter.chief_complaint)}
                                                     </div>
                                                     <div className={styles.recordCell}>
-                                                        {encounter.clinical_notes || 'N/A'}
+                                                        {formatEncounterField(encounter.clinical_notes)}
                                                     </div>
                                                     <button
                                                         type="button"

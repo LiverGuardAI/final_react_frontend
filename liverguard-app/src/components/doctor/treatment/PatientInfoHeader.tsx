@@ -2,6 +2,27 @@ import React from 'react';
 import styles from '../../../pages/doctor/TreatmentPage.module.css';
 import type { LabResult, ImagingOrder } from '../../../api/doctorApi';
 
+const normalizeDisplayValue = (value?: string | null) => {
+    if (!value) return null;
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.toUpperCase() === 'N/A') return null;
+    return trimmed;
+};
+
+const formatDisplayValue = (value?: string | null, fallback = '-') =>
+    normalizeDisplayValue(value) ?? fallback;
+
+const formatGenderLabel = (gender?: string | null) => {
+    const normalized = normalizeDisplayValue(gender);
+    if (!normalized) return '-';
+    if (normalized === 'M') return '남';
+    if (normalized === 'F') return '여';
+    return normalized;
+};
+
+const formatAgeSuffix = (age?: number | null) =>
+    Number.isFinite(age) ? `, ${age}세` : '';
+
 interface PatientInfoHeaderProps {
     patient: any; // Using any for now to match flexible usage, ideally should be typed
     labResults: LabResult[];
@@ -30,33 +51,32 @@ export default function PatientInfoHeader({ patient, labResults, imagingOrders }
                 <div className={styles.patientName}>
                     <h1>{patient.name}</h1>
                     <span>
-                        ({patient.gender === 'M' ? '남' : '여'}
-                        {patient.age ? `, ${patient.age}세` : ''})
+                        ({formatGenderLabel(patient.gender)}
+                        {formatAgeSuffix(patient.age)})
                     </span>
                 </div>
                 <div className={styles.patientInfoItem}>
-                    생년월일: {patient.date_of_birth || 'N/A'}
+                    생년월일: {formatDisplayValue(patient.date_of_birth)}
                 </div>
                 <div className={styles.patientInfoItem}>
-                    연락처: {patient.phone || 'N/A'}
+                    연락처: {formatDisplayValue(patient.phone)}
                 </div>
 
-                {labResults.length > 0 && (
-                    <div className={styles.testBadges}>
+                <div className={styles.testBadges}>
+                    {labResults.length > 0 && (
                         <span className={`${styles.testBadge} ${styles.completed}`}>
-                            혈액검사 완료 ({labResults[0].test_date})
+                            혈액검사 완료 ({formatDisplayValue(labResults[0].test_date)})
                         </span>
-                    </div>
-                )}
-
-                {imagingOrders.length > 0 && imagingOrders[0].status === 'COMPLETED' && (
-                    <div className={styles.testBadges}>
+                    )}
+                    {imagingOrders.length > 0 && imagingOrders[0].status === 'COMPLETED' && (
                         <span className={`${styles.testBadge} ${styles.ct}`}>
                             {imagingOrders[0].modality} 완료 (
-                            {new Date(imagingOrders[0].ordered_at).toLocaleDateString()})
+                            {imagingOrders[0].ordered_at
+                                ? new Date(imagingOrders[0].ordered_at).toLocaleDateString()
+                                : '-'})
                         </span>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
         </div>
     );

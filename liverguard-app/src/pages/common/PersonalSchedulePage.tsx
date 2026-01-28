@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import styles from './PersonalSchedule.module.css';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -151,6 +152,7 @@ const ScheduleReviewModal: React.FC<ScheduleModalProps> = ({ schedule, onClose, 
 export default function PersonalSchedulePage() {
     const { user } = useAuth();
     const { lastMessage } = useWebSocketContext();
+    const [searchParams] = useSearchParams();
 
     const [currentDate, setCurrentDate] = useState(new Date());
     const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -170,6 +172,18 @@ export default function PersonalSchedulePage() {
     const [isManagementModalOpen, setIsManagementModalOpen] = useState(false);
     const [managementMode, setManagementMode] = useState<'create' | 'edit'>('create');
     const [editingData, setEditingData] = useState<DutyScheduleData | null>(null);
+
+    useEffect(() => {
+        const dateParam = searchParams.get('date');
+        if (!dateParam) return;
+        const match = dateParam.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!match) return;
+        const [, year, month, day] = match;
+        const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+        if (Number.isNaN(parsed.getTime())) return;
+        setCurrentDate(parsed);
+        setCurrentMonth(new Date(parsed.getFullYear(), parsed.getMonth(), 1));
+    }, [searchParams]);
 
     // 주간 날짜 계산
     const startOfWeek = new Date(currentDate);
@@ -688,11 +702,19 @@ export default function PersonalSchedulePage() {
                 {/* 헤더 */}
                 <div className={styles.weekDaysHeader}>
                     <div className={styles.timeColumn}>시간</div>
-                    {weekDates.map((d, i) => (
-                        <div key={i} className={styles.dayColumn}>
+                    {weekDates.map((d, i) => {
+                        const dayOfWeek = d.getDay();
+                        const dayClassName = [
+                            styles.dayColumn,
+                            dayOfWeek === 0 ? styles.sunday : '',
+                            dayOfWeek === 6 ? styles.saturday : ''
+                        ].filter(Boolean).join(' ');
+                        return (
+                            <div key={i} className={dayClassName}>
                             {['일', '월', '화', '수', '목', '금', '토'][d.getDay()]} ({d.getDate()})
-                        </div>
-                    ))}
+                            </div>
+                        );
+                    })}
                 </div>
 
                 {/* 각 30분 슬롯 */}

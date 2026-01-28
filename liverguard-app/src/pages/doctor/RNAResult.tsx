@@ -132,32 +132,23 @@ export default function RNAResultPage() {
 
   return (
     <div className={styles.container}>
-      <header className={styles.header}>
-        <h2 className={styles.pageTitle}>유전체 경로 분석</h2>
-
-        <div className={styles.searchbar}>
-          <div className={styles.patientInfo}>
-            Patient ID : {patientId || '-'}
-            <span className={styles.divider}>|</span>
-            Sample Date : {selectedData?.measured_at?.split('T')[0] || '-'}
-          </div>
-
-          {/* 날짜 목록 선택 드롭다운 */}
-          <div className={styles.dateSelector}>
-            <span className={styles.dateSelectorLabel}>날짜 선택:   </span>
-            <select
-              value={selectedDateIndex}
-              onChange={(e) => setSelectedDateIndex(Number(e.target.value))}
-              className={styles.dateDropdown}
-            >
-              {dataList.map((data, idx) => (
-                <option key={idx} value={idx}>
-                  {data.measured_at?.split('T')[0]}
-                </option>
-              ))}
-            </select>
-          </div>
+      <header className={styles.header} style={{ marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '12px 16px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+        <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#334155' }}>
+          Patient ID : <span style={{ color: '#2563eb' }}>{patientId || '-'}</span>
+          <span style={{ margin: '0 15px', color: '#e2e8f0' }}>|</span>
+          Date : <span style={{ color: '#2563eb', fontWeight: 'bold' }}>{selectedData?.measured_at?.split('T')[0] || '-'}</span>
         </div>
+        <select
+          value={selectedDateIndex}
+          onChange={(e) => setSelectedDateIndex(Number(e.target.value))}
+          style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px' }}
+        >
+          {[...dataList].reverse().map((data, idx) => (
+            <option key={idx} value={dataList.length - 1 - idx}>
+              {data.measured_at?.split('T')[0]}
+            </option>
+          ))}
+        </select>
       </header>
 
       <div className={styles.dashboardGrid}>
