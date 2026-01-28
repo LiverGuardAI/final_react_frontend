@@ -197,6 +197,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
 }
 
 .messagesContainer {
@@ -207,6 +208,39 @@
   flex-direction: column;
   gap: 12px;
   background: #f8fafc;
+}
+
+/* 메시지 그룹 (날짜 구분선 + 메시지) */
+.messageGroup {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* 날짜 구분선 */
+.dateSeparator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 16px 0;
+}
+
+.dateSeparator::before,
+.dateSeparator::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+
+.dateSeparatorText {
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  background: #f1f5f9;
+  border-radius: 12px;
+  margin: 0 12px;
 }
 
 .messageWrapper {
@@ -360,6 +394,102 @@
   background: white;
   border-top: 1px solid #e2e8f0;
   gap: 8px;
+  align-items: center;
+}
+
+/* + 버튼 */
+.plusButton {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #6B58B1 0%, #52759C 100%);
+  color: white;
+  font-size: 22px;
+  font-weight: 400;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.2s, opacity 0.2s;
+  line-height: 0;
+  padding: 0;
+}
+
+.plusButton:hover {
+  opacity: 0.9;
+  transform: scale(1.05);
+}
+
+.plusButton:active {
+  transform: scale(0.95);
+}
+
+/* 첨부 메뉴 wrapper */
+.attachWrapper {
+  position: relative;
+}
+
+/* 첨부 메뉴 (말풍선) */
+.attachMenu {
+  position: absolute;
+  bottom: 48px;
+  left: 0;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 8px 0;
+  min-width: 140px;
+  z-index: 100;
+  animation: fadeInUp 0.15s ease-out;
+}
+
+/* 말풍선 꼬리 */
+.attachMenu::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 14px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid white;
+}
+
+.attachMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  color: #1e293b;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: left;
+}
+
+.attachMenuItem:hover {
+  background: #f1f5f9;
+}
+
+.attachIcon {
+  font-size: 18px;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .messageInput {
@@ -448,4 +578,303 @@
   100% {
     background-position: 200% 0;
   }
+}
+
+/* 첨부 파일 표시 */
+.attachedFiles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.attachedFile {
+  min-width: 180px;
+  max-width: 240px;
+}
+
+/* 이미지 미리보기 - 말풍선 스타일 */
+.imagePreview {
+  cursor: pointer;
+  border-radius: 16px;
+  overflow: hidden;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-bottom-left-radius: 4px;
+  padding: 4px;
+}
+
+.mine .imagePreview {
+  background: linear-gradient(135deg, #6B58B1 0%, #52759C 100%);
+  border: none;
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 4px;
+}
+
+.previewImage {
+  max-width: 200px;
+  max-height: 200px;
+  display: block;
+  border-radius: 12px;
+  transition: transform 0.2s;
+}
+
+.previewImage:hover {
+  transform: scale(1.02);
+}
+
+/* 파일 아이템 - 말풍선 스타일 */
+.fileItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  min-width: 160px;
+  width: 100%;
+  /* 상대방 메시지 스타일 (기본) */
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-bottom-left-radius: 4px;
+}
+
+.fileItem:hover {
+  opacity: 0.9;
+}
+
+/* 내 메시지 파일 스타일 */
+.mine .fileItem {
+  background: linear-gradient(135deg, #6B58B1 0%, #52759C 100%);
+  border: none;
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 4px;
+}
+
+.mine .fileItem:hover {
+  opacity: 0.9;
+}
+
+.fileIcon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.fileInfo {
+  flex: 1;
+  min-width: 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.fileName {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mine .fileName {
+  color: white;
+}
+
+.fileSize {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.mine .fileSize {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.downloadIcon {
+  font-size: 16px;
+  flex-shrink: 0;
+  filter: none;
+}
+
+.mine .downloadIcon {
+  filter: brightness(0) invert(1);
+}
+
+/* 이미지 로딩 중 */
+.imageLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 100px;
+  min-height: 60px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.mine .imageLoading {
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* 파일 없음 상태 */
+.fileMissing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: #94a3b8;
+  font-size: 12px;
+  gap: 8px;
+}
+
+.fileMissing span:first-child {
+  font-size: 32px;
+  opacity: 0.5;
+}
+
+.fileMissingItem {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.fileMissingItem:hover {
+  background: white;
+}
+
+/* 업로딩 오버레이 */
+.uploadingOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  z-index: 10;
+}
+
+.uploadingSpinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #6B58B1;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 이미지 모달 */
+.imageModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  padding: 20px;
+}
+
+.imageModalContent {
+  background: white;
+  border-radius: 12px;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+}
+
+.imageModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.imageModalTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.imageModalClose {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: #e2e8f0;
+  border-radius: 50%;
+  font-size: 18px;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.imageModalClose:hover {
+  background: #cbd5e1;
+}
+
+.imageModalBody {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1e293b;
+  padding: 16px;
+}
+
+.imageModalImage {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+}
+
+.imageModalFooter {
+  padding: 12px 16px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: center;
+}
+
+.imageModalDownload {
+  padding: 8px 20px;
+  background: linear-gradient(135deg, #6B58B1 0%, #52759C 100%);
+  color: white;
+  border: none;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+
+.imageModalDownload:hover {
+  opacity: 0.9;
+}
+
+/* 비활성화된 전송 버튼 */
+.sendButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
