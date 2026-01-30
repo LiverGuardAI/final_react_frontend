@@ -1,7 +1,7 @@
 /* TreatmentPage 전용 스타일 */
 
 .treatmentContainer {
-  padding: 12px 20px 20px;
+  padding: 10px 24px 24px 24px;
   height: 100%;
   box-sizing: border-box;
   zoom: 0.7;
@@ -72,67 +72,137 @@
   color: #666;
 }
 
-/* 환자 정보 헤더 */
+/* 환자 정보 헤더 (EMR 스타일) */
 .patientHeader {
   background: #FFF;
-  border-radius: 15px;
-  padding: 30px 40px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  padding: 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   flex-shrink: 0;
+  border-left: none;
+  /* border-left: 5px solid #6C5CE7; */
+  overflow: hidden;
 }
 
 .patientInfo {
   display: flex;
   align-items: center;
-  gap: 32px;
-  flex-wrap: wrap;
+  gap: 0;
+  flex-wrap: nowrap;
+  min-height: 72px;
+}
+
+.patientAvatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #52759C 0%, #405F7F 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFF;
+  font-size: 20px;
+  font-weight: 700;
+  flex-shrink: 0;
+  letter-spacing: -0.02em;
+}
+
+.patientNameBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px 24px;
+  min-width: 180px;
 }
 
 .patientName {
   display: flex;
   align-items: baseline;
-  gap: 15px;
+  gap: 10px;
 }
 
 .patientName h1 {
-  font-size: 32px;
-  font-weight: 700;
+  font-size: 28px;
+  font-weight: 800;
   margin: 0;
+  color: #0f172a;
+  letter-spacing: -0.02em;
 }
 
 .patientName span {
-  font-size: 18px;
-  color: #666;
+  font-size: 17px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.patientIdText {
+  font-size: 13px;
+  color: #94a3b8;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.patientDivider {
+  width: 1px;
+  height: 40px;
+  background: #e2e8f0;
+  flex-shrink: 0;
 }
 
 .patientInfoItem {
-  font-size: 16px;
-  color: #000;
-  font-weight: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 24px;
+}
+
+.patientInfoLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.patientInfoValue {
+  font-size: 17px;
+  color: #1e293b;
+  font-weight: 600;
 }
 
 .testBadges {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   margin-left: auto;
   align-self: center;
+  padding-right: 24px;
 }
 
 .testBadge {
-  padding: 8px 16px;
-  border-radius: 12px;
+  padding: 6px 14px;
+  border-radius: 8px;
   font-size: 14px;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.testBadge::before {
+  content: '●';
+  font-size: 8px;
 }
 
 .testBadge.completed {
-  background: #E8F5E9;
-  color: #388E3C;
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
 }
 
 .testBadge.ct {
-  background: #F3E5F5;
-  color: #7B1FA2;
+  background: #faf5ff;
+  color: #7c3aed;
+  border: 1px solid #ddd6fe;
 }
 
 /* 메인 레이아웃 (50:50) */
@@ -593,7 +663,7 @@
   padding: 10px 12px;
   background: #F8FAFC;
   border-bottom: 1px solid #E5E7EB;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: #64748B;
   text-transform: uppercase;
@@ -620,7 +690,7 @@
 }
 
 .recordCell {
-  font-size: 14px;
+  font-size: 15px;
   color: #374151;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -732,14 +802,14 @@
 
 .recordDetailText {
   margin: 0;
-  font-size: 13px;
+  font-size: 15px;
   color: #1F2937;
   line-height: 1.5;
   white-space: pre-wrap;
 }
 
 .recordDetailLabel {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: #64748B;
 }
@@ -752,7 +822,7 @@
 }
 
 .recordDetailValue {
-  font-size: 13px;
+  font-size: 15px;
   color: #1F2937;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -954,7 +1024,7 @@
 
 .formLabel {
   font-weight: 600;
-  font-size: 15px;
+  font-size: 16px;
   color: #333;
 }
 
@@ -968,7 +1038,7 @@
   padding: 12px 16px;
   border: 1px solid #DDD;
   border-radius: 8px;
-  font-size: 15px;
+  font-size: 16px;
   transition: border-color 0.2s;
 }
 
@@ -981,7 +1051,7 @@
   padding: 12px 16px;
   border: 1px solid #DDD;
   border-radius: 8px;
-  font-size: 15px;
+  font-size: 16px;
   min-height: 360px;
   resize: vertical;
   font-family: inherit;
@@ -999,7 +1069,7 @@
   color: white;
   border: none;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.2s;
@@ -1020,7 +1090,7 @@
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .checkboxLabel input[type="checkbox"] {
@@ -1041,7 +1111,7 @@
 }
 
 .sectionSubtitle {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
   color: #6C5CE7;
   margin: 0 0 8px 0;
@@ -1105,7 +1175,7 @@
   padding: 10px 12px;
   border: 1px solid #DDD;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .prescriptionItem {
@@ -1129,7 +1199,7 @@
 }
 
 .prescriptionInfo div:last-child {
-  font-size: 13px;
+  font-size: 14px;
   color: #666;
 }
 
@@ -1154,7 +1224,7 @@
   border: none;
   border-radius: 6px;
   padding: 6px 14px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
@@ -1170,7 +1240,7 @@
   color: #6C5CE7;
   border: 2px dashed #6C5CE7;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -1222,7 +1292,7 @@
 
 .orderDetailTitle {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: #495057;
 }
@@ -1237,7 +1307,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 14px;
+  font-size: 15px;
   color: #495057;
   cursor: pointer;
 }
@@ -1251,7 +1321,7 @@
 .formInputSmall {
   width: 100%;
   padding: 8px 12px;
-  font-size: 14px;
+  font-size: 15px;
   border: 1px solid #CED4DA;
   border-radius: 6px;
   box-sizing: border-box;
@@ -1265,7 +1335,7 @@
 .formSelect {
   width: 100%;
   padding: 8px 12px;
-  font-size: 14px;
+  font-size: 15px;
   border: 1px solid #CED4DA;
   border-radius: 6px;
   background-color: white;

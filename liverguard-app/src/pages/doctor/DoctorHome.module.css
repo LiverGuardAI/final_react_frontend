@@ -134,6 +134,7 @@
   padding: 12px;
   margin-bottom: 10px;
   box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+  font-size: 15px;
 }
 
 .patientHeader {
@@ -141,11 +142,12 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
+  font-size: 16px;
 }
 
 .patientName {
   font-weight: 700;
-  font-size: 15px;
+  font-size: 16px;
   color: #000000;
 }
 
@@ -206,15 +208,14 @@
 /* 상단바 */
 .topBar {
   background: #D7E8FB;
-  box-shadow: 0px 4px 4px rgba(0, 52, 222, 0.15);
-  border-radius: 15px;
+  box-shadow: 0px 6px 10px rgba(0, 52, 222, 0.25);
+  border-radius: 18px;
   padding: 0;
   display: flex;
   align-items: stretch;
   position: relative;
-  height: 45px;
-  margin: 7px 20px 20px 20px;
-  zoom: 0.9;
+  height: 70px;
+  margin: 12px 24px 26px 24px;
 }
 
 .tabsContainer {
@@ -255,8 +256,8 @@
 
 .tabButton span {
   font-weight: 600;
-  font-size: 18px;
-  line-height: 22px;
+  font-size: 22px;
+  line-height: 28px;
   color: #52759C;
   white-space: nowrap;
 }

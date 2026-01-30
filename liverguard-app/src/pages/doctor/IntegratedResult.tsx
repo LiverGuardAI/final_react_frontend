@@ -109,12 +109,53 @@ export default function IntegratedResultPage() {
             alert("AI 통합 분석 생성 중 오류가 발생했습니다.");
             console.error(err);
         } finally {
-            setIsAnalyzing(false);
-        }
+    setIsAnalyzing(false);
+    }
+  };
+
+  const parseLLMReportSections = (report: string) => {
+    if (!report) return [];
+    const lines = report.replace(/\r/g, '').split('\n');
+    const sections: { title: string; content: string[] }[] = [];
+    let currentTitle = 'Report';
+    let currentContent: string[] = [];
+    const emitSection = () => {
+      if (currentContent.length === 0) return;
+      sections.push({
+        title: currentTitle,
+        content: [...currentContent],
+      });
     };
 
+    lines.forEach((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return;
+      const bracketMatch = trimmed.match(/^\[([^\]]+)]$/);
+      if (bracketMatch) {
+        emitSection();
+        currentTitle = bracketMatch[1].trim();
+        currentContent = [];
+        return;
+      }
+      currentContent.push(trimmed);
+    });
+
+    emitSection();
+
+    if (!sections.length && currentContent.length) {
+      sections.push({
+        title: 'Report',
+        content: [...currentContent],
+      });
+    }
+
+    return sections;
+  };
+
+  const reportSections = useMemo(() => parseLLMReportSections(llmReport), [llmReport]);
+
     return (
-        <div className={styles.container} style={{ padding: '12px 16px', backgroundColor: '#f4f7fa' }}>
+        <div className={styles.container} style={{ padding: '10px 24px 24px 24px', backgroundColor: '#f4f7fa' }}>
             {/* 상단 헤더: 환자 ID 및 날짜 선택 */}
             <header className={styles.header} style={{ marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '12px 16px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                 <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#334155' }}>
@@ -306,14 +347,28 @@ export default function IntegratedResultPage() {
                 <p style={{ color: '#586069', marginBottom: '15px', fontSize: '14px' }}>
                     혈액 검사 데이터와 유전체 변이 패턴을 종합 분석하여, 환자 상태에 대한 심층적인 임상 해석과 치료 권고안을 생성합니다.
                 </p>
-                {llmReport ? (
-                    <div style={{ padding: '20px', backgroundColor: 'white', border: '1px solid #dfe2e5', borderRadius: '8px', whiteSpace: 'pre-wrap', lineHeight: '1.8', fontSize: '15px', color: '#24292e' }}>
-                        {llmReport}
-                    </div>
-                ) : (
-                    <div style={{ padding: '30px', textAlign: 'center', color: '#6a737d', backgroundColor: '#f6f8fa', borderRadius: '8px' }}>
-                    </div>
-                )}
+                    {llmReport ? (
+                        reportSections.length > 0 ? (
+                            <div className={styles.llmReportDocument}>
+                                {reportSections.map((section, idx) => (
+                                    <div key={`${section.title}-${idx}`} className={styles.llmReportSection}>
+                                        <div className={styles.llmReportTitle}>{section.title}</div>
+                                        <div className={styles.llmReportContent}>
+                                            {section.content.map((line, lineIdx) => (
+                                                <p key={`${section.title}-${lineIdx}`}>{line}</p>
+                                            ))}
+                                        </div>
+                                        {idx < reportSections.length - 1 && <div className={styles.sectionDivider} />}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className={styles.llmReportEmpty}>보고서 내용을 파싱할 수 없습니다.</div>
+                        )
+                    ) : (
+                        <div style={{ padding: '30px', textAlign: 'center', color: '#6a737d', backgroundColor: '#f6f8fa', borderRadius: '8px' }}>
+                        </div>
+                    )}
             </div>
         </div>
     );

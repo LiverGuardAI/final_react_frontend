@@ -789,10 +789,7 @@ export default function AdministrationDashboard() {
                 <div className={styles.contentBody}>
                   {/* Appointments Table */}
                   <div className={`${styles.appointmentContainer} ${styles.tabAppointmentContainer}`}>
-                    <div className={styles.sectionHeader}>
-                      <h3 className={styles.sectionTitle}>금일 예약 {new Date().toLocaleDateString('ko-KR')}</h3>
-                    </div>
-                    <div className={styles.tableContainer}>
+                <div className={styles.tableContainer}>
                       <table className={styles.scheduleTable}>
                         <thead><tr><th>요청일시</th><th>환자명</th><th>환자번호</th><th>연락처</th><th>희망일시</th><th>상태</th></tr></thead>
                         <tbody>
@@ -827,15 +824,25 @@ export default function AdministrationDashboard() {
                 <button className={`${styles.contentTab} ${receptionTab === 'appSync' ? styles.active : ''}`} onClick={() => setReceptionTab('appSync')}>앱 연동</button>
               </div>
               <div className={styles.tableContainer}>
-                {receptionTab === 'reception' && (
+                <div
+                  className={styles.tabPanel}
+                  aria-hidden={receptionTab !== 'reception'}
+                  style={{ display: receptionTab === 'reception' ? 'block' : 'none' }}
+                >
                   <OrderList
                     refreshTrigger={orderRefreshTrigger}
                     onOpenVitalCheckModal={handleOpenVitalCheckModal}
                     includeInProgress
                   />
-                )}
-                {showTestWaitingTab && receptionTab === 'testWaiting' && (
-                  <OrderList refreshTrigger={orderRefreshTrigger} onOpenVitalCheckModal={handleOpenVitalCheckModal} showInProgressOnly={true} />
+                </div>
+                {showTestWaitingTab && (
+                  <div
+                    className={styles.tabPanel}
+                    aria-hidden={receptionTab !== 'testWaiting'}
+                    style={{ display: receptionTab === 'testWaiting' ? 'block' : 'none' }}
+                  >
+                    <OrderList refreshTrigger={orderRefreshTrigger} onOpenVitalCheckModal={handleOpenVitalCheckModal} showInProgressOnly={true} />
+                  </div>
                 )}
                 {receptionTab === 'additional' && (
                   <UnifiedQueueList

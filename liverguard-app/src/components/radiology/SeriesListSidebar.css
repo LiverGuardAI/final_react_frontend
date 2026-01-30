@@ -1,6 +1,6 @@
 /* src/components/radiology/SeriesListSidebar.css */
 .series-list-sidebar {
-  width: 180px;
+  width: 200px;
   background-color: #0f1419;
   border-right: 1px solid #2d3748;
   display: flex;

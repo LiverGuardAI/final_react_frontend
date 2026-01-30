@@ -165,6 +165,105 @@ export const analyzeTumor = async (maskSeriesId: string): Promise<TumorAnalysisR
   return response.data;
 };
 
+export interface MaskClass {
+  label_value: number;
+  label_name: string;
+  color?: string | null;
+  is_present: boolean;
+  is_custom: boolean;
+}
+
+export interface MaskClassResponse {
+  success: boolean;
+  mask_series_id: string;
+  unique_values: number[];
+  classes: MaskClass[];
+  warnings?: string[];
+}
+
+/**
+ * 마스크 클래스 목록 조회
+ * GET /api/radiology/mask-classes/?mask_series_id=...
+ */
+export const getMaskClasses = async (maskSeriesId: string): Promise<MaskClassResponse> => {
+  const response = await apiClient.get<MaskClassResponse>("radiology/mask-classes/", {
+    params: { mask_series_id: maskSeriesId },
+  });
+  return response.data;
+};
+
+/**
+ * 마스크 클래스 추가
+ * POST /api/radiology/mask-classes/
+ */
+export const addMaskClass = async (
+  maskSeriesId: string,
+  labelName: string,
+  labelValue?: number,
+  color?: string | null
+): Promise<{ success: boolean; class: MaskClass }> => {
+  const payload: Record<string, any> = {
+    mask_series_id: maskSeriesId,
+    label_name: labelName,
+  };
+  if (labelValue !== undefined) {
+    payload.label_value = labelValue;
+  }
+  if (color) {
+    payload.color = color;
+  }
+  const response = await apiClient.post<{ success: boolean; class: MaskClass }>(
+    "radiology/mask-classes/",
+    payload
+  );
+  return response.data;
+};
+
+/**
+ * 마스크 클래스 삭제
+ * DELETE /api/radiology/mask-classes/?mask_series_id=...&label_value=...
+ */
+export const deleteMaskClass = async (
+  maskSeriesId: string,
+  labelValue: number
+): Promise<{ success: boolean }> => {
+  const response = await apiClient.delete<{ success: boolean }>("radiology/mask-classes/", {
+    params: { mask_series_id: maskSeriesId, label_value: labelValue },
+  });
+  return response.data;
+};
+
+export interface MaskSaveSlice {
+  slice_index: number;
+  width: number;
+  height: number;
+  pixels: string;
+}
+
+export interface MaskSaveResponse {
+  success: boolean;
+  mask_series_id?: string;
+  series_id?: string;
+  series_instance_uid?: string;
+}
+
+/**
+ * 수정된 마스크 저장 (전체 슬라이스 재생성)
+ * POST /api/radiology/mask-save/
+ */
+export const saveMaskEdits = async (
+  maskSeriesId: string,
+  editedSlices: MaskSaveSlice[],
+  overwrite = true
+): Promise<MaskSaveResponse> => {
+  const response = await apiClient.post<MaskSaveResponse>("radiology/mask-save/", {
+    mask_series_id: maskSeriesId,
+    edited_slices: editedSlices,
+    overwrite,
+  });
+  return response.data;
+};
+
 export interface CTReportResponse {
   report_id: number;
   series_instance_uid: string;

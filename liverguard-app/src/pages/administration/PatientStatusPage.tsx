@@ -106,14 +106,16 @@ const PatientStatusPage: React.FC = () => {
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <div className={styles.headerLeft}>
-          <h2 className={styles.title}>환자 현황</h2>
-          <span className={styles.headerDate}>{new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}</span>
-        </div>
-        <div className={styles.headerRight}>
-          <span className={styles.liveIndicator} />
-          <span className={styles.headerMeta}>실시간 • {lastUpdated.toLocaleTimeString()}</span>
+      <div className={styles.headerCard}>
+        <div className={styles.header}>
+          <div className={styles.headerLeft}>
+            <h2 className={styles.title}>환자 현황</h2>
+            <span className={styles.headerDate}>{new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}</span>
+          </div>
+          <div className={styles.headerRight}>
+            <span className={styles.liveIndicator} />
+            <span className={styles.headerMeta}>실시간 • {lastUpdated.toLocaleTimeString()}</span>
+          </div>
         </div>
       </div>
 

@@ -1,7 +1,7 @@
 /* SchedulePage 전용 스타일 */
 
 .scheduleContainer {
-  padding: 16px;
+  padding: 10px 24px 24px 24px;
   height: 100%;
   box-sizing: border-box;
   zoom: 0.85;

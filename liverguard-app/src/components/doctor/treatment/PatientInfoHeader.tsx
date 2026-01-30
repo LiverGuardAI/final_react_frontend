@@ -34,32 +34,59 @@ export default function PatientInfoHeader({ patient, labResults, imagingOrders }
         return (
             <div className={styles.patientHeader}>
                 <div className={styles.patientInfo}>
-                    <div className={styles.patientName}>
-                        <h1 style={{ color: '#ccc' }}>환자 정보 없음</h1>
-                    </div>
-                    <div className={styles.patientInfoItem} style={{ color: '#ccc' }}>
-                        환자를 선택해주세요
+                    <div className={styles.patientNameBlock} style={{ padding: '20px 24px' }}>
+                        <div className={styles.patientName}>
+                            <h1 style={{ color: '#cbd5e1' }}>환자 정보 없음</h1>
+                        </div>
+                        <span className={styles.patientIdText} style={{ color: '#cbd5e1' }}>
+                            환자를 선택해주세요
+                        </span>
                     </div>
                 </div>
             </div>
         );
     }
 
+    const initial = patient.name ? patient.name.charAt(0) : '?';
+
     return (
         <div className={styles.patientHeader}>
             <div className={styles.patientInfo}>
-                <div className={styles.patientName}>
-                    <h1>{patient.name}</h1>
-                    <span>
-                        ({formatGenderLabel(patient.gender)}
-                        {formatAgeSuffix(patient.age)})
+                <div style={{ padding: '0 0 0 20px', display: 'flex', alignItems: 'center' }}>
+                    <div className={styles.patientAvatar}>{initial}</div>
+                </div>
+
+                <div className={styles.patientNameBlock}>
+                    <div className={styles.patientName}>
+                        <h1>{patient.name}</h1>
+                        <span>
+                            ({formatGenderLabel(patient.gender)}
+                            {formatAgeSuffix(patient.age)})
+                        </span>
+                    </div>
+                    {patient.patient_id && (
+                        <span className={styles.patientIdText}>
+                            ID: {patient.patient_id}
+                        </span>
+                    )}
+                </div>
+
+                <div className={styles.patientDivider} />
+
+                <div className={styles.patientInfoItem}>
+                    <span className={styles.patientInfoLabel}>생년월일</span>
+                    <span className={styles.patientInfoValue}>
+                        {formatDisplayValue(patient.date_of_birth)}
                     </span>
                 </div>
+
+                <div className={styles.patientDivider} />
+
                 <div className={styles.patientInfoItem}>
-                    생년월일: {formatDisplayValue(patient.date_of_birth)}
-                </div>
-                <div className={styles.patientInfoItem}>
-                    연락처: {formatDisplayValue(patient.phone)}
+                    <span className={styles.patientInfoLabel}>연락처</span>
+                    <span className={styles.patientInfoValue}>
+                        {formatDisplayValue(patient.phone)}
+                    </span>
                 </div>
 
                 <div className={styles.testBadges}>

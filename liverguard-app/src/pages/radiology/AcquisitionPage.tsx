@@ -473,6 +473,11 @@ const AcquisitionPage: React.FC = () => {
                 <span className="value">환자를 선택해주세요</span>
               </div>
             </div>
+            <div className="header-action-group">
+              <button className="header-action-button" onClick={handleGoToPostProcessing}>
+                후처리 이동
+              </button>
+            </div>
           </div>
         )}
       </div>

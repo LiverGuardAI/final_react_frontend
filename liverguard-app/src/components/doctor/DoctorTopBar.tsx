@@ -109,75 +109,41 @@ const DoctorTopBar = memo(function DoctorTopBar({ activeTab }: DoctorTopBarProps
             <span>검사 결과</span>
           </button>
           {openDropdown === 'examination' && (
-            <div className={styles.dropdownMenu}>
-              <button
-                className={styles.dropdownItem}
-                onClick={() => handleDropdownItemClick('CT 촬영 결과')}
-              >
-                CT 촬영 결과
-              </button>
-              <button
-                className={styles.dropdownItem}
-                onClick={() => handleDropdownItemClick('유전체 검사 결과')}
-              >
-                유전체 검사 결과
-              </button>
-              <button
-                className={styles.dropdownItem}
-                onClick={() => handleDropdownItemClick('혈액 검사 결과')}
-              >
-                혈액 검사 결과
-              </button>
-              <button
-                className={styles.dropdownItem}
-                onClick={() => handleDropdownItemClick('통합 분석')}
-              >
-                통합 분석
+          <div className={styles.dropdownMenu}>
+            <button
+              className={styles.dropdownItem}
+              onClick={() => handleDropdownItemClick('CT 촬영 결과')}
+            >
+              CT 촬영 결과
+            </button>
+            <button
+              className={styles.dropdownItem}
+              onClick={() => handleDropdownItemClick('혈액 검사 결과')}
+            >
+              혈액 검사 결과
+            </button>
+            <button
+              className={styles.dropdownItem}
+              onClick={() => handleDropdownItemClick('유전체 검사 결과')}
+            >
+              유전체 검사 결과
+            </button>
+            <button
+              className={styles.dropdownItem}
+              onClick={() => handleDropdownItemClick('통합 분석')}
+            >
+              통합 분석
               </button>
             </div>
           )}
         </div>
 
-        <div
-          style={{ position: 'relative' }}
-          onMouseEnter={() => handleMouseEnter('aiAnalysis')}
-          onMouseLeave={handleMouseLeave}
+        <button
+          className={`${styles.tabButton} ${openDropdown === 'aiAnalysis' ? styles.active : ''}`}
+          onClick={() => handleTabClick('testForm')}
         >
-          <button
-            className={`${styles.tabButton} ${styles.hasDropdown} ${openDropdown === 'aiAnalysis' ? styles.active : ''}`}
-            onClick={() => handleTabClick('testForm')}
-          >
-            <span>AI분석</span>
-          </button>
-          {openDropdown === 'aiAnalysis' && (
-            <div className={styles.dropdownMenu}>
-              <button
-                className={styles.dropdownItem}
-                onClick={() => handleDropdownItemClick('AI 통합 분석')}
-              >
-                통합 분석
-              </button>
-              <button
-                className={styles.dropdownItem}
-                onClick={() => handleDropdownItemClick('병기예측')}
-              >
-                병기예측
-              </button>
-              <button
-                className={styles.dropdownItem}
-                onClick={() => handleDropdownItemClick('조기재발예측')}
-              >
-                조기재발예측
-              </button>
-              <button
-                className={styles.dropdownItem}
-                onClick={() => handleDropdownItemClick('생존분석')}
-              >
-                생존분석
-              </button>
-            </div>
-          )}
-        </div>
+          <span>AI분석</span>
+        </button>
 
         <button
           className={`${styles.tabButton} ${activeTab === 'medicalRecord' ? styles.active : ''}`}

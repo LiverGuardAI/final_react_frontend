@@ -343,7 +343,14 @@ export default function AIIntegratedAnalysis() {
     timeline: number[] | undefined,
     values: number[] | undefined,
     color: string,
-    options?: { legendLabel?: string; xLabel?: string; yLabel?: string }
+    options?: {
+      legendLabel?: string;
+      xLabel?: string;
+      yLabel?: string;
+      targetYear?: number;
+      targetLabel?: string;
+      targetFormatter?: (value: number) => string;
+    }
   ) => {
     if (!timeline || !values || !timeline.length || !values.length) {
       return (
@@ -376,6 +383,33 @@ export default function AIIntegratedAnalysis() {
     const yAxisLabel = options?.yLabel ?? 'Value';
     const xTickLabelY = height - paddingY + Math.max(10, paddingY * 0.45);
     const xAxisLabelY = height - Math.max(4, paddingY * 0.15);
+    const yearUnit = getYearUnit(xValues);
+    const targetYear = options?.targetYear;
+    const targetXValue =
+      targetYear && yearUnit ? targetYear * yearUnit : targetYear ?? undefined;
+    const targetYValue =
+      targetXValue !== undefined ? getSurvivalRateAt(xValues, yValues, targetXValue) : null;
+    const showTarget =
+      targetXValue !== undefined &&
+      targetYValue !== null &&
+      targetXValue >= minX &&
+      targetXValue <= maxX;
+    const targetXPos = showTarget
+      ? paddingX + ((targetXValue - minX) / xRange) * (width - paddingX * 2)
+      : 0;
+    const targetYPos = showTarget
+      ? height - paddingY - (((targetYValue ?? 0) - minY) / yRange) * (height - paddingY * 2)
+      : 0;
+    const targetLabelText = (options?.targetLabel ?? (targetYear ? `${targetYear}년` : '')).trim();
+    const targetValueText =
+      showTarget && typeof targetYValue === 'number'
+        ? options?.targetFormatter
+          ? options.targetFormatter(targetYValue)
+          : formatNumber(targetYValue, yLabelDigits)
+        : null;
+    const targetLabelY = showTarget
+      ? Math.max(paddingY + 12, Math.min(targetYPos - 6, height - paddingY - 14))
+      : 0;
 
     const xTicks = Array.from({ length: tickCount + 1 }, (_, index) => {
       const value = minX + (xRange * index) / tickCount;
@@ -481,6 +515,36 @@ export default function AIIntegratedAnalysis() {
           ))}
           {lastPoint && (
             <circle cx={lastPoint[0]} cy={lastPoint[1]} r={4} fill={color} className={styles.chartPoint} />
+          )}
+          {showTarget && (
+            <>
+              <line
+                x1={targetXPos}
+                x2={targetXPos}
+                y1={paddingY}
+                y2={height - paddingY}
+                className={styles.chartTargetLine}
+                stroke={color}
+              />
+              <circle
+                cx={targetXPos}
+                cy={targetYPos}
+                r={4}
+                className={styles.chartTargetCircle}
+                fill={color}
+              />
+              {targetLabelText && targetValueText && (
+                <text
+                  x={targetXPos}
+                  y={targetLabelY}
+                  textAnchor="middle"
+                  className={styles.chartTargetLabel}
+                  fill={color}
+                >
+                  {`${targetLabelText}: ${targetValueText}`}
+                </text>
+              )}
+            </>
           )}
           <text
             x={width / 2}
@@ -976,6 +1040,21 @@ export default function AIIntegratedAnalysis() {
         .join(' · ')
     : '';
 
+  const buildStageGradient = (entries: Array<[string, number]>) => {
+    if (!entries.length) return '#e2e8f0';
+    let accumulated = 0;
+    const segments = entries.map(([label, value]) => {
+      const pct = Math.min(Math.max(((typeof value === 'number' ? value : Number(value)) * 100) || 0, 0), 100);
+      const start = accumulated;
+      const end = accumulated + pct;
+      accumulated = end;
+      const color = getStageColor(label);
+      return `${color} ${start}% ${end}%`;
+    });
+    if (accumulated < 100) segments.push(`#e2e8f0 ${accumulated}% 100%`);
+    return `conic-gradient(${segments.join(', ')})`;
+  };
+
   const recurrenceMeta = recurrenceResult
     ? [
         recurrenceResult.model_version ? `모델 ${recurrenceResult.model_version}` : null,
@@ -1099,7 +1178,7 @@ export default function AIIntegratedAnalysis() {
 
       <div className={styles.resultArea}>
         <div className={styles.integratedResultsGrid}>
-          <div className={`${styles.resultCard} ${styles.integratedResultCard}`}>
+          <div className={`${styles.resultCard} ${styles.integratedResultCard} ${styles.stageCard}`}>
             <div className={styles.resultHeader}>
               <div className={styles.resultHeaderText}>
                 <div className={styles.resultTitle}>병기 예측</div>
@@ -1114,50 +1193,47 @@ export default function AIIntegratedAnalysis() {
             )}
             {stageResult ? (
               <>
-                <div className={styles.stageSummary}>
-                  <span className={styles.stageSummaryLabel}>AI 예측 병기</span>
-                  <span
-                    className={styles.stageSummaryValue}
-                    style={{ color: getStageColor(stageResult.predicted_stage ?? '', stageResult.stage_code) }}
-                  >
-                    {stageResult.predicted_stage ?? '-'}
-                  </span>
-                  <div className={styles.stageSummaryMeta}>
-                    <span>최대 확률 {stageTopProbability ? formatPercent(stageTopProbability.value) : '-'}</span>
-                    <span>신뢰도 {formatPercent(stageResult.confidence)}</span>
+                <div className={styles.survivalSummaryGrid}>
+                  <div className={styles.survivalSummaryCard}>
+                    <span className={styles.survivalSummaryLabel}>AI 예측 병기</span>
+                    <span
+                      className={styles.survivalSummaryValue}
+                      style={{ color: getStageColor(stageResult.predicted_stage ?? '', stageResult.stage_code) }}
+                    >
+                      {stageResult.predicted_stage ?? '-'}
+                    </span>
+                  </div>
+                  <div className={styles.survivalSummaryCard}>
+                    <span className={styles.survivalSummaryLabel}>신뢰도</span>
+                    <span className={styles.survivalSummaryValue}>{formatPercent(stageResult.confidence)}</span>
+                  </div>
+                  <div className={styles.survivalSummaryCard}>
+                    <span className={styles.survivalSummaryLabel}>최대 확률</span>
+                    <span className={styles.survivalSummaryValue}>{stageTopProbability ? formatPercent(stageTopProbability.value) : '-'}</span>
                   </div>
                 </div>
                 <div className={styles.stageCallout}>
                   <div className={styles.stageCalloutTitle}>임상적 의미</div>
                   <div className={styles.stageCalloutText}>{stageInterpretation}</div>
                 </div>
-                <div className={styles.stageDistribution}>
-                  <div className={styles.stageDistributionTitle}>병기별 확률 분포</div>
-                  <div className={styles.stageDistributionList}>
-                    {stageProbabilityEntries.map(([label, value]) => (
-                      <div key={label} className={styles.stageDistributionRow}>
-                        <span className={styles.stageDistributionLabel}>{label}</span>
-                        <div className={styles.stageDistributionTrack}>
-                          <div
-                            className={styles.stageDistributionFill}
-                            style={{
-                              width: `${Math.min(Math.max(value * 100, 0), 100)}%`,
-                              background: getStageColor(label),
-                            }}
-                          />
+                <div className={styles.summaryCharts}>
+                  <div className={styles.stageDonutGrid}>
+                    {stageProbabilityEntries.map(([label, value]) => {
+                      const pct = Math.min(Math.max(((typeof value === 'number' ? value : Number(value)) * 100) || 0, 0), 100);
+                      const gradient = `conic-gradient(from -90deg, ${getStageColor(label)} 0% ${pct}%, rgba(226, 232, 240, 1) ${pct}% 100%)`;
+                      return (
+                        <div key={label} className={styles.stageDonutCard}>
+                          <div className={styles.stageDonut} style={{ background: gradient }}>
+                            <div className={styles.stageDonutInner}>
+                              {pct.toFixed(0)}%
+                            </div>
+                          </div>
+                          <span className={styles.stageDonutLabel}>{label}</span>
                         </div>
-                        <span className={styles.stageDistributionValue}>
-                          {(value * 100).toFixed(1)}%
-                        </span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
-                {(stageState.message || stageMeta) && (
-                  <p className={styles.resultFooter}>
-                    {[stageState.message, stageMeta].filter(Boolean).join(' · ')}
-                  </p>
-                )}
               </>
             ) : (
               <div className={styles.resultPlaceholder}>
@@ -1168,103 +1244,7 @@ export default function AIIntegratedAnalysis() {
             )}
           </div>
 
-          <div className={`${styles.resultCard} ${styles.integratedResultCard}`}>
-            <div className={styles.resultHeader}>
-              <div className={styles.resultHeaderText}>
-                <div className={styles.resultTitle}>조기 재발 예측</div>
-                <div className={styles.resultSubtitle}>CT · 임상 · 유전체</div>
-              </div>
-              <span className={`${styles.statusBadge} ${getStatusTone(recurrenceState.status)}`}>
-                {getStatusLabel(recurrenceState.status)}
-              </span>
-            </div>
-            {recurrenceState.error && (
-              <div className={styles.resultNotice}>오류: {recurrenceState.error}</div>
-            )}
-            {recurrenceResult ? (
-              <>
-                <div className={styles.recurrenceSummary}>
-                  <span className={styles.recurrenceSummaryLabel}>AI 예측 재발 위험도</span>
-                  <span
-                    className={styles.recurrenceSummaryValue}
-                    style={{ color: getRiskTone(recurrenceResult.risk_level) === styles.riskHigh ? '#ef4444' : getRiskTone(recurrenceResult.risk_level) === styles.riskMedium ? '#f59e0b' : '#10b981' }}
-                  >
-                    {recurrenceLabel}
-                  </span>
-                </div>
-                <div className={styles.recurrenceCallout}>
-                  <div className={styles.recurrenceCalloutTitle}>임상적 의미</div>
-                  <div className={styles.recurrenceCalloutText}>{recurrenceInterpretation}</div>
-                </div>
-                <div className={styles.recurrenceBarSection}>
-                  <div className={styles.recurrenceBarHeader}>
-                    <span className={styles.recurrenceBarLabel}>재발 확률</span>
-                    <span className={styles.recurrenceBarValue}>
-                      {formatPercent(recurrenceResult.relapse_probability)}
-                    </span>
-                  </div>
-                  <div className={styles.recurrenceBarTrack}>
-                    <div
-                      className={styles.recurrenceBarFill}
-                      style={{
-                        width: `${Math.min(Math.max(recurrenceResult.relapse_probability * 100, 0), 100)}%`,
-                        background:
-                          (recurrenceResult.risk_level || '').toLowerCase().includes('high')
-                            ? '#ef4444'
-                            : (recurrenceResult.risk_level || '').toLowerCase().includes('medium')
-                              ? '#f59e0b'
-                              : '#10b981'
-                      }}
-                    />
-                    <div
-                      className={styles.recurrenceThreshold}
-                      style={{ left: `${Math.min(Math.max(recurrenceResult.threshold_used * 100, 0), 100)}%` }}
-                    >
-                      <div className={styles.recurrenceThresholdLine} />
-                      <div className={styles.recurrenceThresholdLabel}>
-                        임계값<br />
-                        {(recurrenceResult.threshold_used * 100).toFixed(1)}%
-                      </div>
-                    </div>
-                  </div>
-                  <div className={styles.recurrenceScale}>
-                    <span className={styles.recurrenceScaleItem}>
-                      <span className={styles.recurrenceScaleDot} style={{ background: '#10b981' }} />
-                      낮음
-                    </span>
-                    <span className={styles.recurrenceScaleItem}>
-                      <span className={styles.recurrenceScaleDot} style={{ background: '#f59e0b' }} />
-                      중간
-                    </span>
-                    <span className={styles.recurrenceScaleItem}>
-                      <span className={styles.recurrenceScaleDot} style={{ background: '#ef4444' }} />
-                      높음
-                    </span>
-                  </div>
-                </div>
-                <div
-                  className={`${styles.recurrenceResultBadge} ${
-                    recurrenceResult.prediction === 1 ? styles.recurrenceResultAlert : styles.recurrenceResultOk
-                  }`}
-                >
-                  예측 결과: {recurrenceResult.prediction === 1 ? '조기 재발 가능성 있음' : '조기 재발 가능성 낮음'}
-                </div>
-                {(recurrenceState.message || recurrenceMeta) && (
-                  <p className={styles.resultFooter}>
-                    {[recurrenceState.message, recurrenceMeta].filter(Boolean).join(' · ')}
-                  </p>
-                )}
-              </>
-            ) : (
-              <div className={styles.resultPlaceholder}>
-                {recurrenceState.status === 'pending' || recurrenceState.status === 'progress'
-                  ? '분석 중입니다...'
-                  : recurrencePlaceholder}
-              </div>
-            )}
-          </div>
-
-          <div className={`${styles.resultCard} ${styles.integratedResultCard}`}>
+          <div className={`${styles.resultCard} ${styles.integratedResultCard} ${styles.survivalCard}`}>
             <div className={styles.resultHeader}>
               <div className={styles.resultHeaderText}>
                 <div className={styles.resultTitle}>생존 분석</div>
@@ -1322,30 +1302,142 @@ export default function AIIntegratedAnalysis() {
                     survivalResult.survival_curve?.timeline,
                     survivalResult.survival_curve?.survival,
                     '#2563eb',
-                    { legendLabel: 'Survival Probability', xLabel: 'Month', yLabel: 'Probability' }
+                    {
+                      legendLabel: 'Survival Probability',
+                      xLabel: 'Month',
+                      yLabel: 'Probability',
+                      targetYear: 5,
+                      targetLabel: '5년 생존률',
+                      targetFormatter: (value) => formatPercent(value, 1),
+                    }
                   )}
                   {renderLineChart(
                     '누적 위험도 곡선',
                     survivalResult.hazard_curve?.timeline,
                     survivalResult.hazard_curve?.hazard,
                     '#ef4444',
-                    { legendLabel: 'Cumulative Hazard', xLabel: 'Month', yLabel: 'Hazard' }
+                    {
+                      legendLabel: 'Cumulative Hazard',
+                      xLabel: 'Month',
+                      yLabel: 'Hazard',
+                      targetYear: 5,
+                      targetLabel: '5년 누적위험도',
+                      targetFormatter: (value) => formatNumber(value, 3),
+                    }
                   )}
                 </div>
                 <div className={styles.summaryHazard}>
                   {renderHazardChart(Array.isArray(survivalResult.hazard_ratio) ? survivalResult.hazard_ratio : [])}
                 </div>
-                {(survivalState.message || survivalMeta) && (
-                  <p className={styles.resultFooter}>
-                    {[survivalState.message, survivalMeta].filter(Boolean).join(' · ')}
-                  </p>
-                )}
               </>
             ) : (
               <div className={styles.resultPlaceholder}>
                 {survivalState.status === 'pending' || survivalState.status === 'progress'
                   ? '분석 중입니다...'
                   : survivalPlaceholder}
+              </div>
+            )}
+          </div>
+
+          <div className={`${styles.resultCard} ${styles.integratedResultCard} ${styles.recurrenceCard}`}>
+            <div className={styles.resultHeader}>
+              <div className={styles.resultHeaderText}>
+                <div className={styles.resultTitle}>조기 재발 예측</div>
+                <div className={styles.resultSubtitle}>CT · 임상 · 유전체</div>
+              </div>
+              <span className={`${styles.statusBadge} ${getStatusTone(recurrenceState.status)}`}>
+                {getStatusLabel(recurrenceState.status)}
+              </span>
+            </div>
+            {recurrenceState.error && (
+              <div className={styles.resultNotice}>오류: {recurrenceState.error}</div>
+            )}
+            {recurrenceResult ? (
+              <>
+                <div className={styles.survivalSummaryGrid}>
+                  <div className={styles.survivalSummaryCard}>
+                    <span className={styles.survivalSummaryLabel}>재발 위험 수준</span>
+                    <span
+                      className={styles.survivalSummaryValue}
+                      style={{ color: getRiskTone(recurrenceResult.risk_level) === styles.riskHigh ? '#ef4444' : getRiskTone(recurrenceResult.risk_level) === styles.riskMedium ? '#f59e0b' : '#10b981' }}
+                    >
+                      {recurrenceLabel}
+                    </span>
+                  </div>
+                  <div className={styles.survivalSummaryCard}>
+                    <span className={styles.survivalSummaryLabel}>재발 확률</span>
+                    <span className={styles.survivalSummaryValue}>{formatPercent(recurrenceResult.relapse_probability)}</span>
+                  </div>
+                  <div className={styles.survivalSummaryCard}>
+                    <span className={styles.survivalSummaryLabel}>재발 위험 점수</span>
+                    <span className={styles.survivalSummaryValue}>{formatNumber(recurrenceResult.risk_score)}</span>
+                  </div>
+                </div>
+                <div className={styles.recurrenceCallout}>
+                  <div className={styles.recurrenceCalloutTitle}>임상적 의미</div>
+                  <div className={styles.recurrenceCalloutText}>{recurrenceInterpretation}</div>
+                </div>
+                <div className={styles.summaryCharts}>
+                  <div className={styles.recurrenceBarSection}>
+                  <div className={styles.recurrenceBarHeader}>
+                    <span className={styles.recurrenceBarLabel}>재발 확률</span>
+                    <span className={styles.recurrenceBarValue}>
+                      {formatPercent(recurrenceResult.relapse_probability)}
+                    </span>
+                  </div>
+                  <div className={styles.recurrenceBarTrack}>
+                    <div
+                      className={styles.recurrenceBarFill}
+                      style={{
+                        width: `${Math.min(Math.max(recurrenceResult.relapse_probability * 100, 0), 100)}%`,
+                        background:
+                          (recurrenceResult.risk_level || '').toLowerCase().includes('high')
+                            ? '#ef4444'
+                            : (recurrenceResult.risk_level || '').toLowerCase().includes('medium')
+                              ? '#f59e0b'
+                              : '#10b981'
+                      }}
+                    />
+                    <div
+                      className={styles.recurrenceThreshold}
+                      style={{ left: `${Math.min(Math.max(recurrenceResult.threshold_used * 100, 0), 100)}%` }}
+                    >
+                      <div className={styles.recurrenceThresholdLine} />
+                      <div className={styles.recurrenceThresholdLabel}>
+                        임계값<br />
+                        {(recurrenceResult.threshold_used * 100).toFixed(1)}%
+                      </div>
+                    </div>
+                  </div>
+                  <div className={styles.recurrenceScale}>
+                    <span className={styles.recurrenceScaleItem}>
+                      <span className={styles.recurrenceScaleDot} style={{ background: '#10b981' }} />
+                      낮음
+                    </span>
+                    <span className={styles.recurrenceScaleItem}>
+                      <span className={styles.recurrenceScaleDot} style={{ background: '#f59e0b' }} />
+                      중간
+                    </span>
+                    <span className={styles.recurrenceScaleItem}>
+                      <span className={styles.recurrenceScaleDot} style={{ background: '#ef4444' }} />
+                      높음
+                    </span>
+                  </div>
+                </div>
+                </div>
+                <div
+                  className={`${styles.recurrenceResultBadge} ${
+                    recurrenceResult.prediction === 1 ? styles.recurrenceResultAlert : styles.recurrenceResultOk
+                  }`}
+                >
+                  예측 결과: {recurrenceResult.prediction === 1 ? '조기 재발 가능성 있음' : '조기 재발 가능성 낮음'}
+                </div>
+              </>
+            ) : (
+              <div className={styles.resultPlaceholder}>
+                {recurrenceState.status === 'pending' || recurrenceState.status === 'progress'
+                  ? '분석 중입니다...'
+                  : recurrencePlaceholder}
               </div>
             )}
           </div>

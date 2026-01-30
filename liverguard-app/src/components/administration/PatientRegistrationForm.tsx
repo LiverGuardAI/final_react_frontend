@@ -71,7 +71,6 @@ const PatientRegistrationForm: React.FC<PatientRegistrationFormProps> = ({ onSub
 
   return (
     <form onSubmit={handleSubmit} className={styles.registrationForm}>
-      <h3>신규 환자 등록</h3>
 
       {formError && <div className={styles.errorMessage}>{formError}</div>}
 

@@ -49,6 +49,7 @@ export default function BloodResultPage() {
   const [results, setResults] = useState<LabResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedDateIndex, setSelectedDateIndex] = useState<number>(-1);
+  const cardsRowRef = React.useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!patientId) {
@@ -164,40 +165,64 @@ export default function BloodResultPage() {
         </select>
       </header>
 
-      <div className={styles.cardsGrid}>
-        {Object.entries(LAB_CONFIG).map(([key, conf]) => {
-          const value = selectedData ? (selectedData[key as keyof LabResult] as number) : undefined;
-          const status = getStatus(key, value);
-          const isSelected = modalMetric === key;
+      <div className={styles.cardsRowWrapper}>
+        <button
+          type="button"
+          className={styles.carouselButton}
+          onClick={() => {
+            if (!cardsRowRef.current) return;
+            cardsRowRef.current.scrollBy({ left: -cardsRowRef.current.clientWidth * 0.7, behavior: 'smooth' });
+          }}
+          aria-label="좌측 혈액지표 보기"
+        >
+          ‹
+        </button>
+        <div className={styles.cardsGrid} ref={cardsRowRef}>
+          {Object.entries(LAB_CONFIG).map(([key, conf]) => {
+            const value = selectedData ? (selectedData[key as keyof LabResult] as number) : undefined;
+            const status = getStatus(key, value);
+            const isSelected = modalMetric === key;
 
-          return (
-            <div
-              key={key}
-              className={`${styles.card} ${styles[status]} ${isSelected ? styles.selected : ''}`}
-              onClick={() => {
-                setModalMetric(key);
-                setModalOpen(true);
-              }}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className={styles.cardHeader}>
-                <span className={styles.cardLabel}>{conf.label}</span>
-                {status === 'danger' && <span className={styles.riskDot} />}
-              </div>
-              <div className={styles.cardBody}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    <span className={styles.value}>{loading ? '...' : (value ?? '-')}</span>
-                    <span className={styles.unit}>{conf.unit}</span>
+            return (
+              <div
+                key={key}
+                className={`${styles.card} ${styles[status]} ${isSelected ? styles.selected : ''}`}
+                onClick={() => {
+                  setModalMetric(key);
+                  setModalOpen(true);
+                }}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className={styles.cardHeader}>
+                  <span className={styles.cardLabel}>{conf.label}</span>
+                  {status === 'danger' && <span className={styles.riskDot} />}
+                </div>
+                <div className={styles.cardBody}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <span className={styles.value}>{loading ? '...' : (value ?? '-')}</span>
+                      <span className={styles.unit}>{conf.unit}</span>
+                    </div>
+                    <span className={`${styles.badge} ${styles[status]}`}>
+                      {status === 'normal' ? 'Normal' : status === 'warning' ? 'Warning' : 'Risk'}
+                    </span>
                   </div>
-                  <span className={`${styles.badge} ${styles[status]}`}>
-                    {status === 'normal' ? 'Normal' : status === 'warning' ? 'Warning' : 'Risk'}
-                  </span>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          className={styles.carouselButton}
+          onClick={() => {
+            if (!cardsRowRef.current) return;
+            cardsRowRef.current.scrollBy({ left: cardsRowRef.current.clientWidth * 0.7, behavior: 'smooth' });
+          }}
+          aria-label="우측 혈액지표 보기"
+        >
+          ›
+        </button>
       </div>
 
       {/* 2. Multi-Line Trend Graph Section (10종 종합) */}

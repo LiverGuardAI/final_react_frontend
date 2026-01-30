@@ -95,6 +95,15 @@ interface MaskOverlayViewerProps {
     heightMm: number;
   }>) => void;
   zoomCommand?: { type: 'in' | 'out' | 'reset'; token: number } | null;
+  editEnabled?: boolean;
+  editMode?: 'paint' | 'erase';
+  editLabelValue?: number;
+  editBrushSize?: number;
+  editResetToken?: number;
+  editUndoToken?: number;
+  onUndoAvailabilityChange?: (canUndo: boolean) => void;
+  onEditedSlicesChange?: (count: number) => void;
+  onMaskSliceEdited?: (sliceIndex: number, data: Uint16Array, width: number, height: number) => void;
 }
 
 const MaskOverlayViewer = ({
@@ -109,7 +118,16 @@ const MaskOverlayViewer = ({
   measurementResetToken = 0,
   measurementBoxes = [],
   onMeasurementBoxesChange,
-  zoomCommand = null
+  zoomCommand = null,
+  editEnabled = false,
+  editMode = 'paint',
+  editLabelValue = 1,
+  editBrushSize = 12,
+  editUndoToken = 0,
+  editResetToken = 0,
+  onUndoAvailabilityChange,
+  onEditedSlicesChange,
+  onMaskSliceEdited
 }: MaskOverlayViewerProps) => {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -129,6 +147,13 @@ const MaskOverlayViewer = ({
   const isDraggingRef = useRef(false);
   const prefetchTokenRef = useRef(0);
   const renderMaskOverlayRef = useRef<(() => void) | null>(null);
+  const editEnabledRef = useRef<boolean>(editEnabled);
+  const editModeRef = useRef<'paint' | 'erase'>(editMode);
+  const editLabelValueRef = useRef<number>(editLabelValue);
+  const editBrushSizeRef = useRef<number>(editBrushSize);
+  const isEditingRef = useRef(false);
+  const editedMasksRef = useRef<Map<number, { data: Uint16Array; width: number; height: number }>>(new Map());
+  const editHistoryRef = useRef<Map<number, Uint16Array[]>>(new Map());
 
   // Keep showOverlayRef in sync with showOverlay state
   useEffect(() => {
@@ -141,6 +166,40 @@ const MaskOverlayViewer = ({
       viewerRef.current.style.cursor = measurementEnabled ? 'crosshair' : 'default';
     }
   }, [measurementEnabled]);
+
+  useEffect(() => {
+    editEnabledRef.current = editEnabled;
+    if (viewerRef.current) {
+      viewerRef.current.style.cursor = editEnabled ? 'crosshair' : measurementEnabled ? 'crosshair' : 'default';
+    }
+  }, [editEnabled, measurementEnabled]);
+
+  useEffect(() => {
+    editModeRef.current = editMode;
+  }, [editMode]);
+
+  useEffect(() => {
+    editLabelValueRef.current = editLabelValue;
+  }, [editLabelValue]);
+
+  useEffect(() => {
+    editBrushSizeRef.current = editBrushSize;
+  }, [editBrushSize]);
+
+  const updateEditAvailability = useCallback(() => {
+    const history = editHistoryRef.current.get(currentIndex);
+    const canUndo = Boolean(history && history.length > 0);
+    onUndoAvailabilityChange?.(canUndo);
+  }, [currentIndex, onUndoAvailabilityChange]);
+
+  useEffect(() => {
+    editedMasksRef.current.clear();
+    editHistoryRef.current.clear();
+    onEditedSlicesChange?.(0);
+    renderMaskOverlayRef.current?.();
+    updateEditAvailability();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editResetToken]);
 
   useEffect(() => {
     measurementBoxRef.current = measurementBox;
@@ -237,7 +296,8 @@ const MaskOverlayViewer = ({
       }
 
       const maskImage = currentMaskImageRef.current;
-      const maskPixelData = maskImage ? maskImage.getPixelData() : null;
+      const editedMask = editedMasksRef.current.get(currentIndex) || null;
+      const maskPixelData = editedMask?.data ?? (maskImage ? maskImage.getPixelData() : null);
 
       // Get Cornerstone canvas to match dimensions (exclude overlay-canvas)
       const cornerstoneCanvas = viewerRef.current.querySelector('canvas:not(.overlay-canvas)') as HTMLCanvasElement;
@@ -288,8 +348,8 @@ const MaskOverlayViewer = ({
       }
 
       // Get dimensions
-      const maskWidth = maskImage ? maskImage.width : baseImage.width;
-      const maskHeight = maskImage ? maskImage.height : baseImage.height;
+      const maskWidth = editedMask?.width ?? (maskImage ? maskImage.width : baseImage.width);
+      const maskHeight = editedMask?.height ?? (maskImage ? maskImage.height : baseImage.height);
       const baseWidth = baseImage.width;
       const baseHeight = baseImage.height;
 
@@ -555,6 +615,97 @@ const MaskOverlayViewer = ({
     return { widthMm, heightMm };
   };
 
+  const getEditableMaskSlice = useCallback(() => {
+    if (!viewerRef.current) return null;
+    const cached = editedMasksRef.current.get(currentIndex);
+    if (cached) return cached;
+
+    const enabledElement = cornerstone.getEnabledElement(viewerRef.current);
+    const baseImage = enabledElement?.image;
+    const maskImage = currentMaskImageRef.current;
+    const width = maskImage?.width ?? baseImage?.width ?? 0;
+    const height = maskImage?.height ?? baseImage?.height ?? 0;
+    if (!width || !height) return null;
+
+    const data = new Uint16Array(width * height);
+    const source = maskImage ? maskImage.getPixelData() : null;
+    if (source && source.length === data.length) {
+      for (let i = 0; i < data.length; i++) {
+        data[i] = source[i];
+      }
+    }
+
+    const slice = { data, width, height };
+    editedMasksRef.current.set(currentIndex, slice);
+    if (!editHistoryRef.current.has(currentIndex)) {
+      editHistoryRef.current.set(currentIndex, []);
+    }
+    onEditedSlicesChange?.(editedMasksRef.current.size);
+    updateEditAvailability();
+    return slice;
+  }, [currentIndex, onEditedSlicesChange, updateEditAvailability]);
+
+  const pushEditHistory = useCallback(
+    (sliceIndex: number, data: Uint16Array) => {
+      const history = editHistoryRef.current.get(sliceIndex) ?? [];
+      history.push(new Uint16Array(data));
+      editHistoryRef.current.set(sliceIndex, history);
+      updateEditAvailability();
+    },
+    [updateEditAvailability]
+  );
+
+  const applyBrushAt = useCallback(
+    (pixel: { x: number; y: number }) => {
+      const slice = getEditableMaskSlice();
+      if (!slice) return;
+
+      const value =
+        editModeRef.current === 'erase' ? 0 : Math.max(0, editLabelValueRef.current);
+      const radius = Math.max(1, Math.round(editBrushSizeRef.current));
+      const centerX = Math.round(pixel.x);
+      const centerY = Math.round(pixel.y);
+      const { width, height, data } = slice;
+
+      const minX = Math.max(0, centerX - radius);
+      const maxX = Math.min(width - 1, centerX + radius);
+      const minY = Math.max(0, centerY - radius);
+      const maxY = Math.min(height - 1, centerY + radius);
+      const radiusSq = radius * radius;
+
+      for (let y = minY; y <= maxY; y++) {
+        const dy = y - centerY;
+        for (let x = minX; x <= maxX; x++) {
+          const dx = x - centerX;
+          if (dx * dx + dy * dy > radiusSq) continue;
+          const idx = y * width + x;
+          data[idx] = value;
+        }
+      }
+
+      renderMaskOverlayRef.current?.();
+    },
+    [getEditableMaskSlice, onMaskSliceEdited, currentIndex]
+  );
+
+  useEffect(() => {
+    if (editUndoToken === 0) return;
+    const history = editHistoryRef.current.get(currentIndex);
+    if (!history || history.length === 0) return;
+    const slice = getEditableMaskSlice();
+    if (!slice) return;
+    const previous = history.pop();
+    if (!previous) return;
+    editedMasksRef.current.set(currentIndex, { data: previous, width: slice.width, height: slice.height });
+    renderMaskOverlayRef.current?.();
+    onMaskSliceEdited?.(currentIndex, previous, slice.width, slice.height);
+    updateEditAvailability();
+  }, [editUndoToken, currentIndex, getEditableMaskSlice, onMaskSliceEdited, updateEditAvailability]);
+
+  useEffect(() => {
+    updateEditAvailability();
+  }, [currentIndex, updateEditAvailability]);
+
   const handleMeasurementMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!measurementEnabledRef.current || !viewerRef.current) {
       return;
@@ -599,6 +750,36 @@ const MaskOverlayViewer = ({
       return null;
     });
   };
+
+  const handleEditMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!editEnabledRef.current || !viewerRef.current) return;
+    event.preventDefault();
+    const coords = pageToPixel(viewerRef.current, event.pageX, event.pageY);
+    if (!coords) return;
+    isEditingRef.current = true;
+    const slice = getEditableMaskSlice();
+    if (slice) {
+      pushEditHistory(currentIndex, slice.data);
+    }
+    applyBrushAt(coords);
+  };
+
+  const handleEditMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!isEditingRef.current || !viewerRef.current) return;
+    const coords = pageToPixel(viewerRef.current, event.pageX, event.pageY);
+    if (!coords) return;
+    applyBrushAt(coords);
+  };
+
+  const handleEditMouseUp = useCallback(() => {
+    if (!isEditingRef.current) return;
+    isEditingRef.current = false;
+    const slice = editedMasksRef.current.get(currentIndex);
+    if (slice) {
+      onMaskSliceEdited?.(currentIndex, slice.data, slice.width, slice.height);
+    }
+    updateEditAvailability();
+  }, [currentIndex, onMaskSliceEdited, updateEditAvailability]);
 
   const loadImage = async (index: number) => {
     if (!viewerRef.current || !baseImageIdsRef.current[index]) return;
@@ -726,10 +907,10 @@ const MaskOverlayViewer = ({
         ref={viewerRef}
         className="dicom-canvas"
         onWheel={handleWheel}
-        onMouseDown={handleMeasurementMouseDown}
-        onMouseMove={handleMeasurementMouseMove}
-        onMouseUp={handleMeasurementMouseUp}
-        onMouseLeave={handleMeasurementMouseUp}
+        onMouseDown={editEnabled ? handleEditMouseDown : handleMeasurementMouseDown}
+        onMouseMove={editEnabled ? handleEditMouseMove : handleMeasurementMouseMove}
+        onMouseUp={editEnabled ? handleEditMouseUp : handleMeasurementMouseUp}
+        onMouseLeave={editEnabled ? handleEditMouseUp : handleMeasurementMouseUp}
       >
         {error && <div className="viewer-error">{error}</div>}
       </div>

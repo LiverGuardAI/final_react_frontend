@@ -170,11 +170,58 @@ export default function DicomViewerMPRPanel({ seriesId, segmentationSeriesId, or
         const instances = await getSeriesInstances(seriesId);
         if (cancelled) return;
 
-        const sorted = [...instances].sort((a: any, b: any) => {
-          const aNum = parseInt(a.MainDicomTags?.InstanceNumber || a.IndexInSeries || '0');
-          const bNum = parseInt(b.MainDicomTags?.InstanceNumber || b.IndexInSeries || '0');
-          return aNum - bNum;
-        });
+        const parseDicomArray = (value: any): number[] | null => {
+          if (!value) return null;
+          if (Array.isArray(value)) {
+            const nums = value.map((v) => Number(v)).filter((v) => Number.isFinite(v));
+            return nums.length ? nums : null;
+          }
+          if (typeof value === 'string') {
+            const nums = value
+              .split(/[\\, ]+/)
+              .map((v) => Number(v))
+              .filter((v) => Number.isFinite(v));
+            return nums.length ? nums : null;
+          }
+          return null;
+        };
+
+        const getSliceDir = (instances: any[]) => {
+          for (const inst of instances) {
+            const orientation = parseDicomArray(inst.MainDicomTags?.ImageOrientationPatient);
+            if (orientation && orientation.length >= 6) {
+              const row = [orientation[0], orientation[1], orientation[2]];
+              const col = [orientation[3], orientation[4], orientation[5]];
+              const slice = [
+                row[1] * col[2] - row[2] * col[1],
+                row[2] * col[0] - row[0] * col[2],
+                row[0] * col[1] - row[1] * col[0],
+              ];
+              const norm = Math.hypot(slice[0], slice[1], slice[2]);
+              if (norm > 0) {
+                return [slice[0] / norm, slice[1] / norm, slice[2] / norm];
+              }
+            }
+          }
+          return null;
+        };
+
+        const sliceDir = getSliceDir(instances);
+        const getSlicePosition = (inst: any) => {
+          const position = parseDicomArray(inst.MainDicomTags?.ImagePositionPatient);
+          if (position && position.length >= 3 && sliceDir) {
+            return position[0] * sliceDir[0] + position[1] * sliceDir[1] + position[2] * sliceDir[2];
+          }
+          if (position && position.length >= 3) {
+            return position[2];
+          }
+          const fallback = parseInt(inst.MainDicomTags?.InstanceNumber || inst.IndexInSeries || '0');
+          return Number.isFinite(fallback) ? fallback : 0;
+        };
+
+        const sorted = [...instances].sort(
+          (a: any, b: any) => getSlicePosition(a) - getSlicePosition(b)
+        );
 
         const imageIds = sorted.map((inst: any) => `wadouri:${getInstanceFileUrl(inst.ID)}`);
         const numSlices = imageIds.length;
@@ -252,11 +299,58 @@ export default function DicomViewerMPRPanel({ seriesId, segmentationSeriesId, or
         const instances = await getSeriesInstances(segmentationSeriesId);
         if (cancelled) return;
 
-        const sorted = [...instances].sort((a: any, b: any) => {
-          const aNum = parseInt(a.MainDicomTags?.InstanceNumber || a.IndexInSeries || '0');
-          const bNum = parseInt(b.MainDicomTags?.InstanceNumber || b.IndexInSeries || '0');
-          return aNum - bNum;
-        });
+        const parseDicomArray = (value: any): number[] | null => {
+          if (!value) return null;
+          if (Array.isArray(value)) {
+            const nums = value.map((v) => Number(v)).filter((v) => Number.isFinite(v));
+            return nums.length ? nums : null;
+          }
+          if (typeof value === 'string') {
+            const nums = value
+              .split(/[\\, ]+/)
+              .map((v) => Number(v))
+              .filter((v) => Number.isFinite(v));
+            return nums.length ? nums : null;
+          }
+          return null;
+        };
+
+        const getSliceDir = (instances: any[]) => {
+          for (const inst of instances) {
+            const orientation = parseDicomArray(inst.MainDicomTags?.ImageOrientationPatient);
+            if (orientation && orientation.length >= 6) {
+              const row = [orientation[0], orientation[1], orientation[2]];
+              const col = [orientation[3], orientation[4], orientation[5]];
+              const slice = [
+                row[1] * col[2] - row[2] * col[1],
+                row[2] * col[0] - row[0] * col[2],
+                row[0] * col[1] - row[1] * col[0],
+              ];
+              const norm = Math.hypot(slice[0], slice[1], slice[2]);
+              if (norm > 0) {
+                return [slice[0] / norm, slice[1] / norm, slice[2] / norm];
+              }
+            }
+          }
+          return null;
+        };
+
+        const sliceDir = getSliceDir(instances);
+        const getSlicePosition = (inst: any) => {
+          const position = parseDicomArray(inst.MainDicomTags?.ImagePositionPatient);
+          if (position && position.length >= 3 && sliceDir) {
+            return position[0] * sliceDir[0] + position[1] * sliceDir[1] + position[2] * sliceDir[2];
+          }
+          if (position && position.length >= 3) {
+            return position[2];
+          }
+          const fallback = parseInt(inst.MainDicomTags?.InstanceNumber || inst.IndexInSeries || '0');
+          return Number.isFinite(fallback) ? fallback : 0;
+        };
+
+        const sorted = [...instances].sort(
+          (a: any, b: any) => getSlicePosition(a) - getSlicePosition(b)
+        );
 
         const imageIds = sorted.map((inst: any) => `wadouri:${getInstanceFileUrl(inst.ID)}`);
         const { cols, rows, slices } = dimsRef.current;

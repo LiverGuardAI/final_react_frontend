@@ -1,6 +1,8 @@
 // src/components/DicomViewer3D.tsx
 import { useEffect, useRef, useState } from 'react';
 import * as cornerstone from '@cornerstonejs/core';
+import cornerstoneWADOImageLoader from 'cornerstone-wado-image-loader';
+import dicomParser from 'dicom-parser';
 import { getSeriesInstances, getInstanceFileUrl } from '../api/orthanc_api';
 import vtkImageData from '@kitware/vtk.js/Common/DataModel/ImageData';
 import vtkActor from '@kitware/vtk.js/Rendering/Core/Actor';
@@ -13,14 +15,44 @@ import vtkRenderer from '@kitware/vtk.js/Rendering/Core/Renderer';
 import vtkRenderWindow from '@kitware/vtk.js/Rendering/Core/RenderWindow';
 import vtkPlane from '@kitware/vtk.js/Common/DataModel/Plane';
 import vtkSphereSource from '@kitware/vtk.js/Filters/Sources/SphereSource';
+import vtkCubeSource from '@kitware/vtk.js/Filters/Sources/CubeSource';
 import vtkLineSource from '@kitware/vtk.js/Filters/Sources/LineSource';
-import vtkCellPicker from '@kitware/vtk.js/Rendering/Core/CellPicker';
 
 // 성능 최적화 설정
-const OPTIMIZATION_LEVEL = 2; // 1: 약간, 2: 중간, 3: 높음
+const OPTIMIZATION_LEVEL = 1; // 1: 약간, 2: 중간, 3: 높음
+let wadoInitialized = false;
+
+const initializeWADOImageLoader = () => {
+  if (wadoInitialized) return;
+  const cornerstoneWithEvents = cornerstone as typeof cornerstone & { EVENTS?: typeof cornerstone.Enums.Events };
+  if (!cornerstoneWithEvents.EVENTS) {
+    cornerstoneWithEvents.EVENTS = cornerstone.Enums.Events;
+  }
+  cornerstoneWADOImageLoader.external.cornerstone = cornerstoneWithEvents;
+  cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
+  cornerstoneWADOImageLoader.configure({
+    useWebWorkers: true,
+    decodeConfig: {
+      convertFloatPixelDataToInt: false,
+    },
+  });
+  wadoInitialized = true;
+};
 
 interface DicomViewer3DProps {
   segmentationSeriesId: string | null;
+  focusPoint?: [number, number, number] | null;
+  focusToken?: number;
+  focusMode?: 'world' | 'voxel';
+  highlightTumor?: boolean;
+  highlightBoundsVoxel?: {
+    min_x: number;
+    max_x: number;
+    min_y: number;
+    max_y: number;
+    min_z: number;
+    max_z: number;
+  } | null;
 }
 
 // Storage keys for persisting viewer state
@@ -51,7 +83,14 @@ const loadSavedState = () => {
   }
 };
 
-export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DProps) {
+export default function DicomViewer3D({
+  segmentationSeriesId,
+  focusPoint,
+  focusToken,
+  focusMode = 'world',
+  highlightTumor = false,
+  highlightBoundsVoxel = null,
+}: DicomViewer3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,7 +133,21 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
   const clippingPlaneRef = useRef<any>(null);
   const measurementActorsRef = useRef<any[]>([]);
   const crosshairActorsRef = useRef<any[]>([]);
+  const highlightActorRef = useRef<any>(null);
+  const volumeDataRef = useRef<{
+    data: Uint8Array;
+    width: number;
+    height: number;
+    depth: number;
+    spacing: [number, number, number];
+    skipFactor: number;
+  } | null>(null);
+  const tumorLabelRef = useRef<number | null>(null);
   const boundsRef = useRef<number[] | null>(null);
+  const pendingFocusRef = useRef<{ point: [number, number, number]; mode: 'world' | 'voxel' } | null>(null);
+  const volumeOriginRef = useRef<[number, number, number] | null>(null);
+  const volumeSpacingRef = useRef<[number, number, number] | null>(null);
+  const volumeDirectionRef = useRef<[number, number, number, number, number, number, number, number, number] | null>(null);
   const initialCameraStateRef = useRef<{
     position: [number, number, number];
     focalPoint: [number, number, number];
@@ -109,6 +162,8 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
       });
       return;
     }
+
+    initializeWADOImageLoader();
 
     let cancelled = false;
 
@@ -141,23 +196,60 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
           imageIds.map((imageId: string) => cornerstone.imageLoader.loadAndCacheImage(imageId))
         );
 
-        console.log('DicomViewer3D: All images loaded, now sorting by ImagePositionPatient Z...');
+        console.log('DicomViewer3D: All images loaded, now sorting by slice position...');
 
-        // Step 3: Sort images by ImagePositionPatient Z coordinate
+        // Step 3: Sort images by position along slice direction
+        const firstPlane = cornerstone.metaData.get('imagePlaneModule', imageIds[0]);
+        let sliceDir: [number, number, number] | null = null;
+        const orientation = firstPlane?.imageOrientationPatient;
+        const row = firstPlane?.rowCosines;
+        const col = firstPlane?.columnCosines;
+        if (orientation && orientation.length >= 6) {
+          const rowDir = [orientation[0], orientation[1], orientation[2]];
+          const colDir = [orientation[3], orientation[4], orientation[5]];
+          sliceDir = [
+            rowDir[1] * colDir[2] - rowDir[2] * colDir[1],
+            rowDir[2] * colDir[0] - rowDir[0] * colDir[2],
+            rowDir[0] * colDir[1] - rowDir[1] * colDir[0],
+          ];
+        } else if (row && col) {
+          sliceDir = [
+            row[1] * col[2] - row[2] * col[1],
+            row[2] * col[0] - row[0] * col[2],
+            row[0] * col[1] - row[1] * col[0],
+          ];
+        }
+
+        if (sliceDir) {
+          const norm = Math.sqrt(
+            sliceDir[0] * sliceDir[0] +
+            sliceDir[1] * sliceDir[1] +
+            sliceDir[2] * sliceDir[2]
+          );
+          if (norm > 0) {
+            sliceDir = [sliceDir[0] / norm, sliceDir[1] / norm, sliceDir[2] / norm];
+          }
+        }
+
         const imagesWithPosition = loadedImages.map((image, index) => {
           const imageId = imageIds[index];
           const imagePlaneModule = cornerstone.metaData.get('imagePlaneModule', imageId);
-          const zPosition = imagePlaneModule?.imagePositionPatient?.[2] || index;
-          return { image, imageId, zPosition };
+          const position = imagePlaneModule?.imagePositionPatient;
+          let slicePosition = index;
+          if (position && sliceDir) {
+            slicePosition = position[0] * sliceDir[0] + position[1] * sliceDir[1] + position[2] * sliceDir[2];
+          } else if (position) {
+            slicePosition = position[2];
+          }
+          return { image, imageId, slicePosition };
         });
 
-        // Sort by Z position (descending - reversed order)
-        imagesWithPosition.sort((a, b) => b.zPosition - a.zPosition);
+        imagesWithPosition.sort((a, b) => a.slicePosition - b.slicePosition);
 
-        console.log('DicomViewer3D: Images sorted. Z range:',
-          imagesWithPosition[0].zPosition,
+        console.log('DicomViewer3D: Images sorted. Slice position range:',
+          imagesWithPosition[0].slicePosition,
           'to',
-          imagesWithPosition[imagesWithPosition.length - 1].zPosition
+          imagesWithPosition[imagesWithPosition.length - 1].slicePosition
         );
 
         // Extract sorted images
@@ -199,6 +291,41 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
             origin_z = imagePlaneModule.imagePositionPatient[2];
           }
 
+          const orientation = imagePlaneModule.imageOrientationPatient;
+          const row = imagePlaneModule.rowCosines;
+          const col = imagePlaneModule.columnCosines;
+          if (orientation && orientation.length >= 6) {
+            const rowDir = [orientation[0], orientation[1], orientation[2]];
+            const colDir = [orientation[3], orientation[4], orientation[5]];
+            const sliceDir = [
+              rowDir[1] * colDir[2] - rowDir[2] * colDir[1],
+              rowDir[2] * colDir[0] - rowDir[0] * colDir[2],
+              rowDir[0] * colDir[1] - rowDir[1] * colDir[0],
+            ];
+            // vtkImageData axes are X (columns), Y (rows), Z (slices)
+            // DICOM row direction corresponds to columns (X), column direction to rows (Y).
+            volumeDirectionRef.current = [
+              rowDir[0], colDir[0], sliceDir[0],
+              rowDir[1], colDir[1], sliceDir[1],
+              rowDir[2], colDir[2], sliceDir[2],
+            ];
+          } else if (row && col) {
+            const rowDir = [row[0], row[1], row[2]];
+            const colDir = [col[0], col[1], col[2]];
+            const sliceDir = [
+              rowDir[1] * colDir[2] - rowDir[2] * colDir[1],
+              rowDir[2] * colDir[0] - rowDir[0] * colDir[2],
+              rowDir[0] * colDir[1] - rowDir[1] * colDir[0],
+            ];
+            volumeDirectionRef.current = [
+              rowDir[0], colDir[0], sliceDir[0],
+              rowDir[1], colDir[1], sliceDir[1],
+              rowDir[2], colDir[2], sliceDir[2],
+            ];
+          } else {
+            volumeDirectionRef.current = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+          }
+
           // Calculate Z spacing from slice positions
           if (images.length > 1) {
             const imagePlaneModule2 = cornerstone.metaData.get('imagePlaneModule', sortedImageIds[1]);
@@ -208,13 +335,20 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
               const dx = pos2[0] - pos1[0];
               const dy = pos2[1] - pos1[1];
               const dz = pos2[2] - pos1[2];
-              spacing_z = Math.sqrt(dx * dx + dy * dy + dz * dz);
+              if (sliceDir) {
+                spacing_z = Math.abs(dx * sliceDir[0] + dy * sliceDir[1] + dz * sliceDir[2]);
+              } else {
+                spacing_z = Math.sqrt(dx * dx + dy * dy + dz * dz);
+              }
             }
           }
         }
 
         console.log('DicomViewer3D: Spacing:', { spacing_x, spacing_y, spacing_z });
         console.log('DicomViewer3D: Origin (from sorted first slice):', { origin_x, origin_y, origin_z });
+        console.log('DicomViewer3D: Direction:', volumeDirectionRef.current);
+        volumeOriginRef.current = [origin_x, origin_y, origin_z];
+        volumeSpacingRef.current = [spacing_x, spacing_y, spacing_z];
 
         // Step 6: Build 3D volume from pixel data with downsampling
         // Apply downsampling based on optimization level
@@ -258,6 +392,14 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
         const finalSpacingX = spacing_x * skipFactor;
         const finalSpacingY = spacing_y * skipFactor;
         const finalSpacingZ = spacing_z * skipFactor;
+        volumeDataRef.current = {
+          data: volumeData,
+          width: finalWidth,
+          height: finalHeight,
+          depth: finalDepth,
+          spacing: [finalSpacingX, finalSpacingY, finalSpacingZ],
+          skipFactor,
+        };
 
         // Step 7: Count labels
         const labelCounts: Record<number, number> = {};
@@ -345,6 +487,8 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
           .map(Number)
           .sort((a, b) => labelCounts[b] - labelCounts[a]); // Sort by voxel count descending
 
+        tumorLabelRef.current = labels.length > 1 ? labels[1] : labels[0] ?? null;
+
         console.log('DicomViewer3D: Found labels (sorted by size):', labels.map(l => `${l} (${labelCounts[l]} voxels)`));
 
         // Define colors and names based on size assumption
@@ -368,6 +512,9 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
           labelData.setDimensions([finalWidth, finalHeight, finalDepth]);
           labelData.setSpacing([finalSpacingX, finalSpacingY, finalSpacingZ]);
           labelData.setOrigin([origin_x, origin_y, origin_z]);
+          if (volumeDirectionRef.current && (labelData as any).setDirection) {
+            (labelData as any).setDirection(volumeDirectionRef.current);
+          }
 
           // Extract binary volume for this label
           const labelVolume = new Uint8Array(volumeData.length);
@@ -504,6 +651,10 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
 
         renderWindow.render();
 
+        if (pendingFocusRef.current) {
+          applyFocusPoint(pendingFocusRef.current.point, pendingFocusRef.current.mode);
+        }
+
         // Setup interactor AFTER rendering is complete
         if (container) {
           console.log('DicomViewer3D: Setting up mouse interactor...');
@@ -533,17 +684,6 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
             let isDragging = false;
             let isPanning = false;
             let previousPosition = { x: 0, y: 0 };
-            const getPickDisplayCoords = (event: MouseEvent) => {
-              const rect = canvas.getBoundingClientRect();
-              const x = event.clientX - rect.left;
-              const y = event.clientY - rect.top;
-              if (rect.width === 0 || rect.height === 0) {
-                return null;
-              }
-              const displayX = (x / rect.width) * canvas.width;
-              const displayY = ((rect.height - y) / rect.height) * canvas.height;
-              return [displayX, displayY, 0] as [number, number, number];
-            };
 
             // Mouse down - start dragging or panning
             const handleMouseDown = (event: MouseEvent) => {
@@ -562,32 +702,8 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
               event.preventDefault();
             };
 
-            // Mouse move - rotate or pan camera, and update coordinate display
+            // Mouse move - rotate or pan camera
             const handleMouseMove = (event: MouseEvent) => {
-              // Always update coordinates when not in measurement mode and crosshair is disabled
-              if (!crosshairEnabledRef.current && measurementModeRef.current !== 'distance' && !isDragging && !isPanning) {
-                const picker = vtkCellPicker.newInstance();
-                picker.setPickFromList(true);
-                picker.initializePickList();
-                if (actorsRef.current.liver) picker.addPickList(actorsRef.current.liver);
-                if (actorsRef.current.tumor) picker.addPickList(actorsRef.current.tumor);
-
-                const displayCoords = getPickDisplayCoords(event);
-                if (!displayCoords) {
-                  setCurrentCoordinate(null);
-                  return;
-                }
-
-                picker.pick(displayCoords, renderer);
-                const pickPosition = picker.getPickPosition();
-
-                if (pickPosition && pickPosition.length === 3) {
-                  setCurrentCoordinate([pickPosition[0], pickPosition[1], pickPosition[2]]);
-                } else {
-                  setCurrentCoordinate(null);
-                }
-              }
-
               if (!isDragging && !isPanning) return;
 
               const deltaX = event.clientX - previousPosition.x;
@@ -797,6 +913,24 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
       }
     };
   }, [segmentationSeriesId]);
+
+  useEffect(() => {
+    const tumorActor = actorsRef.current.tumor;
+    if (!tumorActor) return;
+    const property = tumorActor.getProperty?.();
+    if (!property) return;
+    property.setEdgeVisibility(highlightTumor);
+    if (highlightTumor) {
+      property.setEdgeColor(1, 1, 1);
+      property.setLineWidth(2);
+    }
+    renderWindowRef.current?.render();
+  }, [highlightTumor]);
+
+  useEffect(() => {
+    if (!focusPoint) return;
+    applyFocusPoint(focusPoint, focusMode);
+  }, [focusPoint, focusToken, focusMode]);
 
   // Handle window resize
   useEffect(() => {
@@ -1197,6 +1331,140 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
     createCrosshair(targetPosition);
     console.log('DicomViewer3D: Crosshair enabled at', targetPosition);
   };
+
+  const resolveFocusPoint = (point: [number, number, number], mode: 'world' | 'voxel') => {
+    if (mode === 'world') return point;
+    if (!volumeOriginRef.current || !volumeSpacingRef.current) return null;
+    const origin = volumeOriginRef.current;
+    const spacing = volumeSpacingRef.current;
+    const direction = volumeDirectionRef.current ?? [1, 0, 0, 0, 1, 0, 0, 0, 1];
+    const vx = point[0] * spacing[0];
+    const vy = point[1] * spacing[1];
+    const vz = point[2] * spacing[2];
+    const worldX = origin[0] + direction[0] * vx + direction[1] * vy + direction[2] * vz;
+    const worldY = origin[1] + direction[3] * vx + direction[4] * vy + direction[5] * vz;
+    const worldZ = origin[2] + direction[6] * vx + direction[7] * vy + direction[8] * vz;
+    return [worldX, worldY, worldZ] as [number, number, number];
+  };
+
+  const applyFocusPoint = (position: [number, number, number], mode: 'world' | 'voxel' = 'world') => {
+    if (!boundsRef.current || !rendererRef.current) {
+      pendingFocusRef.current = { point: position, mode };
+      return;
+    }
+    const resolved = resolveFocusPoint(position, mode);
+    if (!resolved) {
+      pendingFocusRef.current = { point: position, mode };
+      return;
+    }
+    pendingFocusRef.current = null;
+    enableCrosshair(resolved);
+    const camera = rendererRef.current.getActiveCamera();
+    camera.setFocalPoint(resolved[0], resolved[1], resolved[2]);
+    renderWindowRef.current?.render();
+  };
+
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+
+    if (highlightActorRef.current) {
+      renderer.removeActor(highlightActorRef.current);
+      highlightActorRef.current = null;
+    }
+
+    if (!highlightBoundsVoxel) {
+      renderWindowRef.current?.render();
+      return;
+    }
+
+    const volumeInfo = volumeDataRef.current;
+    if (!volumeInfo || !volumeOriginRef.current) return;
+
+    const tumorLabel = tumorLabelRef.current;
+    const { data, width, height, depth, spacing, skipFactor } = volumeInfo;
+
+    const minX = Math.max(0, Math.floor(highlightBoundsVoxel.min_x / skipFactor) - 1);
+    const maxX = Math.min(width - 1, Math.floor(highlightBoundsVoxel.max_x / skipFactor) + 1);
+    const minY = Math.max(0, Math.floor(highlightBoundsVoxel.min_y / skipFactor) - 1);
+    const maxY = Math.min(height - 1, Math.floor(highlightBoundsVoxel.max_y / skipFactor) + 1);
+    const minZ = Math.max(0, Math.floor(highlightBoundsVoxel.min_z / skipFactor) - 1);
+    const maxZ = Math.min(depth - 1, Math.floor(highlightBoundsVoxel.max_z / skipFactor) + 1);
+
+    if (minX > maxX || minY > maxY || minZ > maxZ) return;
+
+    const subWidth = maxX - minX + 1;
+    const subHeight = maxY - minY + 1;
+    const subDepth = maxZ - minZ + 1;
+    const subVolume = new Uint8Array(subWidth * subHeight * subDepth);
+
+    for (let z = 0; z < subDepth; z++) {
+      const srcZ = minZ + z;
+      for (let y = 0; y < subHeight; y++) {
+        const srcY = minY + y;
+        for (let x = 0; x < subWidth; x++) {
+          const srcX = minX + x;
+          const srcIndex = srcZ * (width * height) + srcY * width + srcX;
+          const targetIndex = z * (subWidth * subHeight) + y * subWidth + x;
+          const value = data[srcIndex];
+          if (tumorLabel === null) {
+            subVolume[targetIndex] = value > 0 ? 1 : 0;
+          } else {
+            subVolume[targetIndex] = value === tumorLabel ? 1 : 0;
+          }
+        }
+      }
+    }
+
+    const direction = volumeDirectionRef.current ?? [1, 0, 0, 0, 1, 0, 0, 0, 1];
+    const origin = volumeOriginRef.current;
+    const offsetX = minX * spacing[0];
+    const offsetY = minY * spacing[1];
+    const offsetZ = minZ * spacing[2];
+    const highlightOrigin: [number, number, number] = [
+      origin[0] + direction[0] * offsetX + direction[1] * offsetY + direction[2] * offsetZ,
+      origin[1] + direction[3] * offsetX + direction[4] * offsetY + direction[5] * offsetZ,
+      origin[2] + direction[6] * offsetX + direction[7] * offsetY + direction[8] * offsetZ,
+    ];
+
+    const labelData = vtkImageData.newInstance();
+    labelData.setDimensions([subWidth, subHeight, subDepth]);
+    labelData.setSpacing(spacing);
+    labelData.setOrigin(highlightOrigin);
+    if ((labelData as any).setDirection) {
+      (labelData as any).setDirection(direction);
+    }
+    const scalars = vtkDataArray.newInstance({
+      name: 'Scalars',
+      values: subVolume,
+      numberOfComponents: 1,
+    });
+    labelData.getPointData().setScalars(scalars);
+
+    const marching = vtkImageMarchingCubes.newInstance({
+      contourValue: 0.5,
+      computeNormals: true,
+      mergePoints: true,
+    });
+    marching.setInputData(labelData);
+    marching.update();
+    const polyData = marching.getOutputData();
+    if (!polyData || polyData.getNumberOfPoints() === 0) return;
+
+    const mapper = vtkMapper.newInstance();
+    mapper.setInputData(polyData);
+    const actor = vtkActor.newInstance();
+    actor.setMapper(mapper);
+    const property = actor.getProperty();
+    property.setColor(0.7, 0.7, 0.7);
+    property.setOpacity(0.2);
+    property.setEdgeVisibility(true);
+    property.setEdgeColor(0.7, 0.7, 0.7);
+    property.setLineWidth(1.5);
+    renderer.addActor(actor);
+    highlightActorRef.current = actor;
+    renderWindowRef.current?.render();
+  }, [highlightBoundsVoxel]);
 
   const disableCrosshair = () => {
     setCrosshairEnabled(false);
@@ -1891,12 +2159,6 @@ export default function DicomViewer3D({ segmentationSeriesId }: DicomViewer3DPro
         </div>
       </div>
 
-      {renderStats && (
-        <div style={{ marginTop: '8px', fontSize: '11px', color: '#9ca3af', textAlign: 'center', flexShrink: 0 }}>
-          📊 {renderStats.totalPolygons.toLocaleString()} polygons • ⚡ {renderStats.loadTime.toFixed(2)}s •
-          🎯 Optimization Level {OPTIMIZATION_LEVEL}
-        </div>
-      )}
     </div>
   );
 }

@@ -239,6 +239,37 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
 
   return (
     <>
+      {onHccChange ? (
+        <div className={styles.selectWrapper}>
+          <span className={styles.selectLabel}>HCC 진단:</span>
+          <select
+            className={styles.selectInput}
+            value={effectiveHccId}
+            onChange={(e) => onHccChange(e.target.value)}
+            disabled={disabled}
+          >
+            <option value="" disabled hidden>
+              HCC 진단 선택
+            </option>
+            {!hasPatient ? (
+              <option value="no-patient" disabled>
+                진료 중인 환자가 없습니다
+              </option>
+            ) : hasHccDiagnoses ? (
+              hccDiagnoses.map((diagnosis) => (
+                <option key={diagnosis.hcc_id} value={String(diagnosis.hcc_id)}>
+                  {formatDate(diagnosis.measured_at || diagnosis.hcc_diagnosis_date)}
+                </option>
+              ))
+            ) : (
+              <option value="no-data" disabled>
+                HCC 진단 목록이 없습니다
+              </option>
+            )}
+          </select>
+        </div>
+      ) : null}
+
       <div className={styles.selectWrapper}>
         <span className={styles.selectLabel}>CT 데이터:</span>
         <select
@@ -327,37 +358,6 @@ const FeatureSelectRow: React.FC<FeatureSelectRowProps> = ({
             ) : (
               <option value="no-data" disabled>
                 유전자 검사 목록이 없습니다
-              </option>
-            )}
-          </select>
-        </div>
-      ) : null}
-
-      {onHccChange ? (
-        <div className={styles.selectWrapper}>
-          <span className={styles.selectLabel}>HCC 진단:</span>
-          <select
-            className={styles.selectInput}
-            value={effectiveHccId}
-            onChange={(e) => onHccChange(e.target.value)}
-            disabled={disabled}
-          >
-            <option value="" disabled hidden>
-              HCC 진단 선택
-            </option>
-            {!hasPatient ? (
-              <option value="no-patient" disabled>
-                진료 중인 환자가 없습니다
-              </option>
-            ) : hasHccDiagnoses ? (
-              hccDiagnoses.map((diagnosis) => (
-                <option key={diagnosis.hcc_id} value={String(diagnosis.hcc_id)}>
-                  {formatDate(diagnosis.measured_at || diagnosis.hcc_diagnosis_date)}
-                </option>
-              ))
-            ) : (
-              <option value="no-data" disabled>
-                HCC 진단 목록이 없습니다
               </option>
             )}
           </select>

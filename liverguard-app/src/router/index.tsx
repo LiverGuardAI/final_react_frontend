@@ -41,18 +41,9 @@ const ProtectedRoute = lazy(() => import("../components/auth/ProtectedRoute"));
 const ErrorPage = lazy(() => import("../pages/ErrorPage"));
 
 // Loading fallback component
-const LoadingFallback = () => (
-  <div style={{
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: '100vh',
-    fontSize: '18px',
-    color: '#666'
-  }}>
-    Loading...
-  </div>
-);
+const LoadingFallback = () => null;
+
+const RadiologyFallback = () => null;
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -123,9 +114,9 @@ const router = createBrowserRouter(
           </ProtectedRoute>
         }
       >
-        <Route path="home" element={<Suspense fallback={<LoadingFallback />}><RadiologyHomePage /></Suspense>} />
-        <Route path="acquisition" element={<Suspense fallback={<LoadingFallback />}><AcquisitionPage /></Suspense>} />
-        <Route path="post-processing" element={<Suspense fallback={<LoadingFallback />}><PostProcessingPage /></Suspense>} />
+        <Route path="home" element={<Suspense fallback={<RadiologyFallback />}><RadiologyHomePage /></Suspense>} />
+        <Route path="acquisition" element={<Suspense fallback={<RadiologyFallback />}><AcquisitionPage /></Suspense>} />
+        <Route path="post-processing" element={<Suspense fallback={<RadiologyFallback />}><PostProcessingPage /></Suspense>} />
       </Route>
 
       {/* lis */}

@@ -222,10 +222,10 @@ export default function DoctorHomePage() {
       try {
         const { startDate, endDate } = getWeekRange(new Date());
         const response = await getUserSchedules(startDate, endDate);
-        const rawList = Array.isArray(response) ? response : response.results || [];
+        const rawList: UserScheduleData[] = Array.isArray(response) ? response : response.results || [];
         const filtered = rawList
           .filter((item: UserScheduleData) => item.schedule_date || item.start_time || item.end_time)
-          .sort((a, b) => {
+          .sort((a: UserScheduleData, b: UserScheduleData) => {
             const dateA = a.schedule_date || '';
             const dateB = b.schedule_date || '';
             if (dateA !== dateB) return dateA.localeCompare(dateB);
@@ -255,41 +255,41 @@ export default function DoctorHomePage() {
 
   return (
     <>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: 'auto auto 1fr', gap: '20px', padding: '20px', height: '100%', boxSizing: 'border-box', zoom: '0.7' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: 'auto auto 1fr', gap: '20px', padding: '10px 24px 24px 24px', height: '100%', boxSizing: 'border-box', zoom: '0.7' }}>
       {/* 첫 번째 행 왼쪽: 오늘의 진료 현황 */}
       <div style={{ gridColumn: '1', gridRow: '1', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px', flexShrink: 0 }}>
-          <h2 style={{ fontSize: '24px', fontWeight: '700', margin: 0 }}>오늘의 진료 현황</h2>
-          <span style={{ fontSize: '28px', cursor: 'pointer', fontWeight: '300', lineHeight: '1' }}>›</span>
-        </div>
-        <div style={{ background: '#FFF', borderRadius: '15px', padding: '30px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 0, overflow: 'auto' }}>
-          {/* 간단한 막대 그래프 */}
-          <div style={{ marginBottom: '40px' }}>
-            <div style={{ marginBottom: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ fontSize: '16px', color: '#666' }}>대기 환자</span>
-                <span style={{ fontSize: '16px', fontWeight: '600' }}>{patientStatus.waiting}명</span>
+        <div style={{ background: '#FFF', borderRadius: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid #EEF2F7' }}>
+            <h2 style={{ fontSize: '24px', fontWeight: '700', margin: 0 }}>오늘의 진료 현황</h2>
+          </div>
+          <div style={{ padding: '24px 30px', flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '16px', color: '#666' }}>대기 환자</span>
+                  <span style={{ fontSize: '16px', fontWeight: '600' }}>{patientStatus.waiting}명</span>
+                </div>
+                <div style={{ width: '100%', height: '24px', background: '#F5F5F5', borderRadius: '12px', overflow: 'hidden' }}>
+                  <div style={{ width: `${waitingPercentage}%`, height: '100%', background: '#FFB800', transition: 'width 0.3s' }}></div>
+                </div>
               </div>
-              <div style={{ width: '100%', height: '24px', background: '#F5F5F5', borderRadius: '12px', overflow: 'hidden' }}>
-                <div style={{ width: `${waitingPercentage}%`, height: '100%', background: '#FFB800', transition: 'width 0.3s' }}></div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '16px', color: '#666' }}>진료 중</span>
+                  <span style={{ fontSize: '16px', fontWeight: '600' }}>{patientStatus.inProgress}명</span>
+                </div>
+                <div style={{ width: '100%', height: '24px', background: '#F5F5F5', borderRadius: '12px', overflow: 'hidden' }}>
+                  <div style={{ width: `${inProgressPercentage}%`, height: '100%', background: '#00A3FF', transition: 'width 0.3s' }}></div>
+                </div>
               </div>
-            </div>
-            <div style={{ marginBottom: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ fontSize: '16px', color: '#666' }}>진료 중</span>
-                <span style={{ fontSize: '16px', fontWeight: '600' }}>{patientStatus.inProgress}명</span>
-              </div>
-              <div style={{ width: '100%', height: '24px', background: '#F5F5F5', borderRadius: '12px', overflow: 'hidden' }}>
-                <div style={{ width: `${inProgressPercentage}%`, height: '100%', background: '#00A3FF', transition: 'width 0.3s' }}></div>
-              </div>
-            </div>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ fontSize: '16px', color: '#666' }}>완료 환자</span>
-                <span style={{ fontSize: '16px', fontWeight: '600' }}>{patientStatus.completed}명</span>
-              </div>
-              <div style={{ width: '100%', height: '24px', background: '#F5F5F5', borderRadius: '12px', overflow: 'hidden' }}>
-                <div style={{ width: `${completedPercentage}%`, height: '100%', background: '#8BC34A', transition: 'width 0.3s' }}></div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '16px', color: '#666' }}>완료 환자</span>
+                  <span style={{ fontSize: '16px', fontWeight: '600' }}>{patientStatus.completed}명</span>
+                </div>
+                <div style={{ width: '100%', height: '24px', background: '#F5F5F5', borderRadius: '12px', overflow: 'hidden' }}>
+                  <div style={{ width: `${completedPercentage}%`, height: '100%', background: '#8BC34A', transition: 'width 0.3s' }}></div>
+                </div>
               </div>
             </div>
           </div>
@@ -298,99 +298,106 @@ export default function DoctorHomePage() {
 
       {/* 오른쪽 상단: 일정 관리 */}
       <div style={{ gridColumn: '2', gridRow: '1', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px', flexShrink: 0 }}>
-          <h2 style={{ fontSize: '24px', fontWeight: '700', margin: 0 }}>일정 관리</h2>
-          <span style={{ fontSize: '28px', cursor: 'pointer', fontWeight: '300', lineHeight: '1' }}>›</span>
-        </div>
-        <div style={{ background: '#FFF', borderRadius: '15px', padding: '0', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', overflow: 'hidden', minHeight: 0, display: 'flex', flexDirection: 'column', flex: 1 }}>
-          {scheduleLoading ? (
-            <div style={{ color: '#7A8899', textAlign: 'center', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              일주일 일정 불러오는 중...
-            </div>
-          ) : scheduleError ? (
-            <div style={{ color: '#D32F2F', textAlign: 'center', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {scheduleError}
-            </div>
-          ) : weekSchedules.length === 0 ? (
-            <div style={{ color: '#7A8899', textAlign: 'center', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              이번 주 일정이 없습니다.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '140px 220px 140px 1fr',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '10px 16px',
-                  background: '#F8FAFC',
-                  color: '#64748B',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  borderBottom: '1px solid #E5E7EB'
-                }}
-              >
-                <span>날짜</span>
-                <span>시간</span>
-                <span>유형</span>
-                <span>내용</span>
+        <div style={{ background: '#FFF', borderRadius: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid #EEF2F7' }}>
+            <h2 style={{ fontSize: '24px', fontWeight: '700', margin: 0 }}>일정 관리</h2>
+          </div>
+          <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '0', display: 'flex', flexDirection: 'column' }}>
+            {scheduleLoading ? (
+              <div style={{ color: '#7A8899', textAlign: 'center', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                일주일 일정 불러오는 중...
               </div>
-              {weekSchedules.map((schedule, index) => {
-                const timeLabel = `${formatTime(schedule.start_time) || '-'} - ${formatTime(schedule.end_time) || '-'}`;
-                const scheduleDate = schedule.schedule_date
-                  || (schedule.start_time ? schedule.start_time.split('T')[0] : '')
-                  || (schedule.end_time ? schedule.end_time.split('T')[0] : '');
-                return (
-                  <div
-                    key={schedule.schedule_id || `${schedule.schedule_date}-${schedule.start_time}-${schedule.end_time}`}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '140px 220px 140px 1fr',
-                      alignItems: 'center',
-                      gap: '12px',
-                      padding: '12px 16px',
-                      borderBottom: '1px solid #EEF2F7',
-                      cursor: 'pointer'
-                    }}
-                    onClick={() => {
-                      const targetDate = scheduleDate || formatLocalDate(new Date());
-                      navigate(`/doctor/schedule?date=${encodeURIComponent(targetDate)}`);
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
+            ) : scheduleError ? (
+              <div style={{ color: '#D32F2F', textAlign: 'center', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {scheduleError}
+              </div>
+            ) : weekSchedules.length === 0 ? (
+              <div style={{ color: '#7A8899', textAlign: 'center', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                이번 주 일정이 없습니다.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '140px 220px 140px 1fr',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '10px 16px',
+                    background: '#F8FAFC',
+                    color: '#64748B',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    borderBottom: 'none',
+                    margin: '12px 16px 6px',
+                    borderRadius: '10px'
+                  }}
+                >
+                  <span>날짜</span>
+                  <span>시간</span>
+                  <span>유형</span>
+                  <span>내용</span>
+                </div>
+                {weekSchedules.map((schedule, index) => {
+                  const timeLabel = `${formatTime(schedule.start_time) || '-'} - ${formatTime(schedule.end_time) || '-'}`;
+                  const scheduleDate = schedule.schedule_date
+                    || (schedule.start_time ? schedule.start_time.split('T')[0] : '')
+                    || (schedule.end_time ? schedule.end_time.split('T')[0] : '');
+                  return (
+                    <div
+                      key={schedule.schedule_id || `${schedule.schedule_date}-${schedule.start_time}-${schedule.end_time}`}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '140px 220px 140px 1fr',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '12px 16px',
+                        border: '1px solid #E2E8F0',
+                        borderRadius: '12px',
+                        background: '#FFFFFF',
+                        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.08)',
+                        margin: index === 0 ? '8px 16px 6px' : '6px 16px',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => {
                         const targetDate = scheduleDate || formatLocalDate(new Date());
                         navigate(`/doctor/schedule?date=${encodeURIComponent(targetDate)}`);
-                      }
-                    }}
-                  >
-                    <span style={{ fontSize: '16px', fontWeight: '600', color: '#1F2A44' }}>
-                      {scheduleDate || '-'}
-                    </span>
-                    <span style={{ fontSize: '16px', fontWeight: '600', color: '#1F2A44' }}>
-                      {timeLabel}
-                    </span>
-                    <span style={{ fontSize: '16px', color: '#374151' }}>
-                      {formatScheduleType(schedule.schedule_type)}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: '16px',
-                        color: '#374151',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          const targetDate = scheduleDate || formatLocalDate(new Date());
+                          navigate(`/doctor/schedule?date=${encodeURIComponent(targetDate)}`);
+                        }
                       }}
                     >
-                      {schedule.notes || '-'}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                      <span style={{ fontSize: '16px', fontWeight: '600', color: '#1F2A44' }}>
+                        {scheduleDate || '-'}
+                      </span>
+                      <span style={{ fontSize: '16px', fontWeight: '600', color: '#1F2A44' }}>
+                        {timeLabel}
+                      </span>
+                      <span style={{ fontSize: '16px', color: '#374151' }}>
+                        {formatScheduleType(schedule.schedule_type)}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '16px',
+                          color: '#374151',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {schedule.notes || '-'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -398,14 +405,11 @@ export default function DoctorHomePage() {
       <div style={{ gridColumn: '1 / 3', gridRow: '2', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', minHeight: 0 }}>
         {/* 빠른 실행 */}
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px' }}>
-            <h2 style={{ fontSize: '24px', fontWeight: '700', margin: 0 }}>
-              빠른 실행
-            </h2>
-            <span style={{ fontSize: '28px', cursor: 'pointer', fontWeight: '300', lineHeight: '1' }}>›</span>
-          </div>
-          <div style={{ background: '#FFF', borderRadius: '15px', padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', flex: 1 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+          <div style={{ background: '#FFF', borderRadius: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #EEF2F7' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', margin: 0 }}>빠른 실행</h2>
+            </div>
+            <div style={{ padding: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', flex: 1 }}>
               <button
                 onClick={() => navigate('/doctor/ct-result')}
                 style={{ background: '#E3F2FD', border: 'none', borderRadius: '12px', padding: '20px 15px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', justifyContent: 'center' }}
@@ -461,223 +465,251 @@ export default function DoctorHomePage() {
 
         {/* 최근 환자 내역 */}
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px', flexShrink: 0 }}>
-            <h2 style={{ fontSize: '24px', fontWeight: '700', margin: 0 }}>최근 환자 내역</h2>
-            <span style={{ fontSize: '28px', cursor: 'pointer', fontWeight: '300', lineHeight: '1' }}>›</span>
-          </div>
-          <div style={{ background: '#FFF', borderRadius: '15px', padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', flex: 1, overflow: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-            {recentCompletedPatient ? (
-              <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '22px', fontWeight: '700', marginBottom: '10px' }}>
-                    {recentCompletedPatient.name} ({recentCompletedPatient.gender}, {recentCompletedPatient.age}세)
+          <div style={{ background: '#FFF', borderRadius: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #EEF2F7' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', margin: 0 }}>최근 환자 내역</h2>
+            </div>
+            <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '20px', display: 'flex', flexDirection: 'column' }}>
+              {recentCompletedPatient ? (
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                    <div>
+                      <div style={{ fontSize: '24px', fontWeight: '700', color: '#1F2A44' }}>
+                        {recentCompletedPatient.name}
+                        <span style={{ fontSize: '16px', color: '#64748B', fontWeight: '600', marginLeft: '8px' }}>
+                          {recentCompletedPatient.gender}, {recentCompletedPatient.age}세
+                        </span>
+                      </div>
+                      <div style={{ marginTop: '6px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '14px', fontWeight: '600', color: '#52759C', background: '#EEF6FF', padding: '6px 12px', borderRadius: '999px' }}>
+                          환자 ID · {recentCompletedPatient.patientId}
+                        </span>
+                        <span style={{ fontSize: '14px', fontWeight: '600', color: '#52759C', background: '#EEF6FF', padding: '6px 12px', borderRadius: '999px' }}>
+                          생년월일 · {recentCompletedPatient.birthDate}
+                        </span>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '14px', fontWeight: '700', color: '#3B5C80', background: '#E6F0FF', padding: '7px 14px', borderRadius: '999px' }}>
+                      최근 진료 완료
+                    </span>
                   </div>
-                  <div style={{ fontSize: '18px', color: '#666', marginBottom: '6px' }}>
-                    • 주증상: {recentCompletedPatient.chiefComplaint}
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '12px',
+                      background: '#F8FAFC',
+                      border: '1px solid #E2E8F0',
+                      borderRadius: '12px',
+                      padding: '18px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <span style={{ fontSize: '14px', fontWeight: '700', color: '#7A8899' }}>주증상</span>
+                      <span style={{ fontSize: '19px', fontWeight: '600', color: '#1F2A44' }}>
+                        {recentCompletedPatient.chiefComplaint}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <span style={{ fontSize: '14px', fontWeight: '700', color: '#7A8899' }}>진단</span>
+                      <span style={{ fontSize: '19px', fontWeight: '600', color: '#1F2A44' }}>
+                        {recentCompletedPatient.diagnosis}
+                      </span>
+                    </div>
                   </div>
-                  <div style={{ fontSize: '18px', color: '#666', marginBottom: '8px' }}>
-                    • 진단: {recentCompletedPatient.diagnosis}
-                  </div>
-                  <div style={{ fontSize: '18px', color: '#666', marginBottom: '6px' }}>
-                    • 환자 ID: {recentCompletedPatient.patientId}
-                  </div>
-                  <div style={{ fontSize: '18px', color: '#666' }}>
-                    • 생년월일: {recentCompletedPatient.birthDate}
-                  </div>
+                  <button
+                    style={{ width: '100%', background: '#D7E8FB', border: 'none', borderRadius: '10px', padding: '14px', fontSize: '18px', fontWeight: '600', color: '#52759C', cursor: 'pointer', marginTop: '8px' }}
+                    onClick={() => {
+                      const searchValue = recentCompletedPatient.name;
+                      navigate(`/doctor/medical-record?search=${encodeURIComponent(searchValue)}`);
+                    }}
+                  >
+                    진료 기록 보기
+                  </button>
                 </div>
-                <button
-                  style={{ width: '100%', background: '#D7E8FB', border: 'none', borderRadius: '8px', padding: '12px', fontSize: '16px', fontWeight: '600', color: '#52759C', cursor: 'pointer', marginTop: '14px' }}
-                  onClick={() => {
-                    const searchValue = recentCompletedPatient.name;
-                    navigate(`/doctor/medical-record?search=${encodeURIComponent(searchValue)}`);
-                  }}
-                >
-                  진료 기록 보기
-                </button>
-              </div>
-            ) : (
-              <div style={{ fontSize: '16px', color: '#999', textAlign: 'center', padding: '40px 0' }}>
-                최근 진료 내역이 없습니다
-              </div>
-            )}
+              ) : (
+                <div style={{ fontSize: '16px', color: '#999', textAlign: 'center', padding: '40px 0' }}>
+                  최근 진료 내역이 없습니다
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       {/* 세 번째 행: 공지사항 */}
       <div style={{ gridColumn: '1 / 3', gridRow: '3', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
+        <div style={{ background: '#FFF', borderRadius: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid #EEF2F7', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px' }}>
             <h2 style={{ fontSize: '24px', fontWeight: '700', margin: 0 }}>공지사항</h2>
             <span style={{ fontSize: '14px', color: '#7A8899' }}>
               {announcements.length}건
             </span>
           </div>
-          <span style={{ fontSize: '28px', cursor: 'pointer', fontWeight: '300', lineHeight: '1' }}>›</span>
-        </div>
-        <div style={{ background: '#FFF', borderRadius: '15px', padding: '12px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', flex: 1, overflow: 'hidden', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-          {isAnnouncementsLoading ? (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7A8899' }}>
-              공지사항을 불러오는 중...
-            </div>
-          ) : announcementsError ? (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#D32F2F' }}>
-              {announcementsError}
-            </div>
-          ) : announcements.length === 0 ? (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7A8899' }}>
-              등록된 공지사항이 없습니다.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-              {paginatedAnnouncements.map((announcement, index) => {
-                const theme = announcementTypeTheme[announcement.announcement_type] || announcementTypeTheme.GENERAL;
-                const badgeLabel = announcement.announcement_type_display || theme.label;
-                const dateLabel = formatAnnouncementDate(announcement.published_at || announcement.created_at);
-                return (
-                  <div
-                    key={announcement.announcement_id}
-                    style={{
-                      padding: '14px 0',
-                      borderBottom: index === paginatedAnnouncements.length - 1 ? 'none' : '1px solid #E6ECF3',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '14px'
-                    }}
-                    onClick={() => setSelectedAnnouncement(announcement)}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span
-                        style={{
-                          padding: '4px 10px',
-                          borderRadius: '999px',
-                          fontSize: '14px',
-                          fontWeight: '600',
-                          background: theme.background,
-                          color: theme.color,
-                          border: `1px solid ${theme.border}`,
-                          whiteSpace: 'nowrap'
-                        }}
-                      >
-                        {badgeLabel}
-                      </span>
-                      {announcement.is_important && (
+          <div style={{ padding: '12px 16px', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {isAnnouncementsLoading ? (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7A8899' }}>
+                공지사항을 불러오는 중...
+              </div>
+            ) : announcementsError ? (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#D32F2F' }}>
+                {announcementsError}
+              </div>
+            ) : announcements.length === 0 ? (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7A8899' }}>
+                등록된 공지사항이 없습니다.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                {paginatedAnnouncements.map((announcement, index) => {
+                  const theme = announcementTypeTheme[announcement.announcement_type] || announcementTypeTheme.GENERAL;
+                  const badgeLabel = announcement.announcement_type_display || theme.label;
+                  const dateLabel = formatAnnouncementDate(announcement.published_at || announcement.created_at);
+                  return (
+                    <div
+                      key={announcement.announcement_id}
+                      style={{
+                        padding: '14px 0',
+                        borderBottom: index === paginatedAnnouncements.length - 1 ? 'none' : '1px solid #E6ECF3',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '14px'
+                      }}
+                      onClick={() => setSelectedAnnouncement(announcement)}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <span
                           style={{
                             padding: '4px 10px',
                             borderRadius: '999px',
                             fontSize: '14px',
                             fontWeight: '600',
-                            background: '#FFEBEE',
-                            color: '#D32F2F',
-                            border: '1px solid #F5B9B9',
+                            background: theme.background,
+                            color: theme.color,
+                            border: `1px solid ${theme.border}`,
                             whiteSpace: 'nowrap'
                           }}
                         >
-                          중요
+                          {badgeLabel}
                         </span>
-                      )}
-                    </div>
-                    <div
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '14px'
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: '17px',
-                          fontWeight: '700',
-                          color: '#1F2A44',
-                          overflow: 'hidden',
-                          whiteSpace: 'nowrap',
-                          textOverflow: 'ellipsis',
-                          maxWidth: '280px'
-                        }}
-                      >
-                        {announcement.title}
+                        {announcement.is_important && (
+                          <span
+                            style={{
+                              padding: '4px 10px',
+                              borderRadius: '999px',
+                              fontSize: '14px',
+                              fontWeight: '600',
+                              background: '#FFEBEE',
+                              color: '#D32F2F',
+                              border: '1px solid #F5B9B9',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            중요
+                          </span>
+                        )}
                       </div>
                       <div
                         style={{
-                          fontSize: '15px',
-                          color: '#5F6B7A',
-                          lineHeight: '1.4',
-                          overflow: 'hidden',
-                          whiteSpace: 'nowrap',
-                          textOverflow: 'ellipsis',
-                          flex: 1
+                          flex: 1,
+                          minWidth: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '14px'
                         }}
                       >
-                        {getAnnouncementPreview(announcement.content)}
+                        <div
+                          style={{
+                            fontSize: '17px',
+                            fontWeight: '700',
+                            color: '#1F2A44',
+                            overflow: 'hidden',
+                            whiteSpace: 'nowrap',
+                            textOverflow: 'ellipsis',
+                            maxWidth: '280px'
+                          }}
+                        >
+                          {announcement.title}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: '15px',
+                            color: '#5F6B7A',
+                            lineHeight: '1.4',
+                            overflow: 'hidden',
+                            whiteSpace: 'nowrap',
+                            textOverflow: 'ellipsis',
+                            flex: 1
+                          }}
+                        >
+                          {getAnnouncementPreview(announcement.content)}
+                        </div>
                       </div>
+                      <span style={{ fontSize: '14px', color: '#8A94A6', whiteSpace: 'nowrap' }}>{dateLabel}</span>
                     </div>
-                    <span style={{ fontSize: '14px', color: '#8A94A6', whiteSpace: 'nowrap' }}>{dateLabel}</span>
-                  </div>
-                );
-              })}
-              {announcements.length > announcementPageSize && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: 'auto', paddingTop: '10px' }}>
-                  <button
-                    style={{
-                      border: '1px solid #D7E8FB',
-                      background: '#FFFFFF',
-                      color: '#52759C',
-                      borderRadius: '10px',
-                      padding: '8px 12px',
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      cursor: safeAnnouncementPage === 1 ? 'not-allowed' : 'pointer',
-                      opacity: safeAnnouncementPage === 1 ? 0.4 : 1
-                    }}
-                    onClick={() => setAnnouncementPage((prev) => Math.max(1, prev - 1))}
-                    disabled={safeAnnouncementPage === 1}
-                  >
-                    이전
-                  </button>
-                  {Array.from({ length: totalAnnouncementPages }, (_, index) => index + 1).map((pageNumber) => (
+                  );
+                })}
+                {announcements.length > announcementPageSize && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: 'auto', paddingTop: '10px' }}>
                     <button
-                      key={pageNumber}
                       style={{
                         border: '1px solid #D7E8FB',
-                        background: safeAnnouncementPage === pageNumber ? '#52759C' : '#FFFFFF',
-                        color: safeAnnouncementPage === pageNumber ? '#FFFFFF' : '#52759C',
+                        background: '#FFFFFF',
+                        color: '#52759C',
                         borderRadius: '10px',
-                        padding: '8px 12px',
-                        fontSize: '13px',
+                        padding: '10px 16px',
+                        fontSize: '15px',
                         fontWeight: '600',
-                        cursor: 'pointer',
-                        minWidth: '36px'
+                        cursor: safeAnnouncementPage === 1 ? 'not-allowed' : 'pointer',
+                        opacity: safeAnnouncementPage === 1 ? 0.4 : 1
                       }}
-                      onClick={() => setAnnouncementPage(pageNumber)}
+                      onClick={() => setAnnouncementPage((prev) => Math.max(1, prev - 1))}
+                      disabled={safeAnnouncementPage === 1}
                     >
-                      {pageNumber}
+                      이전
                     </button>
-                  ))}
-                  <button
-                    style={{
-                      border: '1px solid #D7E8FB',
-                      background: '#FFFFFF',
-                      color: '#52759C',
-                      borderRadius: '10px',
-                      padding: '8px 12px',
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      cursor: safeAnnouncementPage === totalAnnouncementPages ? 'not-allowed' : 'pointer',
-                      opacity: safeAnnouncementPage === totalAnnouncementPages ? 0.4 : 1
-                    }}
-                    onClick={() => setAnnouncementPage((prev) => Math.min(totalAnnouncementPages, prev + 1))}
-                    disabled={safeAnnouncementPage === totalAnnouncementPages}
-                  >
-                    다음
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+                    {Array.from({ length: totalAnnouncementPages }, (_, index) => index + 1).map((pageNumber) => (
+                      <button
+                        key={pageNumber}
+                        style={{
+                          border: '1px solid #D7E8FB',
+                          background: safeAnnouncementPage === pageNumber ? '#52759C' : '#FFFFFF',
+                          color: safeAnnouncementPage === pageNumber ? '#FFFFFF' : '#52759C',
+                          borderRadius: '10px',
+                          padding: '10px 16px',
+                          fontSize: '15px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          minWidth: '42px'
+                        }}
+                        onClick={() => setAnnouncementPage(pageNumber)}
+                      >
+                        {pageNumber}
+                      </button>
+                    ))}
+                    <button
+                      style={{
+                        border: '1px solid #D7E8FB',
+                        background: '#FFFFFF',
+                        color: '#52759C',
+                        borderRadius: '10px',
+                        padding: '10px 16px',
+                        fontSize: '15px',
+                        fontWeight: '600',
+                        cursor: safeAnnouncementPage === totalAnnouncementPages ? 'not-allowed' : 'pointer',
+                        opacity: safeAnnouncementPage === totalAnnouncementPages ? 0.4 : 1
+                      }}
+                      onClick={() => setAnnouncementPage((prev) => Math.min(totalAnnouncementPages, prev + 1))}
+                      disabled={safeAnnouncementPage === totalAnnouncementPages}
+                    >
+                      다음
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

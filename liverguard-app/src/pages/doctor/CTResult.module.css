@@ -6,13 +6,15 @@
   min-height: 0;
   background-color: #f5f7fa;
   overflow: hidden;
+  padding: 10px 24px 24px 24px;
+  box-sizing: border-box;
 }
 
 .mainContent {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
-  padding: 8px 30px 10px;
+  padding: 0 0 10px;
   overflow: visible;
   position: relative;
   z-index: 100;
@@ -21,7 +23,7 @@
 }
 
 .viewerSection {
-  padding: 0 30px 20px;
+  padding: 0 0 20px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 3fr 1fr;

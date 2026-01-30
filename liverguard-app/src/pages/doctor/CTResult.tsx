@@ -711,8 +711,9 @@ export default function CTResultPage() {
                     );
                   }
 
-                  const topTumors = summary.components
-                    .map((component: any, index: number) => ({
+                  type TopTumor = { index: number; volumeMl: number | null; diameterMm: number | null };
+                  const topTumors: TopTumor[] = summary.components
+                    .map((component: any, index: number): TopTumor => ({
                       index: index + 1,
                       volumeMl:
                         typeof component?.volume_ml === 'number'
@@ -723,7 +724,7 @@ export default function CTResultPage() {
                       diameterMm:
                         typeof component?.max_diameter_mm === 'number' ? component.max_diameter_mm : null,
                     }))
-                    .filter((item) => item.volumeMl !== null || item.diameterMm !== null)
+                    .filter((item: TopTumor) => item.volumeMl !== null || item.diameterMm !== null)
                     .slice(0, 6);
 
                   return (
@@ -767,7 +768,7 @@ export default function CTResultPage() {
                       </div>
                       {topTumors.length > 0 && (
                         <div className={styles.reportAnalysisList}>
-                          {topTumors.map((tumor) => (
+                          {topTumors.map((tumor: TopTumor) => (
                             <div key={tumor.index} className={styles.reportAnalysisItem}>
                               <span>종양 {tumor.index}</span>
                               <span>

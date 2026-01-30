@@ -67,7 +67,7 @@
 }
 
 .summaryLabel {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     color: #6b7280;
 }
@@ -79,7 +79,7 @@
 }
 
 .summaryUnit {
-    font-size: 12px;
+    font-size: 13px;
     color: #6b7280;
 }
 
@@ -87,7 +87,7 @@
 .secondaryButton {
     border-radius: 10px;
     padding: 8px 14px;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -151,7 +151,7 @@
 }
 
 .menuLabel {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
     color: var(--menu-accent);
     letter-spacing: 0.02em;
@@ -189,7 +189,7 @@
     border: 1px solid #e2e8f0;
     border-radius: 10px;
     width: 100%;
-    font-size: 14px;
+    font-size: 15px;
     background: #ffffff;
     color: #1e293b;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -216,7 +216,7 @@
 .dateInput {
     border: 1px solid #e2e8f0;
     padding: 8px 10px;
-    font-size: 14px;
+    font-size: 15px;
     color: #475569;
     font-family: inherit;
     font-weight: 500;
@@ -252,7 +252,7 @@
 .table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 14px;
+    font-size: 15px;
 }
 
 .table th {
@@ -289,7 +289,7 @@
 .statusBadge {
     padding: 4px 8px;
     border-radius: 12px;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 500;
 }
 
@@ -409,7 +409,7 @@
 }
 
 .pageInfo {
-    font-size: 13px;
+    font-size: 14px;
     color: #666666;
     font-weight: 600;
     justify-self: start;
@@ -420,7 +420,7 @@
     align-items: center;
     gap: 6px;
     justify-self: end;
-    font-size: 13px;
+    font-size: 14px;
     color: #666666;
     font-weight: 600;
 }
@@ -429,7 +429,7 @@
     padding: 4px 8px;
     border: 1px solid #D7E8FB;
     border-radius: 6px;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: #333;
     background: #ffffff;
@@ -453,7 +453,7 @@
     border: 1px solid #D7E8FB;
     background: #FFFFFF;
     border-radius: 12px;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: #52759C;
     cursor: pointer;
@@ -506,7 +506,7 @@
 .sortSelect {
     border: 1px solid #e2e8f0;
     padding: 8px 10px;
-    font-size: 14px;
+    font-size: 15px;
     color: #475569;
     background: #ffffff;
     cursor: pointer;

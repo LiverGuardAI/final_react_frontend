@@ -327,101 +327,101 @@ const PatientManagementPage: React.FC = () => {
   };
 
   return (
-      <div className={styles.container}>
-      <div className={styles.header}>
-        <div className={styles.headerLeft}>
-          <h2 className={styles.title}>환자 관리</h2>
-          <span className={styles.headerDate}>
-            {new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}
-          </span>
+    <div className={styles.container}>
+      <div className={styles.controlsCard}>
+        <div className={styles.header}>
+          <div className={styles.headerLeft}>
+            <h2 className={styles.title}>환자 관리</h2>
+            <span className={styles.headerDate}>
+              {new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}
+            </span>
+          </div>
+          <div className={styles.headerRight}>
+            <span className={styles.liveIndicator} />
+            <span className={styles.headerMeta}>실시간 • {lastUpdated.toLocaleTimeString()}</span>
+          </div>
         </div>
-        <div className={styles.headerRight}>
-          <span className={styles.liveIndicator} />
-          <span className={styles.headerMeta}>실시간 • {lastUpdated.toLocaleTimeString()}</span>
-        </div>
-      </div>
-
-      <div className={styles.tableCard}>
-        <div className={styles.tableCardHeader}>
-          <div className={styles.controls}>
-            <div className={styles.leftControls}>
-              <button
-                className={`${styles.actionButton} ${styles.vitalBtn} ${selectionMode === "vital" ? styles.active : ""}`}
-                onClick={() => handleModeChange("vital")}
-              >
-                바이탈 측정
-              </button>
-              <button
-                className={`${styles.actionButton} ${styles.physicalBtn} ${selectionMode === "physical" ? styles.active : ""}`}
-                onClick={() => handleModeChange("physical")}
-              >
-                신체 계측
-              </button>
-            </div>
-            <div className={styles.rightControls}>
-              <div className={styles.searchBox}>
-                <input
-                  type="text"
-                  className={styles.searchInput}
-                  placeholder="환자명, 환자번호, 연락처로 검색"
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      fetchPatientList(searchTerm);
-                    }
+        <div className={styles.controls}>
+          <div className={styles.leftControls}>
+            <button
+              className={`${styles.actionButton} ${styles.vitalBtn} ${selectionMode === "vital" ? styles.active : ""}`}
+              onClick={() => handleModeChange("vital")}
+            >
+              바이탈 측정
+            </button>
+            <button
+              className={`${styles.actionButton} ${styles.physicalBtn} ${selectionMode === "physical" ? styles.active : ""}`}
+              onClick={() => handleModeChange("physical")}
+            >
+              신체 계측
+            </button>
+          </div>
+          <div className={styles.rightControls}>
+            <div className={styles.searchBox}>
+              <input
+                type="text"
+                className={styles.searchInput}
+                placeholder="환자명, 환자번호, 연락처로 검색"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    fetchPatientList(searchTerm);
+                  }
+                }}
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => {
+                    setSearchTerm("");
+                    fetchPatientList("");
                   }}
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => {
-                      setSearchTerm("");
-                      fetchPatientList("");
-                    }}
-                    style={{
-                      position: 'absolute',
-                      right: '10px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      background: 'none',
-                      border: 'none',
-                      fontSize: '16px',
-                      cursor: 'pointer',
-                      color: '#999'
-                    }}
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-              <div className={styles.stats}>
-                <div className={styles.statBox}>
-                  <span className={styles.statLabel}>전체 환자</span>
-                  <span className={styles.statValue}>{patients.length}</span>
-                </div>
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '16px',
+                    cursor: 'pointer',
+                    color: '#999'
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <div className={styles.stats}>
+              <div className={styles.statBox}>
+                <span className={styles.statLabel}>전체 환자</span>
+                <span className={styles.statValue}>{patients.length}</span>
               </div>
             </div>
           </div>
-
-          {selectionMode !== 'none' && (
-            <div className={styles.selectionBanner}>
-              <span>
-                {selectionMode === 'vital' ? '바이탈 측정' : '신체 계측'}할 환자를 선택하세요.
-                {selectedForAction && <span className={styles.selectedName}> (선택됨: {selectedForAction.name})</span>}
-              </span>
-              <div className={styles.bannerActions}>
-                <button
-                  className={styles.confirmSelectionBtn}
-                  disabled={!selectedForAction}
-                  onClick={handleSelectionConfirm}
-                >
-                  확인
-                </button>
-                <button className={styles.cancelSelectionBtn} onClick={handleCancelSelection}>취소</button>
-              </div>
-            </div>
-          )}
         </div>
+
+        {selectionMode !== 'none' && (
+          <div className={styles.selectionBanner}>
+            <span>
+              {selectionMode === 'vital' ? '바이탈 측정' : '신체 계측'}할 환자를 선택하세요.
+              {selectedForAction && <span className={styles.selectedName}> (선택됨: {selectedForAction.name})</span>}
+            </span>
+            <div className={styles.bannerActions}>
+              <button
+                className={styles.confirmSelectionBtn}
+                disabled={!selectedForAction}
+                onClick={handleSelectionConfirm}
+              >
+                확인
+              </button>
+              <button className={styles.cancelSelectionBtn} onClick={handleCancelSelection}>취소</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className={styles.tableCard}>
         <div className={styles.tableContainer}>
           {isLoading ? (
             <div style={{ textAlign: 'center', padding: '40px' }}>환자 목록을 불러오는 중...</div>

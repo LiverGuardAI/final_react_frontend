@@ -215,7 +215,7 @@ export default function DDIPage() {
 
   return (
     <div style={{ height: '100%', overflow: 'hidden' }}>
-    <div style={{ display: 'grid', gridTemplateColumns: '420px 1fr', gap: '24px', padding: '24px', height: '100%', maxHeight: '100vh', boxSizing: 'border-box', zoom: '0.85', fontFamily: 'Pretendard, sans-serif', overflow: 'hidden' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '420px 1fr', gap: '24px', padding: '10px 24px 24px 24px', height: '100%', maxHeight: '100vh', boxSizing: 'border-box', zoom: '0.85', fontFamily: 'Pretendard, sans-serif', overflow: 'hidden' }}>
 
       {/* [SIDEBAR] - borderTop에서 borderLeft로 변경 및 두께 강화 */}
       <div style={{ background: '#FFF', borderRadius: '24px', padding: '35px', boxShadow: '0 10px 40px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', borderLeft: '14px solid #6B58B1', height: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
@@ -279,23 +279,37 @@ export default function DDIPage() {
         </div>
 
         <button onClick={handleAnalysis} disabled={loading || prescription.length < 2} className="analyze-btn">
-          {loading ? '임상 데이터 통합 분석 중...' : `DDI 엔진 실행 (N:${prescription.length}) ›`}
+          {loading ? '임상 데이터 통합 분석 중...' : '약물 상호작용 분석 ›'}
         </button>
       </div>
 
       {/* [MAIN CONTENT] */}
-      <div ref={scrollContainerRef} style={{ overflowY: 'auto', overflowX: 'hidden', paddingRight: '10px', height: '100%' }}>
+        <div ref={scrollContainerRef} style={{ overflowY: 'auto', overflowX: 'hidden', paddingRight: '10px', height: '100%' }}>
         {!analysisSummary ? (
           <div className="empty-state">
-            <div style={{ fontSize: '80px', marginBottom: '25px' }}>🔬</div>
+            <div className="empty-state-icon">🔬</div>
             <h3 style={{ fontSize: '26px', fontWeight: '950', color: '#4F566B' }}>Expert CDSS Ready</h3>
             <p style={{ fontWeight: '600', fontSize: '17px' }}>처방전을 구성한 뒤 상호작용 분석을 시작하십시오.</p>
+            <div className="empty-state-steps">
+              <div className="empty-step">
+                <span>01</span>
+                약물 검색으로 처방전을 구성하세요
+              </div>
+              <div className="empty-step">
+                <span>02</span>
+                약물 상호작용 분석 버튼을 눌러 분석 시작
+              </div>
+              <div className="empty-step">
+                <span>03</span>
+                결과 카드에서 위험도와 대체약 확인
+              </div>
+            </div>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <div className="report-sticky-header">
               <div>
-                <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '950', color: '#1E3A8A' }}>Clinical Interaction Report</h2>
+                <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '950', color: '#1E3A8A' }}>Drug Drug Interaction Report</h2>
                 <p style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#6B58B1', marginTop: '3px' }}>총 감지 항목: {processedInteractions.length}건</p>
               </div>
               <div style={{ display: 'flex', gap: '10px' }}>
@@ -309,7 +323,7 @@ export default function DDIPage() {
               const isExpanded = expandedIdx === idx;
               const { color, bg, label } = getLevelInfo(item.analysis.final_status);
               const detail = item.analysis.ai_personalized.clinical_details;
-              const sourceLabel = item.analysis.source === 'DUR_KOREA' ? '🇰🇷 식약처 DUR' : item.analysis.source === 'DRUGBANK' ? '🌍 DrugBank' : '🤖 AI ENGINE';
+              const sourceLabel = item.analysis.source === 'DUR_KOREA' ? '🇰🇷 식약처 DUR' : item.analysis.source === 'DRUGBANK' ? 'DrugBank' : '🤖 AI ENGINE';
 
               return (
                 <div key={idx} ref={el => comboRefs.current[idx] = el} style={{ background: '#FFF', borderRadius: '30px', borderLeft: `14px solid ${color}`, boxShadow: '0 10px 35px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
@@ -336,9 +350,9 @@ export default function DDIPage() {
                   {isExpanded && (
                     <div style={{ padding: '0 45px 45px 45px' }} className="expand-animation">
                       <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', padding: '12px 0', borderBottom: '1.5px solid #F1F5F9' }}>
-                        <span className="meta-tag">📊 EVIDENCE: <b>{detail?.evidence_level || 'Grade B'}</b></span>
-                        <span className="meta-tag">⏱️ ONSET: <b>{detail?.onset || 'Variable'}</b></span>
-                        <span className="meta-tag">🆔 FEATURE ID: <b style={{ color: '#6B58B1' }}>{item.analysis.ai_personalized.feature_id || 'Global'}</b></span>
+                        <span className="meta-tag">EVIDENCE: <b>{detail?.evidence_level || 'Grade B'}</b></span>
+                        <span className="meta-tag">ONSET: <b>{detail?.onset || 'Variable'}</b></span>
+                        <span className="meta-tag">FEATURE ID: <b style={{ color: '#6B58B1' }}>{item.analysis.ai_personalized.feature_id || 'Global'}</b></span>
                       </div>
 
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px', marginBottom: '35px' }}>
@@ -366,23 +380,23 @@ export default function DDIPage() {
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                         <div className="rationale-container">
-                          <h4 className="rationale-header">🤖 CDSS Clinical Rationale <span>VERIFIED</span></h4>
+                          <h4 className="rationale-header">Clinical Rationale <span>VERIFIED</span></h4>
                           {detail ? (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
                               <div className="rationale-section red">
-                                <div className="section-title">① CLINICAL IMPACT (임상적 결과)</div>
-                                <div className="section-content">{detail.clinical_summary} <br /><span>{detail.impact}</span></div>
+                                <div className="section-title">① 임상적 결과</div>
+                              <div className="section-content">{detail.clinical_summary} <br /><span>{detail.impact}</span></div>
                               </div>
                               <div className="rationale-section purple">
-                                <div className="section-title">② MOLECULAR LOGIC (발생 기전)</div>
+                                <div className="section-title">② 발생 기전</div>
                                 <div className="section-content">{detail.molecular_logic}</div>
                               </div>
                               <div className="rationale-section green">
-                                <div className="section-title">③ RECOMMENDATION & MONITORING (조치 및 모니터링)</div>
+                                <div className="section-title">③ 조치 및 모니터링</div>
                                 <div className="section-content">{detail.recommendation?.action} <br /><span>• 필수 모니터링 지표: {detail.recommendation?.monitoring_param}</span></div>
                               </div>
                               <div className="rationale-section blue">
-                                <div className="section-title">④ ALTERNATIVE RATIONALE (대체제 근거)</div>
+                                <div className="section-title">④ 대체제 근거</div>
                                 <div className="section-content">{detail.recommendation?.alternative_logic || '동일 계열의 타 안전 약물로의 교체를 검토하십시오.'}</div>
                               </div>
                             </div>
@@ -460,7 +474,11 @@ export default function DDIPage() {
         .analyze-btn:disabled { background: #A5ADBB; cursor: not-allowed; }
         .analyze-btn:active { transform: scale(0.98); }
 
-        .empty-state { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #FFF; border-radius: 24px; border: 2px dashed #E3E8EE; color: #A5ADBB; }
+        .empty-state { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 40px; text-align: center; background: #FFF; border-radius: 24px; border: 2px dashed #E3E8EE; color: #A5ADBB; }
+        .empty-state-icon { font-size: 88px; }
+        .empty-state-steps { display: grid; gap: 10px; width: min(420px, 100%); margin-top: 8px; }
+        .empty-step { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-radius: 14px; background: #F8FAFC; border: 1.5px solid #E2E8F0; color: #64748B; font-size: 14px; font-weight: 700; }
+        .empty-step span { color: #6B58B1; font-weight: 900; }
         .report-sticky-header { position: sticky; top: 0; z-index: 100; background: #F0F4FF; padding: 20px 35px; border-radius: 22px; display: flex; justify-content: space-between; align-items: center; border: 1.5px solid #D1E0FF; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
 
         .pair-nav-btn { padding: 10px 20px; background: #FFF; color: #6B58B1; border: 2px solid #D1E0FF; border-radius: 12px; font-weight: 900; cursor: pointer; transition: all 0.2s; }
