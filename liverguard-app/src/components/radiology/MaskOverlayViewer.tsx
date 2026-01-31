@@ -154,6 +154,9 @@ const MaskOverlayViewer = ({
   const isEditingRef = useRef(false);
   const editedMasksRef = useRef<Map<number, { data: Uint16Array; width: number; height: number }>>(new Map());
   const editHistoryRef = useRef<Map<number, Uint16Array[]>>(new Map());
+  const strokeSnapshotRef = useRef<{ sliceIndex: number; data: Uint16Array } | null>(null);
+  const strokeDirtyRef = useRef(false);
+  const lastUndoTokenRef = useRef<number>(0);
 
   // Keep showOverlayRef in sync with showOverlay state
   useEffect(() => {
@@ -186,8 +189,9 @@ const MaskOverlayViewer = ({
     editBrushSizeRef.current = editBrushSize;
   }, [editBrushSize]);
 
-  const updateEditAvailability = useCallback(() => {
-    const history = editHistoryRef.current.get(currentIndex);
+  const updateEditAvailability = useCallback((sliceIndex?: number) => {
+    const targetIndex = typeof sliceIndex === 'number' ? sliceIndex : currentIndex;
+    const history = editHistoryRef.current.get(targetIndex);
     const canUndo = Boolean(history && history.length > 0);
     onUndoAvailabilityChange?.(canUndo);
   }, [currentIndex, onUndoAvailabilityChange]);
@@ -197,7 +201,7 @@ const MaskOverlayViewer = ({
     editHistoryRef.current.clear();
     onEditedSlicesChange?.(0);
     renderMaskOverlayRef.current?.();
-    updateEditAvailability();
+    updateEditAvailability(currentIndex);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editResetToken]);
 
@@ -641,7 +645,7 @@ const MaskOverlayViewer = ({
       editHistoryRef.current.set(currentIndex, []);
     }
     onEditedSlicesChange?.(editedMasksRef.current.size);
-    updateEditAvailability();
+    updateEditAvailability(currentIndex);
     return slice;
   }, [currentIndex, onEditedSlicesChange, updateEditAvailability]);
 
@@ -650,7 +654,7 @@ const MaskOverlayViewer = ({
       const history = editHistoryRef.current.get(sliceIndex) ?? [];
       history.push(new Uint16Array(data));
       editHistoryRef.current.set(sliceIndex, history);
-      updateEditAvailability();
+      updateEditAvailability(sliceIndex);
     },
     [updateEditAvailability]
   );
@@ -690,6 +694,8 @@ const MaskOverlayViewer = ({
 
   useEffect(() => {
     if (editUndoToken === 0) return;
+    if (editUndoToken === lastUndoTokenRef.current) return;
+    lastUndoTokenRef.current = editUndoToken;
     const history = editHistoryRef.current.get(currentIndex);
     if (!history || history.length === 0) return;
     const slice = getEditableMaskSlice();
@@ -699,11 +705,11 @@ const MaskOverlayViewer = ({
     editedMasksRef.current.set(currentIndex, { data: previous, width: slice.width, height: slice.height });
     renderMaskOverlayRef.current?.();
     onMaskSliceEdited?.(currentIndex, previous, slice.width, slice.height);
-    updateEditAvailability();
+    updateEditAvailability(currentIndex);
   }, [editUndoToken, currentIndex, getEditableMaskSlice, onMaskSliceEdited, updateEditAvailability]);
 
   useEffect(() => {
-    updateEditAvailability();
+    updateEditAvailability(currentIndex);
   }, [currentIndex, updateEditAvailability]);
 
   const handleMeasurementMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -757,10 +763,15 @@ const MaskOverlayViewer = ({
     const coords = pageToPixel(viewerRef.current, event.pageX, event.pageY);
     if (!coords) return;
     isEditingRef.current = true;
+    strokeDirtyRef.current = false;
     const slice = getEditableMaskSlice();
     if (slice) {
-      pushEditHistory(currentIndex, slice.data);
+      strokeSnapshotRef.current = {
+        sliceIndex: currentIndex,
+        data: new Uint16Array(slice.data),
+      };
     }
+    strokeDirtyRef.current = true;
     applyBrushAt(coords);
   };
 
@@ -768,6 +779,7 @@ const MaskOverlayViewer = ({
     if (!isEditingRef.current || !viewerRef.current) return;
     const coords = pageToPixel(viewerRef.current, event.pageX, event.pageY);
     if (!coords) return;
+    strokeDirtyRef.current = true;
     applyBrushAt(coords);
   };
 
@@ -778,8 +790,14 @@ const MaskOverlayViewer = ({
     if (slice) {
       onMaskSliceEdited?.(currentIndex, slice.data, slice.width, slice.height);
     }
-    updateEditAvailability();
-  }, [currentIndex, onMaskSliceEdited, updateEditAvailability]);
+    const snapshot = strokeSnapshotRef.current;
+    if (strokeDirtyRef.current && snapshot && snapshot.sliceIndex === currentIndex) {
+      pushEditHistory(currentIndex, snapshot.data);
+    }
+    strokeSnapshotRef.current = null;
+    strokeDirtyRef.current = false;
+    updateEditAvailability(currentIndex);
+  }, [currentIndex, onMaskSliceEdited, updateEditAvailability, pushEditHistory]);
 
   const loadImage = async (index: number) => {
     if (!viewerRef.current || !baseImageIdsRef.current[index]) return;
