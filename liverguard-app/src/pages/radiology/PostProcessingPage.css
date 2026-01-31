@@ -982,6 +982,35 @@
   gap: 12px;
 }
 
+.analysis-components-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.analysis-chip {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.6);
+  color: #e2e8f0;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, color 0.2s;
+}
+
+.analysis-chip:hover {
+  border-color: rgba(96, 165, 250, 0.7);
+  color: #ffffff;
+}
+
+.analysis-chip.active {
+  border-color: rgba(59, 130, 246, 0.9);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.4);
+  color: #ffffff;
+}
+
 .analysis-component {
   border-radius: 12px;
   border: 1px solid rgba(226, 232, 240, 0.2);

@@ -267,6 +267,8 @@ const PostProcessingPage: React.FC = () => {
     []
   );
 
+  const tumorDetailRefs = useRef<Array<HTMLDivElement | null>>([]);
+
   const handleSelectTumorComponent = (component: any, index: number) => {
     setSelectedTumorIndex(index);
     const centroid = component?.centroid_mm;
@@ -297,6 +299,17 @@ const PostProcessingPage: React.FC = () => {
       setFocusPointToken((prev) => prev + 1);
     }
   };
+
+  const handleScrollToTumor = useCallback(
+    (component: any, index: number) => {
+      handleSelectTumorComponent(component, index);
+      const target = tumorDetailRefs.current[index];
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    },
+    [handleSelectTumorComponent]
+  );
 
   const handleSaveMaskEdits = async () => {
     if (!maskSeriesId) {
@@ -1211,21 +1224,37 @@ const PostProcessingPage: React.FC = () => {
         {analysisComponents.length === 0 ? (
           <div className="analysis-empty">종양 정보가 없습니다.</div>
         ) : (
-          <div className="analysis-components">
-            {analysisComponents.map((component: any, index: number) => (
-              <div
-                key={`${component.label}-${index}`}
-                className={`analysis-component clickable${selectedTumorIndex === index ? ' active' : ''}`}
-                role="button"
-                tabIndex={0}
-                onClick={() => handleSelectTumorComponent(component, index)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    handleSelectTumorComponent(component, index);
-                  }
-                }}
-              >
+          <>
+            <div className="analysis-components-nav">
+              {analysisComponents.map((component: any, index: number) => (
+                <button
+                  key={`tumor-nav-${index}`}
+                  type="button"
+                  className={`analysis-chip${selectedTumorIndex === index ? ' active' : ''}`}
+                  onClick={() => handleScrollToTumor(component, index)}
+                >
+                  종양 {index + 1}
+                </button>
+              ))}
+            </div>
+            <div className="analysis-components">
+              {analysisComponents.map((component: any, index: number) => (
+                <div
+                  key={`${component.label}-${index}`}
+                  ref={(el) => {
+                    tumorDetailRefs.current[index] = el;
+                  }}
+                  className={`analysis-component clickable${selectedTumorIndex === index ? ' active' : ''}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleSelectTumorComponent(component, index)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      handleSelectTumorComponent(component, index);
+                    }
+                  }}
+                >
                 <div className="analysis-component-title">
                   종양 {index + 1}
                 </div>
@@ -1267,9 +1296,10 @@ const PostProcessingPage: React.FC = () => {
                     <span className="analysis-value">{formatNumber(component.shape_metrics?.elongation, 4)}</span>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
