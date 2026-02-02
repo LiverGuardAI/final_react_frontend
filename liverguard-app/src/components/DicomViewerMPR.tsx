@@ -51,6 +51,7 @@ export default function DicomViewerMPRPanel({ seriesId, segmentationSeriesId, or
   const dimsRef = useRef<{ cols: number; rows: number; slices: number }>({ cols: 0, rows: 0, slices: 0 });
   const windowRef = useRef<{ wc: number; ww: number }>({ wc: 40, ww: 400 });
   const spacingRef = useRef<{ pixelX: number; pixelY: number; sliceZ: number }>({ pixelX: 1, pixelY: 1, sliceZ: 1 });
+  const sliceDirRef = useRef<[number, number, number] | null>(null);
 
   const [sliceIndex, setSliceIndex] = useState(0);
   const [maxSlice, setMaxSlice] = useState(0);
@@ -80,6 +81,8 @@ export default function DicomViewerMPRPanel({ seriesId, segmentationSeriesId, or
     // coronal:  Z(slices) x X(cols), 선택값=Y(rows)
     const viewW = orientation === 'sagittal' ? rows : cols;
     const viewH = slices;
+    const sliceDir = sliceDirRef.current;
+    const flipVertical = sliceDir ? sliceDir[2] > 0 : false;
 
     canvas.width = viewW;
     canvas.height = viewH;
@@ -103,7 +106,8 @@ export default function DicomViewerMPRPanel({ seriesId, segmentationSeriesId, or
         let gray = ((raw - lower) / ww) * 255;
         gray = gray < 0 ? 0 : gray > 255 ? 255 : gray;
 
-        const pixIdx = (z * viewW + i) * 4;
+        const pixZ = flipVertical ? (slices - 1 - z) : z;
+        const pixIdx = (pixZ * viewW + i) * 4;
         data[pixIdx] = gray;
         data[pixIdx + 1] = gray;
         data[pixIdx + 2] = gray;
@@ -186,7 +190,7 @@ export default function DicomViewerMPRPanel({ seriesId, segmentationSeriesId, or
           return null;
         };
 
-        const getSliceDir = (instances: any[]) => {
+        const getSliceDir = (instances: any[]): [number, number, number] | null => {
           for (const inst of instances) {
             const orientation = parseDicomArray(inst.MainDicomTags?.ImageOrientationPatient);
             if (orientation && orientation.length >= 6) {
@@ -199,7 +203,7 @@ export default function DicomViewerMPRPanel({ seriesId, segmentationSeriesId, or
               ];
               const norm = Math.hypot(slice[0], slice[1], slice[2]);
               if (norm > 0) {
-                return [slice[0] / norm, slice[1] / norm, slice[2] / norm];
+                return [slice[0] / norm, slice[1] / norm, slice[2] / norm] as [number, number, number];
               }
             }
           }
@@ -207,6 +211,9 @@ export default function DicomViewerMPRPanel({ seriesId, segmentationSeriesId, or
         };
 
         const sliceDir = getSliceDir(instances);
+        if (sliceDir) {
+          sliceDirRef.current = sliceDir;
+        }
         const getSlicePosition = (inst: any) => {
           const position = parseDicomArray(inst.MainDicomTags?.ImagePositionPatient);
           if (position && position.length >= 3 && sliceDir) {
@@ -315,7 +322,7 @@ export default function DicomViewerMPRPanel({ seriesId, segmentationSeriesId, or
           return null;
         };
 
-        const getSliceDir = (instances: any[]) => {
+        const getSliceDir = (instances: any[]): [number, number, number] | null => {
           for (const inst of instances) {
             const orientation = parseDicomArray(inst.MainDicomTags?.ImageOrientationPatient);
             if (orientation && orientation.length >= 6) {
@@ -328,7 +335,7 @@ export default function DicomViewerMPRPanel({ seriesId, segmentationSeriesId, or
               ];
               const norm = Math.hypot(slice[0], slice[1], slice[2]);
               if (norm > 0) {
-                return [slice[0] / norm, slice[1] / norm, slice[2] / norm];
+                return [slice[0] / norm, slice[1] / norm, slice[2] / norm] as [number, number, number];
               }
             }
           }
@@ -336,6 +343,9 @@ export default function DicomViewerMPRPanel({ seriesId, segmentationSeriesId, or
         };
 
         const sliceDir = getSliceDir(instances);
+        if (sliceDir && !sliceDirRef.current) {
+          sliceDirRef.current = sliceDir;
+        }
         const getSlicePosition = (inst: any) => {
           const position = parseDicomArray(inst.MainDicomTags?.ImagePositionPatient);
           if (position && position.length >= 3 && sliceDir) {

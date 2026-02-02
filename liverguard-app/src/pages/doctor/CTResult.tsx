@@ -229,6 +229,20 @@ export default function CTResultPage() {
     }
   }, [patientId]);
 
+  const fetchSeriesForStudy = useCallback(async (studyId: string) => {
+    try {
+      setSeriesLoading(true);
+      const seriesData = await getStudySeries(studyId);
+      setSeriesList(seriesData);
+      setSelectedStudy(studyId);
+    } catch (err) {
+      console.error('Failed to fetch series:', err);
+      setError('Series 목록을 불러오는데 실패했습니다.');
+    } finally {
+      setSeriesLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!cacheKey) {
       setStudies([]);
@@ -269,6 +283,10 @@ export default function CTResultPage() {
         setReportLoading(false);
         setError(null);
         setReportError(null);
+        fetchStudies();
+        if (parsed.selectedStudy) {
+          fetchSeriesForStudy(parsed.selectedStudy);
+        }
         return;
       } catch (err) {
         console.warn('Failed to parse CTResult cache:', err);
@@ -276,7 +294,7 @@ export default function CTResultPage() {
       }
     }
     fetchStudies();
-  }, [cacheKey, fetchStudies]);
+  }, [cacheKey, fetchStudies, fetchSeriesForStudy]);
 
   useEffect(() => {
     if (!cacheKey) {
@@ -318,19 +336,31 @@ export default function CTResultPage() {
     reportSectionExpanded,
   ]);
 
-  const fetchSeriesForStudy = async (studyId: string) => {
-    try {
-      setSeriesLoading(true);
-      const seriesData = await getStudySeries(studyId);
-      setSeriesList(seriesData);
-      setSelectedStudy(studyId);
-    } catch (err) {
-      console.error('Failed to fetch series:', err);
-      setError('Series 목록을 불러오는데 실패했습니다.');
-    } finally {
-      setSeriesLoading(false);
+  useEffect(() => {
+    if (seriesList.length === 0) {
+      return;
     }
-  };
+    if (
+      selectedCtSeries &&
+      !seriesList.some(
+        (series) =>
+          series.ID === selectedCtSeries.ID ||
+          series.SeriesInstanceUID === selectedCtSeries.SeriesInstanceUID
+      )
+    ) {
+      setSelectedCtSeries(null);
+    }
+    if (
+      selectedSegSeries &&
+      !seriesList.some(
+        (series) =>
+          series.ID === selectedSegSeries.ID ||
+          series.SeriesInstanceUID === selectedSegSeries.SeriesInstanceUID
+      )
+    ) {
+      setSelectedSegSeries(null);
+    }
+  }, [seriesList, selectedCtSeries, selectedSegSeries]);
 
   useEffect(() => {
     if (!selectedCtSeries?.SeriesInstanceUID) {

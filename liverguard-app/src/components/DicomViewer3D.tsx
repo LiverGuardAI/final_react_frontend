@@ -19,7 +19,7 @@ import vtkCubeSource from '@kitware/vtk.js/Filters/Sources/CubeSource';
 import vtkLineSource from '@kitware/vtk.js/Filters/Sources/LineSource';
 
 // 성능 최적화 설정
-const OPTIMIZATION_LEVEL = 1; // 1: 약간, 2: 중간, 3: 높음
+const OPTIMIZATION_LEVEL: 1 | 2 | 3 = 1; // 1: 약간, 2: 중간, 3: 높음
 let wadoInitialized = false;
 
 const initializeWADOImageLoader = () => {
